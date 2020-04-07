@@ -13,11 +13,11 @@ from numpy.random import seed
 from sklearn.preprocessing import MinMaxScaler
 from skimage import data, color
 
-def main():
+def main(args):
     savedirs = [r'D:\Users\Public\Documents\stfc\ml-neutron\neutron_net\data\perfect_dynamic_scaler\1',
                  r'D:\Users\Public\Documents\stfc\ml-neutron\neutron_net\data\perfect_dynamic_scaler\2']
 
-    dat_files_dir = r'C:\Users\mtk57988\stfc\ml-neutron\neutron_net\data\neutron_data\simulated_data'
+    dat_files_dir = args.data
 
     one_layer_files = glob.glob(os.path.join(dat_files_dir, 'O') + '*')
     two_layer_files = glob.glob(os.path.join(dat_files_dir, 'Tw') + '*')
@@ -203,5 +203,13 @@ def image_process(sample):
     image = get_image(x,y)
     return(np.resize(image, (300,300,1)))
 
+def parse():
+    parser = argparse.ArgumentParser(description='Data Generation')
+    parser.add_argument('data', metavar='DIR',
+                        help='path to dataset')  
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
-    main()
+    args = parse()
+    main(args)
