@@ -4,7 +4,7 @@ from tensorflow.keras.utils import Sequence
 
 class DataSequence(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, h5_file, dim, channels, batch_size, mode, layers=None):
+    def __init__(self, h5_file, dim, channels, batch_size, mode=None, layers=None):
         'Initialisation'
         self.file       = h5_file
         self.dim        = dim                     # Image dimensions
@@ -42,7 +42,7 @@ class DataSequence(Sequence):
                 targets_sld[i,] = target[1::2]
         
 
-            return images, {'detph': targets_depth, 'sld': targets_sld}
+            return images, {'depth': targets_depth, 'sld': targets_sld}
 
         if self.mode == 'classification':
             classes = np.empty((self.batch_size, 1), dtype=int)
@@ -53,11 +53,26 @@ class DataSequence(Sequence):
                 images[i,] = image
                 classes[i,] = self.file['classes'][idx]
 
-            return images, classes     
+            return images, classes
+
+        # for i, idx in enumerate(indexes):
+        #     image = self.file['images'][idx]
+        #     values = self.file['scaledY'][idx]
+        #     length = len(values)
+        #     difference = length - self.layers * 2
+
+        #     if difference:
+        #         # print(difference)
+        #         values = values[:-difference]
+
+        #     # fill preallocated arrays
+        #     x[i,] = image
+        #     y_depth[i,] = values[::2]
+        #     y_sld[i,] = values[1::2]     
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.labels.keys()))
+        self.indexes = np.arange(len(self.file['images']))
 
     def close_file(self):
         self.file.close()
