@@ -190,10 +190,10 @@ def main(args):
     valh5 = h5py.File(valdir, 'r')
 
     train_loader = DataSequence(
-        trainh5, DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers)
+        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5)
 
     valid_loader = DataSequence(
-        valh5, DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers)
+        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=valh5)
 
     model = RefModelRegressor(
         DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.layers)
