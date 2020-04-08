@@ -156,7 +156,7 @@ def get_image(x,y):
 def parse():
     parser = argparse.ArgumentParser(description='PyTorch RefNet Training')
     parser.add_argument('data', metavar='DATA',
-                        help='path to data directory')
+                        help='path to directory of .dat files')
     # parser.add_argument('save', metavar='SAVE',
     #                     help='path to save directory')
     parser.add_argument('classifier_model', metavar='CLASSIFIER MODEL',
