@@ -60,8 +60,8 @@ class DataSequence(Sequence):
                 return images, {'depth': np.array(targets_depth), 'sld': np.array(targets_sld)}
 
         if self.mode == 'classification':
+            classes = np.empty((self.batch_size, 1), dtype=int)
             if self.file:
-                classes = np.empty((self.batch_size, 1), dtype=int)
                 for i, idx in enumerate(indexes):
                     image = self.file['images'][idx]
                     images[i,] = image
