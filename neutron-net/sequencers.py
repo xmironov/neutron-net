@@ -7,15 +7,15 @@ class DataSequence(Sequence):
     def __init__(self, dim, channels, batch_size, mode=None, layers=None, h5_file=None, labels=None):
         'Initialisation'
         # Potential Inputs
-        self.file       = h5_file
-        self.labels     = labels
+        self.file       = h5_file                 # if training/testing on h5_file
+        self.labels     = labels                  # if predicting on a list of numpy filenames
 
         # Parameters
         self.dim        = dim                     # Image dimensions
         self.channels   = channels                # Image channels                   
         self.batch_size = batch_size              # Batch size
-        self.mode       = mode
-        self.layers     = layers
+        self.mode       = mode                    # 'regression' or 'classification
+        self.layers     = layers                  # No. of layers you want to train, otherwise leave blank
         self.on_epoch_end()
 
     def __len__(self):
