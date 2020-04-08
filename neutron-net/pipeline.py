@@ -25,18 +25,25 @@ from sequencers import DataSequence
 DIMS          = (300, 300)
 CHANNELS      = 1
 
+def create_save_directories(data):
+    savepaths = {}
+    name = 'refnet_pipe-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')
+    directories = ['img', 'fits', 'predictions', 'results']
+    for directory in directories:
+        if directory == 'results':
+            directory_path = os.path.join(data, directory)
+        else:
+            directory_path = os.path.join(data, directory, name)
+
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+        savepaths[directory] = directory_path
+    return savepaths
+        
 def main(args):
     # Directory setup
     data = os.path.normpath(args.data)
-    name = 'refnet_cr-' + datetime.now().strftime('%Y-%m-%dT%H%M%S') + '[keras]'
-    npy_savedir = os.path.join(data, 'img', name)
-    genx_savedir = os.path.join(data, 'fits', name)
-    preds_savedir = os.path.join(data, 'predictions', name)
-    results_savedir = os.path.join(data, 'results')
-
-    for savedir in [npy_savedir, genx_savedir, preds_savedir, results_savedir]:
-        if not os.path.exists(savedir):
-            os.makedirs(savedir)
+    savepaths = create_save_directories(data)
 
     # Create necessary numpy image files
     files = glob.glob(os.path.join(data, '*.dat'))
