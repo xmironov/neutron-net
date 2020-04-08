@@ -52,7 +52,6 @@ def main(args):
     
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
-    # Generator to yield numpy image files
     classification_loader = DataSequence(
         DIMS, CHANNELS, batch_size=1, mode='classification', labels=class_labels)
     
@@ -63,14 +62,14 @@ def main(args):
     test_classification_predictions = np.argmax(test_classification_predictions, axis=1)
 
     # # classification_predictions = classifier_model.predict(test_loader, verbose=1)
-    # fake_classification_predictions = np.full((n_files, 1), 2)
+    fake_classification_predictions = np.full((n_files, 1), 2)
 
-    # values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
-    #                     for filename, prediction in zip(image_filenames, fake_classification_predictions)}
+    # Create regression labels whose size depends on the predicted number of layers in a given sample
+    values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
+                        for filename, prediction in zip(npy_image_filenames, fake_classification_predictions)}
 
-    # regression_test_loader = DataSequence(
-    #     DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
-    # )
+    regression_test_loader = DataSequence(
+        DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
 
     # # TODO: sort out the regression end
     # regression_test_loader = DataSequenceValues(
@@ -168,8 +167,8 @@ def parse():
     #                     help='path to save directory')
     parser.add_argument('classifier_model', metavar='CLASSIFIER MODEL',
                         help='path to model for classification')
-    # parser.add_argument('regressor_model', metavar='REGRESSOR MODEL',
-    #                     help='path to model for regression')
+    parser.add_argument('regressor_models', metavar='REGRESSOR MODEL',
+                        help='path to models for regression')
     args = parser.parse_args()
     return args
 
