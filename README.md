@@ -1,4 +1,5 @@
 # neutron-net
+![neutron-curve](/neutron-net/resources/neutron-curve.png) <br />
 A lightweight tool to analyse neutron reflectivity curves and generate initial GenX fits.
 
 ## Motivation
