@@ -20,90 +20,10 @@ from skimage import data, color
 from tensorflow.keras.models import model_from_yaml
 from tensorflow.keras.utils import Sequence
 
+from sequencers import DataSequence
+
 DIMS          = (300, 300)
 CHANNELS      = 1
-
-class DataSequenceClasses(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, labels, dim, channels, batch_size):
-        'Initialisation'
-        self.labels     = labels
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.on_epoch_end()
-
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.labels.keys()) / self.batch_size))
-
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        np_image_batch = [list(self.labels.keys())[k] for k in indexes]
-        x, c = self.__data_generation(np_image_batch)
-
-        return x, c
-
-    def __data_generation(self, np_image_batch):
-        'Generates data containing batch_size samples'
-        x = np.empty((self.batch_size, *self.dim, self.channels))
-        c = np.empty((self.batch_size, 1), dtype=int)
-
-        for i, np_image in enumerate(np_image_batch):
-            x[i,] = np.load(np_image)
-            c[i,] = self.labels[np_image]
-        
-        return x, c        
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.labels.keys()))
-
-    def close_file(self):
-        self.file.close()
-
-class DataSequenceValues(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, labels, dim, channels, batch_size):
-        'Initialisation'
-        self.labels     = labels
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.on_epoch_end()
-
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.labels.keys()) / self.batch_size))
-
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        np_image_batch = [list(self.labels.keys())[k] for k in indexes]
-        x, y = self.__data_generation(np_image_batch)
-
-        return x, y
-
-    def __data_generation(self, np_image_batch):
-        'Generates data containing batch_size samples'
-        x = np.empty((self.batch_size, *self.dim, self.channels))
-        y_depth = []
-        y_sld = []
-
-        for i, np_image in enumerate(np_image_batch):
-            x[i,] = np.load(np_image)
-            y_depth.append(self.labels[np_image]['depth'])
-            y_sld.append(self.labels[np_image]['sld'])
-
-        return x, {'depth': np.array(y_depth), 'sld': np.array(y_sld)}     
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.labels.keys()))
-
-    def close_file(self):
-        self.file.close()
 
 def main(args):
     # Directory setup
@@ -125,8 +45,9 @@ def main(args):
     class_labels = dict(zip(image_filenames, np.zeros((len(image_filenames), 1))))
 
     # Generator to yield numpy image files
-    classification_test_loader = DataSequenceClasses(
-        class_labels, DIMS, CHANNELS, batch_size=1)
+    classification_test_loader = DataSequence(
+        DIMS, CHANNELS, batch_size=1, mode='classification', labels=class_labels)
+    )
     
     # Loading classifier model
     classifier_model = get_model(args.classifier_model)
@@ -140,6 +61,11 @@ def main(args):
     values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
                         for filename, prediction in zip(image_filenames, fake_classification_predictions)}
 
+    regression_test_loader = DataSequence(
+        DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
+    )
+
+    # TODO: sort out the regression end
     regression_test_loader = DataSequenceValues(
         values_labels, DIMS, CHANNELS, batch_size=1
     )
