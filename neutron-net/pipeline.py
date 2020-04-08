@@ -12,7 +12,7 @@ import warnings
 
 import numpy as np 
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
 
 from datetime import datetime
@@ -39,75 +39,75 @@ def create_save_directories(data):
             os.makedirs(directory_path)
         savepaths[directory] = directory_path
     return savepaths
-        
+
+def dat_files_to_npy_images(data, savepath):
+    files = glob.glob(os.path.join(data, '*.dat'))
+    image_filenames = create_images_from_directory(files, data, savepath)
+    return image_filenames
+
 def main(args):
-    # Directory setup
     data = os.path.normpath(args.data)
     savepaths = create_save_directories(data)
-
-    # Create necessary numpy image files
-    files = glob.glob(os.path.join(data, '*.dat'))
-    n_files = len(files)
-    image_filenames = create_images_from_directory(files, args.data, npy_savedir)
-    class_labels = dict(zip(image_filenames, np.zeros((len(image_filenames), 1))))
+    npy_image_filenames = dat_files_to_npy_images(data, savepaths['img'])
+    
+    class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
     # Generator to yield numpy image files
-    classification_test_loader = DataSequence(
+    classification_loader = DataSequence(
         DIMS, CHANNELS, batch_size=1, mode='classification', labels=class_labels)
-    )
     
     # Loading classifier model
     classifier_model = get_model(args.classifier_model)
     classifier_model.load_weights(os.path.join(args.classifier_model, 'model_weights.h5'))
-    test_classification_predictions = classifier_model.predict(classification_test_loader, verbose=1)
+    test_classification_predictions = classifier_model.predict(classification_loader, verbose=1)
     test_classification_predictions = np.argmax(test_classification_predictions, axis=1)
 
-    # classification_predictions = classifier_model.predict(test_loader, verbose=1)
-    fake_classification_predictions = np.full((n_files, 1), 2)
+    # # classification_predictions = classifier_model.predict(test_loader, verbose=1)
+    # fake_classification_predictions = np.full((n_files, 1), 2)
 
-    values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
-                        for filename, prediction in zip(image_filenames, fake_classification_predictions)}
+    # values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
+    #                     for filename, prediction in zip(image_filenames, fake_classification_predictions)}
 
-    regression_test_loader = DataSequence(
-        DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
-    )
+    # regression_test_loader = DataSequence(
+    #     DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
+    # )
 
-    # TODO: sort out the regression end
-    regression_test_loader = DataSequenceValues(
-        values_labels, DIMS, CHANNELS, batch_size=1
-    )
+    # # TODO: sort out the regression end
+    # regression_test_loader = DataSequenceValues(
+    #     values_labels, DIMS, CHANNELS, batch_size=1
+    # )
 
-    # #TODO: Load all regression models and select appropriate one on a per case basis
-    top_level_regression_dir = args.regressor_model
-    # path_to_one_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(1), '*/'))[0]
-    path_to_two_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(2), '*/'))[0]
+    # # #TODO: Load all regression models and select appropriate one on a per case basis
+    # top_level_regression_dir = args.regressor_model
+    # # path_to_one_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(1), '*/'))[0]
+    # path_to_two_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(2), '*/'))[0]
 
-    # one_layer_regression_model = get_model(path_to_one_layer_regression_model)
-    two_layer_regression_model = get_model(path_to_two_layer_regression_model)
+    # # one_layer_regression_model = get_model(path_to_one_layer_regression_model)
+    # two_layer_regression_model = get_model(path_to_two_layer_regression_model)
 
-    models = {
-        # 1: one_layer_regression_model,
-        2: two_layer_regression_model,
-    }
+    # models = {
+    #     # 1: one_layer_regression_model,
+    #     2: two_layer_regression_model,
+    # }
 
-    predictions = []
-    for img_filename, labels in values_labels.items():
-        img = np.expand_dims(np.load(img_filename), axis=0)
-        img_prediction = models[labels['class']].predict(img)
-        predictions.append(img_prediction)
+    # predictions = []
+    # for img_filename, labels in values_labels.items():
+    #     img = np.expand_dims(np.load(img_filename), axis=0)
+    #     img_prediction = models[labels['class']].predict(img)
+    #     predictions.append(img_prediction)
 
-    predictions = {img_filename: prediction for img_filename, prediction in zip(image_filenames, predictions)}
+    # predictions = {img_filename: prediction for img_filename, prediction in zip(image_filenames, predictions)}
 
-    # for image_filename in image_filenames:
-    #     img = np.expand_dims(np.load(image_filename), axis=0)
-    #     img_prediction = two_layer_regression_model.predict(img)
-    #     print(img_prediction)
+    # # for image_filename in image_filenames:
+    # #     img = np.expand_dims(np.load(image_filename), axis=0)
+    # #     img_prediction = two_layer_regression_model.predict(img)
+    # #     print(img_prediction)
 
-    # # # Loading regression model
-    # regressor_model = get_model(args.regressor_model)
-    # regressor_model.load_weights(os.path.join(args.regressor_model, 'model_weights.h5'))
-    # regression_predictions = regressor_model.predict(regression_test_loader, verbose=1)
-    # # # regression_scaler = pickle.load(open(os.path.join(args.regressor_model, 'output_scaler.p'), 'rb'))
+    # # # # Loading regression model
+    # # regressor_model = get_model(args.regressor_model)
+    # # regressor_model.load_weights(os.path.join(args.regressor_model, 'model_weights.h5'))
+    # # regression_predictions = regressor_model.predict(regression_test_loader, verbose=1)
+    # # # # regression_scaler = pickle.load(open(os.path.join(args.regressor_model, 'output_scaler.p'), 'rb'))
 
 def create_images_from_directory(files, datapath, savepath):
     image_files = []
@@ -168,8 +168,8 @@ def parse():
     #                     help='path to save directory')
     parser.add_argument('classifier_model', metavar='CLASSIFIER MODEL',
                         help='path to model for classification')
-    parser.add_argument('regressor_model', metavar='REGRESSOR MODEL',
-                        help='path to model for regression')
+    # parser.add_argument('regressor_model', metavar='REGRESSOR MODEL',
+    #                     help='path to model for regression')
     args = parser.parse_args()
     return args
 
