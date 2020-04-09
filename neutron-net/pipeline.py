@@ -46,35 +46,59 @@ def dat_files_to_npy_images(data, savepath):
     return image_filenames
 
 def main(args):
+    # h5_file_path = r"D:\Users\Public\Documents\stfc\neutron-net\data\perfect\2"
+    # h5_file = h5py.File(os.path.join(h5_file_path, 'train.h5'), 'r')
+
     data = os.path.normpath(args.data)
     savepaths = create_save_directories(data)
     npy_image_filenames = dat_files_to_npy_images(data, savepaths['img'])
-    
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
+    # Data loader to fetch image and class of image
     classification_loader = DataSequence(
         DIMS, CHANNELS, batch_size=1, mode='classification', labels=class_labels)
     
     # Loading classifier model
     classifier_model = get_model(args.classifier_model)
     classifier_model.load_weights(os.path.join(args.classifier_model, 'model_weights.h5'))
+
+    # Predicting number of layers per sample
     test_classification_predictions = classifier_model.predict(classification_loader, verbose=1)
     test_classification_predictions = np.argmax(test_classification_predictions, axis=1)
 
-    # # classification_predictions = classifier_model.predict(test_loader, verbose=1)
-    fake_classification_predictions = np.full((n_files, 1), 2)
+    # Classifier currently not working, so using fake predictions
+    fake_classification_predictions = np.full((len(npy_image_filenames), 1), 2)
 
     # Create regression labels whose size depends on the predicted number of layers in a given sample
-    values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
-                        for filename, prediction in zip(npy_image_filenames, fake_classification_predictions)}
+    values_labels = {filename: 
+                            {'depth': np.zeros((1,int(layer_prediction))), 
+                             'sld': np.zeros((1,int(layer_prediction))), 
+                             'class': int(layer_prediction)}                    
+                        for filename, layer_prediction in zip(npy_image_filenames, fake_classification_predictions)}
 
+    # Data loader to fetch image and values of image
     regression_test_loader = DataSequence(
         DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
 
-    # # TODO: sort out the regression end
-    # regression_test_loader = DataSequenceValues(
-    #     values_labels, DIMS, CHANNELS, batch_size=1
-    # )
+    # args.regressor_models
+    one_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(1), '*/')))[0]
+    two_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(2), '*/')))[0]
+
+    models = {
+        1: get_model(one_layer_regression_model_path),
+        2: get_model(two_layer_regression_model_path),
+    }
+
+    predictions = []
+    for npy_image_filename, labels in values_labels.items():
+        img = np.expand_dims(np.load(npy_image_filename), axis=0)
+        prediction = models[labels['class']].predict(img)
+        print(prediction)
+        predictions.append(prediction)
+
+    predictions = {npy_image_filename: prediction for 
+                    npy_image_filename, prediction in zip(npy_image_filenames, predictions)}
+    
 
     # # #TODO: Load all regression models and select appropriate one on a per case basis
     # top_level_regression_dir = args.regressor_model
