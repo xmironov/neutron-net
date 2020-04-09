@@ -85,16 +85,22 @@ def main(args):
     two_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(2), '*/')))[0]
 
     models = {
-        1: get_model(one_layer_regression_model_path),
-        2: get_model(two_layer_regression_model_path),
+        1: {'model':get_model(one_layer_regression_model_path), 
+            'scaler':pickle.load(open(os.path.join(one_layer_regression_model_path, 'output_scaler.p'), 'rb'))},
+        2: {'model':get_model(two_layer_regression_model_path), 
+            'scaler':pickle.load(open(os.path.join(two_layer_regression_model_path, 'output_scaler.p'), 'rb'))},
     }
 
     predictions = []
     for npy_image_filename, labels in values_labels.items():
         img = np.expand_dims(np.load(npy_image_filename), axis=0)
-        prediction = models[labels['class']].predict(img)
-        print(prediction)
-        predictions.append(prediction)
+        prediction = models[labels['class']]['model'].predict(img)
+        prediction_depths, prediction_slds = prediction[0][0], prediction[1][0]
+        merge = [None] * (len(prediction_depths) + len(prediction_slds))
+        merge[::2], merge[1::2] = prediction_depths, prediction_slds
+        scaled_prediction = models[labels['class']]['scaler'].inverse_transform(np.array(merge).reshape(1,-1))
+        print(scaled_prediction)
+        predictions.append(scaled_prediction)
 
     predictions = {npy_image_filename: prediction for 
                     npy_image_filename, prediction in zip(npy_image_filenames, predictions)}
