@@ -12,7 +12,7 @@ import warnings
 
 import numpy as np 
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.pyplot as plt
 
 from datetime import datetime
@@ -20,161 +20,93 @@ from skimage import data, color
 from tensorflow.keras.models import model_from_yaml
 from tensorflow.keras.utils import Sequence
 
+from sequencers import DataSequence
+
 DIMS          = (300, 300)
 CHANNELS      = 1
 
-class DataSequenceClasses(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, labels, dim, channels, batch_size):
-        'Initialisation'
-        self.labels     = labels
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.on_epoch_end()
+def create_save_directories(data):
+    savepaths = {}
+    name = 'refnet_pipe-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')
+    directories = ['img', 'fits', 'predictions', 'results']
+    for directory in directories:
+        if directory == 'results':
+            directory_path = os.path.join(data, directory)
+        else:
+            directory_path = os.path.join(data, directory, name)
 
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.labels.keys()) / self.batch_size))
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+        savepaths[directory] = directory_path
+    return savepaths
 
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        np_image_batch = [list(self.labels.keys())[k] for k in indexes]
-        x, c = self.__data_generation(np_image_batch)
-
-        return x, c
-
-    def __data_generation(self, np_image_batch):
-        'Generates data containing batch_size samples'
-        x = np.empty((self.batch_size, *self.dim, self.channels))
-        c = np.empty((self.batch_size, 1), dtype=int)
-
-        for i, np_image in enumerate(np_image_batch):
-            x[i,] = np.load(np_image)
-            c[i,] = self.labels[np_image]
-        
-        return x, c        
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.labels.keys()))
-
-    def close_file(self):
-        self.file.close()
-
-class DataSequenceValues(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, labels, dim, channels, batch_size):
-        'Initialisation'
-        self.labels     = labels
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.on_epoch_end()
-
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.labels.keys()) / self.batch_size))
-
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        np_image_batch = [list(self.labels.keys())[k] for k in indexes]
-        x, y = self.__data_generation(np_image_batch)
-
-        return x, y
-
-    def __data_generation(self, np_image_batch):
-        'Generates data containing batch_size samples'
-        x = np.empty((self.batch_size, *self.dim, self.channels))
-        y_depth = []
-        y_sld = []
-
-        for i, np_image in enumerate(np_image_batch):
-            x[i,] = np.load(np_image)
-            y_depth.append(self.labels[np_image]['depth'])
-            y_sld.append(self.labels[np_image]['sld'])
-
-        return x, {'depth': np.array(y_depth), 'sld': np.array(y_sld)}     
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.labels.keys()))
-
-    def close_file(self):
-        self.file.close()
+def dat_files_to_npy_images(data, savepath):
+    files = glob.glob(os.path.join(data, '*.dat'))
+    image_filenames = create_images_from_directory(files, data, savepath)
+    return image_filenames
 
 def main(args):
-    # Directory setup
     data = os.path.normpath(args.data)
-    name = 'refnet_cr-' + datetime.now().strftime('%Y-%m-%dT%H%M%S') + '[keras]'
-    npy_savedir = os.path.join(data, 'img', name)
-    genx_savedir = os.path.join(data, 'fits', name)
-    preds_savedir = os.path.join(data, 'predictions', name)
-    results_savedir = os.path.join(data, 'results')
+    savepaths = create_save_directories(data)
+    npy_image_filenames = dat_files_to_npy_images(data, savepaths['img'])
+    
+    class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
-    for savedir in [npy_savedir, genx_savedir, preds_savedir, results_savedir]:
-        if not os.path.exists(savedir):
-            os.makedirs(savedir)
-
-    # Create necessary numpy image files
-    files = glob.glob(os.path.join(data, '*.dat'))
-    n_files = len(files)
-    image_filenames = create_images_from_directory(files, args.data, npy_savedir)
-    class_labels = dict(zip(image_filenames, np.zeros((len(image_filenames), 1))))
-
-    # Generator to yield numpy image files
-    classification_test_loader = DataSequenceClasses(
-        class_labels, DIMS, CHANNELS, batch_size=1)
+    classification_loader = DataSequence(
+        DIMS, CHANNELS, batch_size=1, mode='classification', labels=class_labels)
     
     # Loading classifier model
     classifier_model = get_model(args.classifier_model)
     classifier_model.load_weights(os.path.join(args.classifier_model, 'model_weights.h5'))
-    test_classification_predictions = classifier_model.predict(classification_test_loader, verbose=1)
+    test_classification_predictions = classifier_model.predict(classification_loader, verbose=1)
     test_classification_predictions = np.argmax(test_classification_predictions, axis=1)
 
-    # classification_predictions = classifier_model.predict(test_loader, verbose=1)
+    # # classification_predictions = classifier_model.predict(test_loader, verbose=1)
     fake_classification_predictions = np.full((n_files, 1), 2)
 
+    # Create regression labels whose size depends on the predicted number of layers in a given sample
     values_labels = {filename: {'depth': np.zeros((1,int(prediction))), 'sld': np.zeros((1,int(prediction))), 'class': int(prediction)}
-                        for filename, prediction in zip(image_filenames, fake_classification_predictions)}
+                        for filename, prediction in zip(npy_image_filenames, fake_classification_predictions)}
 
-    regression_test_loader = DataSequenceValues(
-        values_labels, DIMS, CHANNELS, batch_size=1
-    )
+    regression_test_loader = DataSequence(
+        DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
 
-    # #TODO: Load all regression models and select appropriate one on a per case basis
-    top_level_regression_dir = args.regressor_model
-    # path_to_one_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(1), '*/'))[0]
-    path_to_two_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(2), '*/'))[0]
+    # # TODO: sort out the regression end
+    # regression_test_loader = DataSequenceValues(
+    #     values_labels, DIMS, CHANNELS, batch_size=1
+    # )
 
-    # one_layer_regression_model = get_model(path_to_one_layer_regression_model)
-    two_layer_regression_model = get_model(path_to_two_layer_regression_model)
+    # # #TODO: Load all regression models and select appropriate one on a per case basis
+    # top_level_regression_dir = args.regressor_model
+    # # path_to_one_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(1), '*/'))[0]
+    # path_to_two_layer_regression_model = glob.glob(os.path.join(top_level_regression_dir, str(2), '*/'))[0]
 
-    models = {
-        # 1: one_layer_regression_model,
-        2: two_layer_regression_model,
-    }
+    # # one_layer_regression_model = get_model(path_to_one_layer_regression_model)
+    # two_layer_regression_model = get_model(path_to_two_layer_regression_model)
 
-    predictions = []
-    for img_filename, labels in values_labels.items():
-        img = np.expand_dims(np.load(img_filename), axis=0)
-        img_prediction = models[labels['class']].predict(img)
-        predictions.append(img_prediction)
+    # models = {
+    #     # 1: one_layer_regression_model,
+    #     2: two_layer_regression_model,
+    # }
 
-    predictions = {img_filename: prediction for img_filename, prediction in zip(image_filenames, predictions)}
+    # predictions = []
+    # for img_filename, labels in values_labels.items():
+    #     img = np.expand_dims(np.load(img_filename), axis=0)
+    #     img_prediction = models[labels['class']].predict(img)
+    #     predictions.append(img_prediction)
 
-    # for image_filename in image_filenames:
-    #     img = np.expand_dims(np.load(image_filename), axis=0)
-    #     img_prediction = two_layer_regression_model.predict(img)
-    #     print(img_prediction)
+    # predictions = {img_filename: prediction for img_filename, prediction in zip(image_filenames, predictions)}
 
-    # # # Loading regression model
-    # regressor_model = get_model(args.regressor_model)
-    # regressor_model.load_weights(os.path.join(args.regressor_model, 'model_weights.h5'))
-    # regression_predictions = regressor_model.predict(regression_test_loader, verbose=1)
-    # # # regression_scaler = pickle.load(open(os.path.join(args.regressor_model, 'output_scaler.p'), 'rb'))
+    # # for image_filename in image_filenames:
+    # #     img = np.expand_dims(np.load(image_filename), axis=0)
+    # #     img_prediction = two_layer_regression_model.predict(img)
+    # #     print(img_prediction)
+
+    # # # # Loading regression model
+    # # regressor_model = get_model(args.regressor_model)
+    # # regressor_model.load_weights(os.path.join(args.regressor_model, 'model_weights.h5'))
+    # # regression_predictions = regressor_model.predict(regression_test_loader, verbose=1)
+    # # # # regression_scaler = pickle.load(open(os.path.join(args.regressor_model, 'output_scaler.p'), 'rb'))
 
 def create_images_from_directory(files, datapath, savepath):
     image_files = []
@@ -230,13 +162,13 @@ def get_image(x,y):
 def parse():
     parser = argparse.ArgumentParser(description='PyTorch RefNet Training')
     parser.add_argument('data', metavar='DATA',
-                        help='path to data directory')
+                        help='path to directory of .dat files')
     # parser.add_argument('save', metavar='SAVE',
     #                     help='path to save directory')
     parser.add_argument('classifier_model', metavar='CLASSIFIER MODEL',
                         help='path to model for classification')
-    parser.add_argument('regressor_model', metavar='REGRESSOR MODEL',
-                        help='path to model for regression')
+    parser.add_argument('regressor_models', metavar='REGRESSOR MODEL',
+                        help='path to models for regression')
     args = parser.parse_args()
     return args
 

@@ -12,7 +12,6 @@ import glob
 import warnings
 # import dataseq
 
-
 import numpy as np 
 import pandas as pd
 # import imgaug as ia 
@@ -28,6 +27,8 @@ from tensorflow.keras.utils import Sequence
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam, Nadam
+
+from sequencers import DataSequence
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -176,67 +177,7 @@ class RefModelRegressor():
             self.model.summary(print_fn=lambda x: f.write(x + '\n'))
 
         self.model.save(os.path.join(savepath, 'full_model.h5'))
-
-class DataSequenceValues(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, h5_file, dim, channels, batch_size, layers):
-        'Initialisation'
-        self.file       = h5_file                 # H5 file to read
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.layers     = layers
-        self.on_epoch_end()
-
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.file['images']) / self.batch_size))
-
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        images, targets = self.__data_generation(indexes)
-
-        return images, targets
-
-    def __data_generation(self, indexes):
-        'Generates data containing batch_size samples'
-        images = np.empty((self.batch_size, *self.dim, self.channels))
-        targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
-        targets_sld = np.empty((self.batch_size, self.layers), dtype=float)
-
-        # for i, idx in enumerate(indexes):
-        #     image = self.file['images'][idx]
-        #     values = self.file['scaledY'][idx]
-        #     length = len(values)
-        #     difference = length - self.layers * 2
-
-        #     if difference:
-        #         # print(difference)
-        #         values = values[:-difference]
-
-        #     # fill preallocated arrays
-        #     x[i,] = image
-        #     y_depth[i,] = values[::2]
-        #     y_sld[i,] = values[1::2]
-
-        for i, idx in enumerate(indexes):
-            image = self.file['images'][idx]
-            target = self.file['scaled_targets'][idx]
-
-            images[i,] = image
-            targets_depth[i,] = target[::2]
-            targets_sld[i,] = target[1::2]
-        
-        return images, {'depth':targets_depth, 'sld':targets_sld}
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.file['images']))
-
-    def close_file(self):
-        self.file.close()
-    
+   
 def main(args):
     if args.log:
         experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
@@ -248,11 +189,11 @@ def main(args):
     trainh5 = h5py.File(traindir, 'r')
     valh5 = h5py.File(valdir, 'r')
 
-    train_loader = DataSequenceValues(
-        trainh5, DIMS, CHANNELS, args.batch_size, args.layers)
+    train_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5)
 
-    valid_loader = DataSequenceValues(
-        valh5, DIMS, CHANNELS, args.batch_size, args.layers)
+    valid_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=valh5)
 
     model = RefModelRegressor(
         DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.layers)
