@@ -4,7 +4,7 @@ from tensorflow.keras.utils import Sequence
 
 class DataSequence(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, dim, channels, batch_size, mode=None, layers=None, h5_file=None, labels=None):
+    def __init__(self, dim, channels, batch_size, mode=None, layers=None, h5_file=None, labels=None, debug=False):
         'Initialisation'
         # Potential Inputs
         self.file       = h5_file                 # if training/testing on h5_file
@@ -61,11 +61,21 @@ class DataSequence(Sequence):
 
         if self.mode == 'classification':
             classes = np.empty((self.batch_size, 1), dtype=int)
+
             if self.file:
                 for i, idx in enumerate(indexes):
                     image = self.file['images'][idx]
                     images[i,] = image
                     classes[i,] = self.file['classes'][idx]
+                
+                if self.debug:
+                    i = 0
+                    while i < 9:
+                        print(classes[i])
+                        i+=1
+                        
+                    self.debug = False
+                
                 return images, classes
 
             elif self.labels:
