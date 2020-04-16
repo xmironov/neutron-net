@@ -4,6 +4,7 @@ import glob
 import h5py
 import pickle
 import random
+import argparse
 
 import numpy as np
 import matplotlib as mpl
@@ -14,13 +15,22 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage import data, color
 
 def main(args):
-    savedirs = [r'D:\Users\Public\Documents\stfc\ml-neutron\neutron_net\data\perfect_dynamic_scaler\1',
-                 r'D:\Users\Public\Documents\stfc\ml-neutron\neutron_net\data\perfect_dynamic_scaler\2']
+    savedirs = [r'D:\Users\Public\Documents\stfc\neutron-net\data\test\1',
+                 r'D:\Users\Public\Documents\stfc\neutron-net\data\test\2']
+
+    savepath = r'D:\Users\Public\Documents\stfc\neutron-net\data\test'
 
     dat_files_dir = args.data
 
     one_layer_files = glob.glob(os.path.join(dat_files_dir, 'O') + '*')
     two_layer_files = glob.glob(os.path.join(dat_files_dir, 'Tw') + '*')
+
+    if (not one_layer_files) or (not two_layer_files):
+        print("\n   .dat files not found. Check data path.")
+        return None
+    else:
+        print("\n   {} one-layer .dat file(s) found".format(len(one_layer_files)))
+        print("   {} two-layer .dat file(s) found".format(len(two_layer_files)))
     
     layers_dict = {
         1: load_simulated_files_with_classes(one_layer_files, 1),
@@ -39,19 +49,35 @@ def main(args):
         'validate': 0.1,
         'test': 0.1
     }
+    
+    print('\n   Splitting data: training [{}%], validation [{}%], testing [{}%]'.format(
+        split_ratios['train']*100, split_ratios['validate']*100, split_ratios['test']*100
+    ))
 
     one_layer_training_split = splitter(layers_dict[1], split_ratios)
+    for thing in one_layer_training_split:
+        print(thing)
     two_layer_training_split = splitter(layers_dict[2], split_ratios)
 
     shuffler(one_layer_training_split)
     shuffler(two_layer_training_split)
 
+    print('\n   Scaling targets...')
     one_layer_output_scaler = scale_targets(one_layer_training_split)
     two_layer_output_scaler = scale_targets(two_layer_training_split)
-    pickle.dump(one_layer_output_scaler, open(os.path.join(savedirs[0], 'output_scaler.p'), 'wb'))
-    pickle.dump(two_layer_output_scaler, open(os.path.join(savedirs[1], 'output_scaler.p'), 'wb'))
-    scale_inputs(one_layer_training_split)
-    scale_inputs(two_layer_training_split)
+
+    filename_1 = os.path.join(savedirs[0], 'output_scaler.p')
+    filename_2 = os.path.join(savedirs[1], 'output_scaler.p')
+
+    with open(filename_1, 'wb') as f:
+        pickle.dump(one_layer_output_scaler, f)
+    
+    with open(filename_2, 'wb') as f:
+        pickle.dump(two_layer_output_scaler, f)
+    
+    print('\n   Scaling inputs...')
+    # scale_inputs(one_layer_training_split)
+    # scale_inputs(two_layer_training_split)
 
     assert np.max(one_layer_training_split['train']['scaled_targets']) == 1.0
     assert np.max(two_layer_training_split['train']['scaled_targets']) == 1.0
@@ -68,25 +94,38 @@ def main(args):
         2: two_layer_shapes,
     }
 
-    for path, (layer, layer_dict) in zip(savedirs, layers_dict_split.items()):
-        for division, data in layer_dict.items():
-            file = os.path.normpath(os.path.join(path, '{}.h5'.format(division)))
-            if not os.path.exists(file):
-                with h5py.File(file, 'w') as base_f:
-                    print('[1/2] Created file:', file)
-                    for data_type, values in data.items():
-                        base_f.create_dataset(data_type, data=values, chunks=shapes[layer][data_type])
+    for no_layers, layer_dictionary in layers_dict_split.items():
+        print('###  Processing the {}-layer .dat files'.format(no_layers))
 
-                with h5py.File(file, 'a') as modified_f:
-                    print('[2/2] Now generating images...', '\n')
-                    images = modified_f.create_dataset('images', (len(modified_f['input']),300,300,1), chunks=(1000,300,300,1))
-                    for i, sample in enumerate(modified_f['input']):
-                        img = image_process(sample)
-                        images[i] = img
+        for data_split_section_title, data_split in layer_dictionary.items():
+            print('     -> Section:', data_split_section_title)
+            file = os.path.normpath(os.path.join(savepath, '{}.h5'.format(data_split_section_title)))
+            print('\n', file)
+            
+    # for path, (layer, layer_dict) in zip(savedirs, layers_dict_split.items()):
+    #     print('### Layer: {}'.format(layer))
+
+    #     for division, data in layer_dict.items():
+    #         print('### Division: {}'.format(division))
+    #         file = os.path.normpath(os.path.join(path, '{}.h5'.format(division)))
+
+    #         if not os.path.exists(file):
+    #             with h5py.File(file, 'w') as base_f:
+    #                 print('[1/2] Created file:', file)
+    #                 for data_type, values in data.items():
+    #                     print('### Filling in data for {}'.format(data_type))
+    #                     # base_f.create_dataset(data_type, data=values, chunks=shapes[layer][data_type])
+
+    #             with h5py.File(file, 'a') as modified_f:
+    #                 print('[2/2] Now generating images...', '\n')
+    #                 # images = modified_f.create_dataset('images', (len(modified_f['input']),300,300,1), chunks=(1000,300,300,1))
+    #                 # for i, sample in enumerate(modified_f['input']):
+    #                 #     img = image_process(sample)
+    #                 #     images[i] = img
 
 def scale_inputs(dictionary):
     for division in dictionary.keys():
-        dictionary[division]['scaled_input'] = sample_scale(dictionary[division]['input'])
+        dictionary[division]['scaled_inputs'] = sample_scale(dictionary[division]['input'])
 
 def scale_targets(dictionary):
     output_scaler = None
