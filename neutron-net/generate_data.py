@@ -33,8 +33,8 @@ def main(args):
         print("   {} two-layer .dat file(s) found".format(len(two_layer_files)))
     
     layers_dict = {
-        1: load_simulated_files_with_classes(one_layer_files, 1),
-        2: load_simulated_files_with_classes(two_layer_files, 2),
+        1: load_simulated_files(one_layer_files, 1),
+        2: load_simulated_files(two_layer_files, 2),
     }
 
     for layers, data in layers_dict.items():
@@ -55,8 +55,6 @@ def main(args):
     ))
 
     one_layer_training_split = splitter(layers_dict[1], split_ratios)
-    for thing in one_layer_training_split:
-        print(thing)
     two_layer_training_split = splitter(layers_dict[2], split_ratios)
 
     shuffler(one_layer_training_split)
@@ -145,7 +143,7 @@ def get_shapes(dictionary, chunk_size=1000):
 
     return shapes 
 
-def load_simulated_files_with_classes(files, no_layers):
+def load_simulated_files(files, no_layers):
     ''' Given list of .h5 files, load and concat into Numpy array, with classes '''
     y = None 
     x = None
@@ -169,7 +167,7 @@ def load_simulated_files_with_classes(files, no_layers):
                     # c = c_i 
 
     c = np.full((len(y),1), no_layers)
-    return {'input': x, 'targets': y, 'classes': c}
+    return {'inputs': x, 'targets': y, 'layers': c}
 
 def splitter(data, split_ratios):
     random.seed(1)
