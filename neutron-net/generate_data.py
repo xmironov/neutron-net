@@ -37,6 +37,7 @@ def main(args):
         2: load_simulated_files(two_layer_files, 2),
     }
 
+    # Check number of layers against size of array; trim if necessary
     for layers, data in layers_dict.items():
         length = data['targets'].shape[1]
         difference = length - layers * 2
@@ -44,61 +45,38 @@ def main(args):
         if difference:
             data['targets'] = data['targets'][:,:-difference]
     
-    split_ratios = {
-        'train': 0.8,
-        'validate': 0.1,
-        'test': 0.1
-    }
+    split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
+
+    scaler_filename = os.path.join(savepath, 'output_scaler_{}-layer')
     
-    print('\n   Splitting data: training [{}%], validation [{}%], testing [{}%]'.format(
-        split_ratios['train']*100, split_ratios['validate']*100, split_ratios['test']*100
-    ))
+    split_layers_dict = train_valid_test_split(layers_dict, split_ratios)
+    shuffle_data(split_layers_dict)
+    scalers = scale_targets(split_layers_dict)
+    dump_scalers(scalers, scaler_filename)
+    scale_inputs(split_layers_dict) 
+    shapes = get_shapes(split_layers_dict, chunk_size=1000)
 
-    one_layer_training_split = splitter(layers_dict[1], split_ratios)
-    two_layer_training_split = splitter(layers_dict[2], split_ratios)
+    for no_layers, data in split_layers_dict.items():
+        assert np.max(data['train']['scaled_targets']) == 1.0
 
-    shuffler(one_layer_training_split)
-    shuffler(two_layer_training_split)
+    # for key, item in split_layers_dict.items():
+    #     print('\n', '###', key)
+    #     for key, item in item.items():
+    #         print('----', key)
+    #         for key, item in item.items():
+    #             print('  ->', key)
 
-    print('\n   Scaling targets...')
-    one_layer_output_scaler = scale_targets(one_layer_training_split)
-    two_layer_output_scaler = scale_targets(two_layer_training_split)
+    # for key, item in shapes.items():
+    #     print(key, item)
 
-    filename_1 = os.path.join(savedirs[0], 'output_scaler.p')
-    filename_2 = os.path.join(savedirs[1], 'output_scaler.p')
 
-    with open(filename_1, 'wb') as f:
-        pickle.dump(one_layer_output_scaler, f)
-    
-    with open(filename_2, 'wb') as f:
-        pickle.dump(two_layer_output_scaler, f)
-    
-    print('\n   Scaling inputs...')
-    # scale_inputs(one_layer_training_split)
-    # scale_inputs(two_layer_training_split)
+    # for no_layers, layer_dictionary in layers_dict_split.items():
+    #     print('###  Processing the {}-layer .dat files'.format(no_layers))
 
-    assert np.max(one_layer_training_split['train']['scaled_targets']) == 1.0
-    assert np.max(two_layer_training_split['train']['scaled_targets']) == 1.0
-
-    one_layer_shapes = get_shapes(one_layer_training_split, chunk_size=1000)
-    two_layer_shapes = get_shapes(two_layer_training_split, chunk_size=1000)
-
-    layers_dict_split = {
-        1: one_layer_training_split,
-        2: two_layer_training_split,
-    }
-    shapes = {
-        1: one_layer_shapes,
-        2: two_layer_shapes,
-    }
-
-    for no_layers, layer_dictionary in layers_dict_split.items():
-        print('###  Processing the {}-layer .dat files'.format(no_layers))
-
-        for data_split_section_title, data_split in layer_dictionary.items():
-            print('     -> Section:', data_split_section_title)
-            file = os.path.normpath(os.path.join(savepath, '{}.h5'.format(data_split_section_title)))
-            print('\n', file)
+    #     for data_split_section_title, data_split in layer_dictionary.items():
+    #         print('     -> Section:', data_split_section_title)
+    #         file = os.path.normpath(os.path.join(savepath, '{}.h5'.format(data_split_section_title)))
+    #         print('\n', file)
             
     # for path, (layer, layer_dict) in zip(savedirs, layers_dict_split.items()):
     #     print('### Layer: {}'.format(layer))
@@ -121,27 +99,42 @@ def main(args):
     #                 #     img = image_process(sample)
     #                 #     images[i] = img
 
-def scale_inputs(dictionary):
-    for division in dictionary.keys():
-        dictionary[division]['scaled_inputs'] = sample_scale(dictionary[division]['input'])
+def dump_scalers(scalers, scaler_filename):
+    for no_layers, scaler in scalers.items():
+        with open(scaler_filename.format(no_layers), 'wb') as f:
+            pickle.dump(scaler, f)
 
-def scale_targets(dictionary):
-    output_scaler = None
-    for division in dictionary.keys():
-        if output_scaler is None:
-            output_scaler, scaled_target = output_scale(dictionary[division]['targets'], fit=True)
-        else:
-            output_scaler, scaled_target = output_scale(dictionary[division]['targets'], fit=False, scaler=output_scaler)
-        dictionary[division]['scaled_targets'] = scaled_target
+def scale_inputs(split_layers_dict):
+    for data in split_layers_dict.values():
+        for division in data.keys():
+            data[division]['scaled_inputs'] = sample_scale(data[division]['inputs'])
+
+def scale_targets(split_layers_dict):
+    scalers = {}
+
+    for no_layers, dictionary in split_layers_dict.items(): 
+        output_scaler = None   
+
+        for division in dictionary.keys():
+            if output_scaler is None:
+                output_scaler, scaled_target = output_scale(dictionary[division]['targets'], fit=True)
+            else:
+                output_scaler, scaled_target = output_scale(dictionary[division]['targets'], fit=False, scaler=output_scaler)
+            dictionary[division]['scaled_targets'] = scaled_target
+        scalers[no_layers] = output_scaler
+
+    return scalers
+
+def get_shapes(split_layers_dict, chunk_size=1000):
+    big_shapes = {}
+
+    for no_layers, data in split_layers_dict.items():
+        shapes = {}
+        for data_type, data in data['train'].items():
+            shapes[data_type] = (chunk_size, *data.shape[1:])
+        big_shapes[no_layers] = shapes
     
-    return output_scaler
-
-def get_shapes(dictionary, chunk_size=1000):
-    shapes = {}
-    for data_type, data in dictionary['train'].items():
-        shapes[data_type] = (chunk_size, *data.shape[1:])
-
-    return shapes 
+    return big_shapes
 
 def load_simulated_files(files, no_layers):
     ''' Given list of .h5 files, load and concat into Numpy array, with classes '''
@@ -169,30 +162,34 @@ def load_simulated_files(files, no_layers):
     c = np.full((len(y),1), no_layers)
     return {'inputs': x, 'targets': y, 'layers': c}
 
-def splitter(data, split_ratios):
-    random.seed(1)
-    seed(1)
-    length = len(data['input'])
-    selected_dict = {}
+def train_valid_test_split(layers_dict, split_ratios):
+    split_layers_dict = {}
+    for no_layers, data in layers_dict.items():
+        random.seed(1)
+        seed(1)
+        length = len(data['inputs'])
+        selected_dict = {}
 
-    for division, ratio in split_ratios.items():
-        random_sample = random.sample(range(0, length), int(length * ratio))
-        selected_dict[division] = {}
-        
-        for name, values in data.items():
-            selected_dict[division][name] = values[random_sample]
-            values = np.delete(values, random_sample, 0)
+        for division, ratio in split_ratios.items():
+            random_sample = random.sample(range(0, length), int(length * ratio))
+            selected_dict[division] = {}
+            
+            for name, values in data.items():
+                selected_dict[division][name] = values[random_sample]
+                values = np.delete(values, random_sample, 0)
+             
+        split_layers_dict[no_layers] = selected_dict
+    return split_layers_dict
 
-    return selected_dict
-
-def shuffler(dictionary):
+def shuffle_data(split_layers_dict):
     ''' Shuffled data, such that x, y, and class retains the same index. '''
-    for training_split, data in dictionary.items():
-        shuffled = np.arange(0, len(data['input']), 1)
-        np.random.shuffle(shuffled)
+    for dictionary in split_layers_dict.values():
+        for training_split, data in dictionary.items():
+            shuffled = np.arange(0, len(data['inputs']), 1)
+            np.random.shuffle(shuffled)
 
-        for name in data.keys():
-            dictionary[training_split][name] = dictionary[training_split][name][shuffled]
+            for name in data.keys():
+                dictionary[training_split][name] = dictionary[training_split][name][shuffled]
 
 def output_scale(t, fit=True, scaler=None):
     """Scale output values such that each has a min/max of 0/1. e.g. max: 1,1,1,1
