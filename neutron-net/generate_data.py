@@ -15,9 +15,6 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage import data, color
 
 def main(args):
-    savedirs = [r'D:\Users\Public\Documents\stfc\neutron-net\data\test\1',
-                 r'D:\Users\Public\Documents\stfc\neutron-net\data\test\2']
-
     savepath = r'D:\Users\Public\Documents\stfc\neutron-net\data\test'
 
     dat_files_dir = args.data
@@ -36,105 +33,79 @@ def main(args):
         1: load_simulated_files(one_layer_files, 1),
         2: load_simulated_files(two_layer_files, 2),
     }
-
-    # Check number of layers against size of array; trim if necessary
-    for layers, data in layers_dict.items():
-        length = data['targets'].shape[1]
-        difference = length - layers * 2
-
-        if difference:
-            data['targets'] = data['targets'][:,:-difference]
     
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
-
-    scaler_filename = os.path.join(savepath, 'output_scaler_{}-layer')
+    scaler_filename = os.path.join(savepath, 'output_scaler.p')
+    split_data = train_valid_test_split(layers_dict, split_ratios)
     
-    split_layers_dict = train_valid_test_split(layers_dict, split_ratios)
-    shuffle_data(split_layers_dict)
-    scalers = scale_targets(split_layers_dict)
-    dump_scalers(scalers, scaler_filename)
-    scale_inputs(split_layers_dict) 
-    shapes = get_shapes(split_layers_dict, chunk_size=1000)
+    concatenated = {}
+    for split, data in split_data.items():
+        concatenated[split] = {}
 
-    for no_layers, data in split_layers_dict.items():
-        assert np.max(data['train']['scaled_targets']) == 1.0
+        for key in data[1].keys():
+            concat = np.concatenate([data[layer][key] for layer in data.keys()])
+            concatenated[split][key] = concat
+    del split_data
+              
+    print('\n### Shuffling data')
+    shuffle_data(concatenated)
+    print('\n### Scaling targets')
+    output_scaler = scale_targets(concatenated)
+    with open(scaler_filename, 'wb') as f:
+            pickle.dump(output_scaler, f)
 
-    # for key, item in split_layers_dict.items():
-    #     print('\n', '###', key)
-    #     for key, item in item.items():
-    #         print('----', key)
-    #         for key, item in item.items():
-    #             print('  ->', key)
-
-    # for key, item in shapes.items():
-    #     print(key, item)
-
-
-    # for no_layers, layer_dictionary in layers_dict_split.items():
-    #     print('###  Processing the {}-layer .dat files'.format(no_layers))
-
-    #     for data_split_section_title, data_split in layer_dictionary.items():
-    #         print('     -> Section:', data_split_section_title)
-    #         file = os.path.normpath(os.path.join(savepath, '{}.h5'.format(data_split_section_title)))
-    #         print('\n', file)
+    print('\n### Scaling inputs')
+    scale_inputs(concatenated) 
+    shapes = get_shapes(concatenated, chunk_size=1000)
+    print('\n### Creating .h5 files')
+    for section, dictionary in concatenated.items():
+        file = os.path.normpath(os.path.join(savepath, '{}.h5'.format(section)))
+        
+        if not os.path.exists(file):
+            print('\n### Filling in data for {}.h5'.format(section))
+            with h5py.File(file, 'w') as base_file:
+                for type_of_data, data in dictionary.items():
+                    base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
             
-    # for path, (layer, layer_dict) in zip(savedirs, layers_dict_split.items()):
-    #     print('### Layer: {}'.format(layer))
+            print('\n### Generating images for {}.h5'.format(section))
+            with h5py.File(file, 'a') as modified_file:
+                images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(1000,300,300,1))
 
-    #     for division, data in layer_dict.items():
-    #         print('### Division: {}'.format(division))
-    #         file = os.path.normpath(os.path.join(path, '{}.h5'.format(division)))
+                for i, sample in enumerate(modified_file['inputs']):
+                    img = image_process(sample)
+                    images[i] = img
 
-    #         if not os.path.exists(file):
-    #             with h5py.File(file, 'w') as base_f:
-    #                 print('[1/2] Created file:', file)
-    #                 for data_type, values in data.items():
-    #                     print('### Filling in data for {}'.format(data_type))
-    #                     # base_f.create_dataset(data_type, data=values, chunks=shapes[layer][data_type])
+def scale_inputs(concatenated):
+    for regime, data in concatenated.items():
+        concatenated[regime]['inputs_scaled'] = sample_scale(data['inputs'])
 
-    #             with h5py.File(file, 'a') as modified_f:
-    #                 print('[2/2] Now generating images...', '\n')
-    #                 # images = modified_f.create_dataset('images', (len(modified_f['input']),300,300,1), chunks=(1000,300,300,1))
-    #                 # for i, sample in enumerate(modified_f['input']):
-    #                 #     img = image_process(sample)
-    #                 #     images[i] = img
+    # for data in split_data.values():
+    #     for layer in data.keys():
+    #         data[layer]['scaled_inputs'] = sample_scale(data[layer]['inputs'])
 
-def dump_scalers(scalers, scaler_filename):
-    for no_layers, scaler in scalers.items():
-        with open(scaler_filename.format(no_layers), 'wb') as f:
-            pickle.dump(scaler, f)
+def scale_targets(concatenated):
+    output_scaler = None
 
-def scale_inputs(split_layers_dict):
-    for data in split_layers_dict.values():
-        for division in data.keys():
-            data[division]['scaled_inputs'] = sample_scale(data[division]['inputs'])
+    for regime, data in concatenated.items():
+        if output_scaler is None:
+            output_scaler, scaled_target = output_scale(data['targets'], fit=True)
+            assert np.max(scaled_target) == 1.0
+            
+        elif output_scaler:
+            output_scaler, scaled_target = output_scale(data['targets'], fit=False, scaler=output_scaler)
+            assert np.max(scaled_target) == 1.0
+        
+        concatenated[regime]['targets_scaled'] = scaled_target
 
-def scale_targets(split_layers_dict):
-    scalers = {}
+    return output_scaler
 
-    for no_layers, dictionary in split_layers_dict.items(): 
-        output_scaler = None   
+def get_shapes(concatenated, chunk_size=1000):
+    shapes = {}
 
-        for division in dictionary.keys():
-            if output_scaler is None:
-                output_scaler, scaled_target = output_scale(dictionary[division]['targets'], fit=True)
-            else:
-                output_scaler, scaled_target = output_scale(dictionary[division]['targets'], fit=False, scaler=output_scaler)
-            dictionary[division]['scaled_targets'] = scaled_target
-        scalers[no_layers] = output_scaler
-
-    return scalers
-
-def get_shapes(split_layers_dict, chunk_size=1000):
-    big_shapes = {}
-
-    for no_layers, data in split_layers_dict.items():
-        shapes = {}
-        for data_type, data in data['train'].items():
-            shapes[data_type] = (chunk_size, *data.shape[1:])
-        big_shapes[no_layers] = shapes
+    for data_type, data in concatenated['train'].items():
+        shapes[data_type] = (chunk_size, *data.shape[1:])
     
-    return big_shapes
+    return shapes
 
 def load_simulated_files(files, no_layers):
     ''' Given list of .h5 files, load and concat into Numpy array, with classes '''
@@ -147,23 +118,40 @@ def load_simulated_files(files, no_layers):
             with h5py.File(f, 'r') as file:
                 x_i = np.squeeze(np.array(file.get('DATA')))
                 y_i = np.array(file.get('SLD_NUMS'))
-                # print(depth_i.shape)
-                # c_i = classer(y_i)
 
                 if (y is not None) & (x is not None):
                     x = np.concatenate((x, x_i), axis=0) 
                     y = np.concatenate((y, y_i), axis=0)
-                    # c = np.concatenate((c, c_i), axis=0) 
                 else:
                     x = x_i 
                     y = y_i
-                    # c = c_i 
-
     c = np.full((len(y),1), no_layers)
+
     return {'inputs': x, 'targets': y, 'layers': c}
 
 def train_valid_test_split(layers_dict, split_ratios):
     split_layers_dict = {}
+    # layers_dict = {1: {'inputs':..,'targets':..,}, 2:{..}}
+
+    for split, split_value in split_ratios.items():
+        random.seed(1)
+        seed(1)
+        selected_dict = {}
+
+        for no_layers, layer_dict in layers_dict.items():
+            length = len(layer_dict['inputs'])
+            random_sample = random.sample(range(0, length), int(length * split_value))
+            selected_dict[no_layers] = {}
+
+            for data_type, data in layer_dict.items():
+                selected_dict[no_layers][data_type] = data[random_sample]
+                data = np.delete(data, random_sample, axis=0)
+        
+        split_layers_dict[split] = selected_dict
+
+    return split_layers_dict
+
+
     for no_layers, data in layers_dict.items():
         random.seed(1)
         seed(1)
@@ -183,13 +171,12 @@ def train_valid_test_split(layers_dict, split_ratios):
 
 def shuffle_data(split_layers_dict):
     ''' Shuffled data, such that x, y, and class retains the same index. '''
-    for dictionary in split_layers_dict.values():
-        for training_split, data in dictionary.items():
-            shuffled = np.arange(0, len(data['inputs']), 1)
-            np.random.shuffle(shuffled)
+    for split in split_layers_dict.values():
+        shuffled = np.arange(0, len(split['inputs']), 1)
+        np.random.shuffle(shuffled)
 
-            for name in data.keys():
-                dictionary[training_split][name] = dictionary[training_split][name][shuffled]
+        for type_of_data in split.keys():
+            split[type_of_data] = split[type_of_data][shuffled]
 
 def output_scale(t, fit=True, scaler=None):
     """Scale output values such that each has a min/max of 0/1. e.g. max: 1,1,1,1
@@ -239,8 +226,10 @@ def image_process(sample):
 
 def parse():
     parser = argparse.ArgumentParser(description='Data Generation')
-    parser.add_argument('data', metavar='DIR',
+    parser.add_argument('data', metavar='DATADIR',
                         help='path to dataset')  
+    parser.add_argument('save', metavar='SAVEDIR',
+                        help='path to save directory')
     args = parser.parse_args()
     return args
 
