@@ -35,7 +35,7 @@ CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
 class RefModelClassifier():
-    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers):
+    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers, batch_size):
         'Initialisation'
         self.dims          = dims
         self.channels      = channels
@@ -43,6 +43,7 @@ class RefModelClassifier():
         self.dropout       = dropout
         self.learning_rate = learning_rate
         self.workers       = workers
+        self.batch_size    = batch_size
         self.model         = self.create_model()
 
     def train(self, train_seq, valid_seq):
@@ -94,7 +95,12 @@ class RefModelClassifier():
         layer_predictions = np.argmax(layer_predictions, axis=1)
 
         with h5py.File(file, 'r') as f:
-            layers_ground = f['layers']
+            layers_ground = f['layers'] 
+            remainder = len(layers_ground) % self.batch_size
+
+            if remainder:
+                layers_ground = layers_ground[:-remainder]
+
             cm = confusion_matrix(layers_ground, layer_predictions)
             df_cm = pd.DataFrame(cm, index=[i for i in '12'], columns=[i for i in '12'])
             # confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm)
@@ -195,7 +201,7 @@ def main(args):
         DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=testh5)
 
     model = RefModelClassifier(
-        DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers)
+        DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.batch_size)
     
     model.summary()
     history = model.train(train_loader, valid_loader)
