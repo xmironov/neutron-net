@@ -10,22 +10,29 @@ import re
 import json
 import glob
 import warnings
-
+# import dataseq
 
 import numpy as np 
 import pandas as pd
-import matplotlib.pyplot as plt
-
+# import imgaug as ia 
 
 from datetime import datetime
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, confusion_matrix
+# from imgaug import augmenters as iaa
 
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, LeakyReLU, BatchNormalization, Dropout
+import tensorflow as tf
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, LeakyReLU, BatchNormalization, Dropout, Input
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam, Nadam
+
+from sequencers import DataSequence
+
+DIMS = (300, 300)
+CHANNELS = 1
+tf.compat.v1.disable_eager_execution()
 
 class RefModelClassifier():
     def __init__(self, dims, channels, epochs, dropout, learning_rate, workers):
@@ -50,15 +57,22 @@ class RefModelClassifier():
 
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor='val_loss',
-            patience=5,
+            patience=10,
             verbose=1,
             factor=0.5,
-            min_lr = 0.00001
+            min_lr = 0.000001
+        )
+
+        model_checkpoint_cbk = ModelCheckpoint(
+            'weights.{epoch:02d}-{val_loss:2f}.h5',
+            monitor='val_loss',
+            verbose=0,
+            save_best_only=True
         )
 
         start = time.time()
-        self.history = self.model.fit_generator(
-            generator = train_seq,
+        self.history = self.model.fit(
+            train_seq,
             validation_data = valid_seq,
             epochs = self.epochs,
             workers = self.workers,
@@ -74,46 +88,55 @@ class RefModelClassifier():
         valid_seq.close_file()
 
         return self.history
+
+    def test(self, test_seq, file):
+        layer_predictions = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
+        layer_predictions = np.argmax(layer_predictions, axis=1)
+
+        with h5py.File(file, 'r') as f:
+            layers_ground = f['layers']
+            cm = confusion_matrix(layers_ground, layer_predictions)
+            df_cm = pd.DataFrame(cm, index=[i for i in '12'], columns=[i for i in '12'])
+            # confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm)
     
     def create_model(self):
-        model = Sequential()
-
-        # Convolutional network
-        model.add(Conv2D(32, kernel_size=(3,3), activation="relu", input_shape=(*self.dims, self.channels)))
-        model.add(MaxPooling2D(pool_size=(2,2)))
-        model.add(Conv2D(64, kernel_size=3, activation="relu"))
-        model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
-        model.add(Conv2D(32, kernel_size=3, activation="relu"))
-        model.add(MaxPooling2D(pool_size=(2,2)))
-        model.add(Conv2D(16, kernel_size=3, activation="relu"))
-        model.add(MaxPooling2D(pool_size=(2,2)))
+        # Convolutional Encoder
+        input_img = Input(shape=(*self.dims, self.channels))
+        conv_1 = Conv2D(32, (3,3), activation='relu')(input_img)
+        pool_1 = MaxPooling2D((2,2))(conv_1)
+        conv_2 = Conv2D(64, (3,3), activation='relu')(pool_1)
+        pool_2 = MaxPooling2D((2,2), strides=(2,2))(conv_2)
+        conv_3 = Conv2D(32, (3,3), activation='relu')(pool_2)
+        pool_3 = MaxPooling2D((2,2))(conv_3)
+        conv_4 = Conv2D(16, (3,3), activation='relu')(pool_3)
+        pool_4 = MaxPooling2D((2,2))(conv_4)
+        flatten = Flatten()(pool_4)
 
         # Dense network
-        model.add(Flatten())
-        model.add(Dense(units=300, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=240, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=192, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=154, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=123, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=98, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=79, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=63, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=50, activation="relu", kernel_initializer="he_normal"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(units=3, activation="softmax"))
-        model.compile(
-            optimizer = Nadam(self.learning_rate),
-            loss='sparse_categorical_crossentropy',
-            metrics = ['sparse_categorical_accuracy']
-            )
+        dense_1 = Dense(300, activation='relu', kernel_initializer='he_normal')(flatten)
+        dropout_1 = Dropout(self.dropout)(dense_1)
+        dense_2 = Dense(240, activation='relu', kernel_initializer='he_normal')(dropout_1)
+        dropout_2 = Dropout(self.dropout)(dense_2)
+        dense_3 = Dense(192, activation='relu', kernel_initializer='he_normal')(dropout_2)
+        dropout_3 = Dropout(self.dropout)(dense_3)
+        dense_4 = Dense(154, activation='relu', kernel_initializer='he_normal')(dropout_3)
+        dropout_4 = Dropout(self.dropout)(dense_4)
+        dense_5 = Dense(123, activation='relu', kernel_initializer='he_normal')(dropout_4)
+        dropout_5 = Dropout(self.dropout)(dense_5)
+        dense_6 = Dense(98, activation='relu', kernel_initializer='he_normal')(dropout_5)
+        dropout_6 = Dropout(self.dropout)(dense_6)
+        dense_7 = Dense(79, activation='relu', kernel_initializer='he_normal')(dropout_6)
+        dropout_7 = Dropout(self.dropout)(dense_7)
+        dense_8 = Dense(63, activation='relu', kernel_initializer='he_normal')(dropout_7)
+        dropout_8 = Dropout(self.dropout)(dense_8)
+        dense_9 = Dense(50, activation='relu', kernel_initializer='he_normal')(dropout_8)
+        dropout_9 = Dropout(self.dropout)(dense_9)
+        dense_output = Dense(3, activation='softmax')(dropout_9)
+
+        model = Model(inputs=input_img, outputs=dense_output)
+        model.compile(optimizer=Nadam(self.learning_rate), 
+                        loss='sparse_categorical_crossentropy', metrics=['sparse_categorical_accuracy'])
+
         return model
 
     def summary(self):
@@ -145,95 +168,60 @@ class RefModelClassifier():
             self.model.summary(print_fn=lambda x: f.write(x + '\n'))
 
         self.model.save(os.path.join(savepath, 'full_model.h5'))
+   
+def main(args):
+    savepath = os.path.join(
+        args.save, 'classifier-[' + datetime.now().strftime('%Y-%m-%dT%H%M%S')  +']')
 
-class DataSequenceClasses(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, h5_file, classes, dim, channels, batch_size):
-        'Initialisation'
-        self.file       = h5py.File(h5_file, 'r') # H5 file to read
-        self.classes    = classes                 # Classes of images  
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.on_epoch_end()
+    if args.log:
+        experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
+                                project_name="general", workspace="xandrovich")
 
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.file['images']) / self.batch_size))
+    traindir = os.path.join(args.data, 'train.h5')
+    valdir = os.path.join(args.data, 'validate.h5')
+    testdir = os.path.join(args.data, 'test.h5')
 
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        x, c = self.__data_generation(indexes)
+    trainh5 = h5py.File(traindir, 'r')
+    valh5 = h5py.File(valdir, 'r')
+    testh5 = h5py.File(testdir, 'r')
 
-        return x, c
+    train_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=trainh5, debug=True)
 
-    def __data_generation(self, indexes):
-        'Generates data containing batch_size samples'
-        x = np.empty((self.batch_size, *self.dim, self.channels))
-        c = np.empty((self.batch_size, 1), dtype=int)
+    valid_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=valh5)
 
-        for i, idx in enumerate(indexes):
-            x[i,] = np.array(self.file['images'][idx])
-            c[i,] = self.classes[idx]
-        
-        return x, c
+    test_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=testh5)
 
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.file['images']))
-
-    def close_file(self):
-        self.file.close()
+    model = RefModelClassifier(
+        DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers)
     
-def main():
-    experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
-                            project_name="general", workspace="xandrovich")
-
-    LEARNING_RATE = 0.0003
-    DROPOUT       = 0.1
-    BATCH_SIZE    = 40
-    DIMS          = (300, 300)
-    CHANNELS      = 1
-    EPOCHS        = 100
-    WORKERS       = 6
-
-    datapath = r'C:\Users\mtk57988\stfc\ml-neutron\neutron_net\data\perfect_w_classes\all'
-    savedir = r'C:\Users\mtk57988\stfc\ml-neutron\neutron_net\investigate\investigate'
-    savepath = os.path.join(savedir, ('refnet-classifier-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')))
-
-    output_dict = load_output(datapath)
-    classes_dict = load_classes(datapath)
-
-    train_output, valid_output, test_output = output_dict['train_output'], output_dict['valid_output'], output_dict['test_output']
-    train_classes, valid_classes, test_classes = classes_dict['train_class'], classes_dict['valid_class'], classes_dict['test_class']
-
-    train_sequence = DataSequenceClasses(
-        os.path.join(datapath, 'train.h5'), train_classes, DIMS, CHANNELS, BATCH_SIZE)
-    valid_sequence = DataSequenceClasses(
-        os.path.join(datapath, 'valid.h5'), valid_classes, DIMS, CHANNELS, BATCH_SIZE)
-    test_sequence = DataSequenceClasses(
-        os.path.join(datapath, 'test.h5'), test_classes, DIMS, CHANNELS, BATCH_SIZE)
-
-    model = RefModelClassifier(DIMS, CHANNELS, EPOCHS, DROPOUT, LEARNING_RATE, WORKERS)
     model.summary()
-    # model.plot()
-    history = model.train(train_sequence, valid_sequence)
+    history = model.train(train_loader, valid_loader)
+    model.test(test_loader, testdir)
     model.save(savepath)
-    
-def load_output(path):
-    data = {}
-    for section in ['train', 'valid', 'test']:
-        with h5py.File(os.path.join(path, '{}.h5'.format(section)), 'r') as f:
-            data['{}_output'.format(section)] = np.array(f['Y'])
-    return data
 
-def load_classes(path):
-    data = {}
-    for section in ['train', 'valid', 'test']:
-        with h5py.File(os.path.join(path, '{}.h5'.format(section)), 'r') as f:
-            data['{}_class'.format(section)] = np.array(f['class'])
-    return data
+def parse():
+    parser = argparse.ArgumentParser(description='Keras Classifier Training')
+    parser.add_argument('data', metavar='DATADIR',
+                        help='path to dataset')
+    parser.add_argument('save', metavar='SAVEDIR',
+                        help='path to save directory')
+    parser.add_argument('--epochs', default=2, type=int, metavar='N',
+                        help='number of total epochs to run')
+    parser.add_argument('-b', '--batch_size', default=40, type=int,
+                        metavar='BATCH_SIZE', help='mini-batch size per process (default: 40)')
+    parser.add_argument('-j', '--workers', default=6, type=int, metavar='N',
+                        help='number of data loading workers (default: 6)')
+    parser.add_argument('-lr', '--learning_rate', default=0.0004, type=float,
+                        help='initial learning rate')
+    parser.add_argument('-d', '--dropout', default=0.1, type=float,
+                        help='dropout rate')
+    parser.add_argument('-l', '--log', action='store_true',
+                        help='log metrics to CometML')   
+    args = parser.parse_args()
+    return args
 
 def convert_to_float(dictionary):
 	""" For saving model output to json"""
@@ -246,4 +234,5 @@ def convert_to_float(dictionary):
 	return jsoned_dict
 
 if __name__ == "__main__":
-    main()
+    args = parse()
+    main(args)
