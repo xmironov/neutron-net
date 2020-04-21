@@ -16,6 +16,7 @@ class DataSequence(Sequence):
         self.batch_size = batch_size              # Batch size
         self.mode       = mode                    # 'regression' or 'classification
         self.layers     = layers                  # No. of layers you want to train, otherwise leave blank
+        self.debug      = debug                   # Debug boolean
         self.on_epoch_end()
 
     def __len__(self):
@@ -66,14 +67,14 @@ class DataSequence(Sequence):
                 for i, idx in enumerate(indexes):
                     image = self.file['images'][idx]
                     images[i,] = image
-                    classes[i,] = self.file['classes'][idx]
+                    classes[i,] = self.file['layers'][idx]
                 
                 if self.debug:
                     i = 0
                     while i < 9:
                         print(classes[i])
                         i+=1
-                        
+
                     self.debug = False
                 
                 return images, classes
