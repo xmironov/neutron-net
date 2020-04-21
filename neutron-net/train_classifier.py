@@ -91,7 +91,7 @@ class RefModelClassifier():
 
         return self.history
 
-    def test(self, test_seq, file):
+    def test(self, test_seq, file, savepath):
         layer_predictions = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
         layer_predictions = np.argmax(layer_predictions, axis=1)
 
@@ -104,7 +104,7 @@ class RefModelClassifier():
 
             cm = confusion_matrix(layers_ground, layer_predictions)
             df_cm = pd.DataFrame(cm, index=[i for i in '12'], columns=[i for i in '12'])
-            confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm)
+            confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, savepath)
     
     def create_model(self):
         # Convolutional Encoder
@@ -206,8 +206,8 @@ def main(args):
     
     model.summary()
     history = model.train(train_loader, valid_loader)
-    model.test(test_loader, testdir)
     model.save(savepath)
+    model.test(test_loader, testdir, os.path.join(savepath, 'confusion_matrix.jpg'))
 
 def parse():
     parser = argparse.ArgumentParser(description='Keras Classifier Training')
