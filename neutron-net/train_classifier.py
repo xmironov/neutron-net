@@ -29,6 +29,7 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCh
 from tensorflow.keras.optimizers import Adam, Nadam
 
 from sequencers import DataSequence
+import confusion_matrix_pretty_print
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -103,7 +104,7 @@ class RefModelClassifier():
 
             cm = confusion_matrix(layers_ground, layer_predictions)
             df_cm = pd.DataFrame(cm, index=[i for i in '12'], columns=[i for i in '12'])
-            # confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm)
+            confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm)
     
     def create_model(self):
         # Convolutional Encoder
@@ -192,7 +193,7 @@ def main(args):
     testh5 = h5py.File(testdir, 'r')
 
     train_loader = DataSequence(
-        DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=trainh5, debug=True)
+        DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=trainh5)
 
     valid_loader = DataSequence(
         DIMS, CHANNELS, args.batch_size, mode='classification', h5_file=valh5)
