@@ -66,44 +66,41 @@ def main(args):
     test_classification_predictions = classifier_model.predict(classification_loader, verbose=1)
     test_classification_predictions = np.argmax(test_classification_predictions, axis=1)
 
-    # Classifier currently not working, so using fake predictions
-    fake_classification_predictions = np.full((len(npy_image_filenames), 1), 2)
-
     # Create regression labels whose size depends on the predicted number of layers in a given sample
     values_labels = {filename: 
                             {'depth': np.zeros((1,int(layer_prediction))), 
                              'sld': np.zeros((1,int(layer_prediction))), 
                              'class': int(layer_prediction)}                    
-                        for filename, layer_prediction in zip(npy_image_filenames, fake_classification_predictions)}
+                        for filename, layer_prediction in zip(npy_image_filenames, test_classification_predictions)}
 
     # Data loader to fetch image and values of image
     regression_test_loader = DataSequence(
         DIMS, CHANNELS, batch_size=1, mode='regression', labels=values_labels)
 
-    # args.regressor_models
-    one_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(1), '*/')))[0]
-    two_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(2), '*/')))[0]
+    # # args.regressor_models
+    # one_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(1), '*/')))[0]
+    # two_layer_regression_model_path = glob.glob(os.path.normpath(os.path.join(args.regressor_models, str(2), '*/')))[0]
 
-    models = {
-        1: {'model':get_model(one_layer_regression_model_path), 
-            'scaler':pickle.load(open(os.path.join(one_layer_regression_model_path, 'output_scaler.p'), 'rb'))},
-        2: {'model':get_model(two_layer_regression_model_path), 
-            'scaler':pickle.load(open(os.path.join(two_layer_regression_model_path, 'output_scaler.p'), 'rb'))},
-    }
+    # models = {
+    #     1: {'model':get_model(one_layer_regression_model_path), 
+    #         'scaler':pickle.load(open(os.path.join(one_layer_regression_model_path, 'output_scaler.p'), 'rb'))},
+    #     2: {'model':get_model(two_layer_regression_model_path), 
+    #         'scaler':pickle.load(open(os.path.join(two_layer_regression_model_path, 'output_scaler.p'), 'rb'))},
+    # }
 
-    predictions = []
-    for npy_image_filename, labels in values_labels.items():
-        img = np.expand_dims(np.load(npy_image_filename), axis=0)
-        prediction = models[labels['class']]['model'].predict(img)
-        prediction_depths, prediction_slds = prediction[0][0], prediction[1][0]
-        merge = [None] * (len(prediction_depths) + len(prediction_slds))
-        merge[::2], merge[1::2] = prediction_depths, prediction_slds
-        scaled_prediction = models[labels['class']]['scaler'].inverse_transform(np.array(merge).reshape(1,-1))
-        print(scaled_prediction)
-        predictions.append(scaled_prediction)
+    # predictions = []
+    # for npy_image_filename, labels in values_labels.items():
+    #     img = np.expand_dims(np.load(npy_image_filename), axis=0)
+    #     prediction = models[labels['class']]['model'].predict(img)
+    #     prediction_depths, prediction_slds = prediction[0][0], prediction[1][0]
+    #     merge = [None] * (len(prediction_depths) + len(prediction_slds))
+    #     merge[::2], merge[1::2] = prediction_depths, prediction_slds
+    #     scaled_prediction = models[labels['class']]['scaler'].inverse_transform(np.array(merge).reshape(1,-1))
+    #     print(scaled_prediction)
+    #     predictions.append(scaled_prediction)
 
-    predictions = {npy_image_filename: prediction for 
-                    npy_image_filename, prediction in zip(npy_image_filenames, predictions)}
+    # predictions = {npy_image_filename: prediction for 
+    #                 npy_image_filename, prediction in zip(npy_image_filenames, predictions)}
     
 
     # # #TODO: Load all regression models and select appropriate one on a per case basis
