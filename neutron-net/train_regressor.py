@@ -183,25 +183,30 @@ def main(args):
         experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
                                 project_name="general", workspace="xandrovich")
 
-    traindir = os.path.join(args.data, str(args.layers), 'train.h5')
-    valdir = os.path.join(args.data, str(args.layers), 'valid.h5')
+    traindir = os.path.join(args.data, 'train.h5')
+    valdir = os.path.join(args.data, 'valid.h5')
+    testdir = os.path.join(args.data, 'test.h5')
 
     trainh5 = h5py.File(traindir, 'r')
     valh5 = h5py.File(valdir, 'r')
+    testh5 = h5py.File(testdir, 'r')
 
-    train_loader = DataSequence(
-        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5)
+    # train_loader = DataSequence(
+    #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5)
 
-    valid_loader = DataSequence(
-        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=valh5)
+    # valid_loader = DataSequence(
+    #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=valh5)
 
-    model = RefModelRegressor(
-        DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.layers)
-    model.summary()
-    history = model.train(train_loader, valid_loader)
-    savepath = os.path.join(
-        args.save, 'refnet-' + datetime.now().strftime('%Y-%m-%dT%H%M%S') + '-%slayer[keras]' % str(args.layers))
-    model.save(savepath)
+    # test_loader = DataSequence(
+    #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=testh5)
+
+    # model = RefModelRegressor(
+    #     DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.layers)
+    # model.summary()
+    # history = model.train(train_loader, valid_loader)
+    # savepath = os.path.join(
+    #     args.save, 'refnet-' + datetime.now().strftime('%Y-%m-%dT%H%M%S') + '-%slayer[keras]' % str(args.layers))
+    # model.save(savepath)
 
 def parse():
     parser = argparse.ArgumentParser(description='PyTorch RefNet Training')
