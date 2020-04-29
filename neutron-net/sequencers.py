@@ -22,7 +22,13 @@ class DataSequence(Sequence):
     def __len__(self):
         'Denotes number of batches per epoch'
         if self.file:
+            # If particular layer number provided
+            if self.layers:
+                return int(np.floor(len(np.where(np.array(self.file['layers'] == self.layers))[0])))
+
+            # If all samples sufficient
             return int(np.floor(len(self.file['images']) / self.batch_size))
+            
         elif self.labels:
             return int(np.floor(len(self.labels.keys()) / self.batch_size))
 
@@ -102,8 +108,19 @@ class DataSequence(Sequence):
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
+        # h5 file provided: training/validation/testing (ground truths present)
         if self.file:
-            self.indexes = np.arange(len(self.file['images']))
+            # Regression:
+            ## If particular layer is required find indexes where layer exists
+            if self.layers:
+                self.indexes = np.where(np.array(self.file['layers'] == self.layers))[0]
+
+            # Classification
+            ## Otherwise create indexes for whole file
+            else:    
+                self.indexes = np.arange(len(self.file['images']))
+
+        # list of files provided: predicting (ground truths absent)
         elif self.labels:
             self.indexes = np.arange(len(self.labels.keys()))
 
