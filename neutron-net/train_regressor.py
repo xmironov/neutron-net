@@ -183,13 +183,25 @@ def main(args):
         experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
                                 project_name="general", workspace="xandrovich")
 
+    layers = args.layers
+
     traindir = os.path.join(args.data, 'train.h5')
-    valdir = os.path.join(args.data, 'valid.h5')
+    valdir = os.path.join(args.data, 'validate.h5')
     testdir = os.path.join(args.data, 'test.h5')
 
     trainh5 = h5py.File(traindir, 'r')
     valh5 = h5py.File(valdir, 'r')
     testh5 = h5py.File(testdir, 'r')
+
+    train_layers = np.array(trainh5['layers'])
+    val_layers = np.array(valh5['layers'])
+    test_layers = np.array(testh5['layers'])
+
+    train_layers_indexes = np.where(train_layers==layers)[0]
+    val_layers_indexes = np.where(val_layers==layers)[0]
+    test_layers_indexes = np.where(test_layers==layers)[0]
+
+    print(train_layers_indexes[0:5])
 
     # train_loader = DataSequence(
     #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5)
