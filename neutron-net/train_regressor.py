@@ -1,16 +1,13 @@
 from comet_ml import Experiment
 
-import os 
+import os, time, sys, warnings 
 os.environ["KMP_AFFINITY"] = "none"
 
 import argparse
 import h5py 
-import time 
 import re 
 import json
 import glob
-import warnings
-# import dataseq
 
 import numpy as np 
 import pandas as pd
@@ -29,6 +26,10 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCh
 from tensorflow.keras.optimizers import Adam, Nadam
 
 from sequencers import DataSequence
+
+warnings.filterwarnings("ignore")
+print('python {}'.format(sys.version))
+print('tensorflow version {}'.format(tf.__version__))
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -183,7 +184,8 @@ def main(args):
         experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
                                 project_name="general", workspace="xandrovich")
 
-    layers = args.layers
+    savepath = os.path.join(
+        args.save, 'regressor-%s-layer[' %str(args.layers) + datetime.now().strftime('%Y-%m-%dT%H%M%S')  +']')
 
     traindir = os.path.join(args.data, 'train.h5')
     valdir = os.path.join(args.data, 'validate.h5')
@@ -193,31 +195,21 @@ def main(args):
     valh5 = h5py.File(valdir, 'r')
     testh5 = h5py.File(testdir, 'r')
 
-    train_layers = np.array(trainh5['layers'])
-    val_layers = np.array(valh5['layers'])
-    test_layers = np.array(testh5['layers'])
 
-    train_layers_indexes = np.where(train_layers==layers)[0]
-    val_layers_indexes = np.where(val_layers==layers)[0]
-    test_layers_indexes = np.where(test_layers==layers)[0]
+    train_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5, debug=True)
 
-    print(train_layers_indexes[0:5])
-
-    # train_loader = DataSequence(
-    #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=trainh5)
-
-    # valid_loader = DataSequence(
-    #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=valh5)
+    valid_loader = DataSequence(
+        DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=valh5)
 
     # test_loader = DataSequence(
     #     DIMS, CHANNELS, args.batch_size, mode='regression', layers=args.layers, h5_file=testh5)
 
-    # model = RefModelRegressor(
-    #     DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.layers)
+    model = RefModelRegressor(
+        DIMS, CHANNELS, args.epochs, args.dropout, args.learning_rate, args.workers, args.layers)
+
     # model.summary()
-    # history = model.train(train_loader, valid_loader)
-    # savepath = os.path.join(
-    #     args.save, 'refnet-' + datetime.now().strftime('%Y-%m-%dT%H%M%S') + '-%slayer[keras]' % str(args.layers))
+    history = model.train(train_loader, valid_loader)
     # model.save(savepath)
 
 def parse():
@@ -230,8 +222,8 @@ def parse():
                         help='number of layers to predict')
     parser.add_argument('--epochs', default=2, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('-b', '--batch_size', default=64, type=int,
-                        metavar='BATCH_SIZE', help='mini-batch size per process (default: 64)')
+    parser.add_argument('-b', '--batch_size', default=20, type=int,
+                        metavar='BATCH_SIZE', help='mini-batch size per process (default: 20)')
     parser.add_argument('-j', '--workers', default=6, type=int, metavar='N',
                         help='number of data loading workers (default: 6)')
     parser.add_argument('-lr', '--learning_rate', default=0.0004, type=float,
