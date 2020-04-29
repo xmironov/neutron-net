@@ -24,11 +24,12 @@ class DataSequence(Sequence):
         if self.file:
             # If particular layer number provided
             if self.layers:
-                return int(np.floor(len(np.where(np.array(self.file['layers'] == self.layers))[0])))
+                where = np.where(np.array(self.file['layers']) == self.layers)[0]
+                return int(np.floor(len(where)))
 
             # If all samples sufficient
             return int(np.floor(len(self.file['images']) / self.batch_size))
-            
+
         elif self.labels:
             return int(np.floor(len(self.labels.keys()) / self.batch_size))
 
