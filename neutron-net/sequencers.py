@@ -25,7 +25,7 @@ class DataSequence(Sequence):
             # If particular layer number provided
             if self.layers:
                 where = np.where(np.array(self.file['layers']) == self.layers)[0]
-                return int(np.floor(len(where)))
+                return int(np.floor(len(where) / self.batch_size))
 
             # If all samples sufficient
             return int(np.floor(len(self.file['images']) / self.batch_size))
@@ -50,10 +50,19 @@ class DataSequence(Sequence):
             if self.file:
                 targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
                 targets_sld = np.empty((self.batch_size, self.layers), dtype=float)
+                
                 for i, idx in enumerate(indexes):
                     image = self.file['images'][idx]
-                    target = self.file['scaled_targets'][idx]
+                    target = self.file['targets_scaled'][idx]
                     images[i,] = image
+                    
+                    if self.layers:
+                        length = len(target)
+                        difference = length - self.layers * 2
+
+                        if difference:
+                            target = target[:-difference]
+
                     targets_depth[i,] = target[::2]
                     targets_sld[i,] = target[1::2]
                 return images, {'depth': targets_depth, 'sld': targets_sld}
@@ -114,7 +123,8 @@ class DataSequence(Sequence):
             # Regression:
             ## If particular layer is required find indexes where layer exists
             if self.layers:
-                self.indexes = np.where(np.array(self.file['layers'] == self.layers))[0]
+                where = np.where(np.array(self.file['layers']) == self.layers)[0]
+                self.indexes = where
 
             # Classification
             ## Otherwise create indexes for whole file
