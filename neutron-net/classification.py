@@ -25,6 +25,55 @@ DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
+class Sequencer(Sequence):
+    """ Use Keras Sequence class to load image data from h5 file"""
+    def __init__(self, file, labels, dim, channels, batch_size, debug=False, shuffle=False):
+        self.file       = file
+        self.labels     = labels
+        self.dim        = dim
+        self.channels   = channels
+        self.batch_size = batch_size
+        self.debug      = debug
+        self.on_epoch_end()
+
+    def __len__(self)
+        """ Denotes number of batches per epoch"""
+        return int(np.floor(len(self.labels) / self.batch_size))
+
+    def __getitem__(self, index):
+        """ Generates one batch of data"""
+        indexes = self.indexes[index * self.batch_size: (index+1) * self.batch_size]
+        inputs, targets = self.__data_generation(indexes)
+        return inputs, targets
+
+    def __data_generation(self, indexes):
+        """ Generates data containing batch_size samples"""
+        images = np.empty((self.batch_size, *self.dim, self.channels))
+        classes = np.empty((self.batch_size, 1), dtype=int)
+
+        for i, idx in enumerate(indexes):
+            image = self.file['images'][idx]
+            images[i,] = image
+            classes[i,] = self.labels[idx]
+
+            if self.debug:
+                i = 0
+                while i < 10:
+                    print(classes[i])
+                    i+=1
+                self.debug = False
+            
+            return images, classes
+    
+    def on_epoch_end(self):
+        """Updates indexes after each epoch"""
+        indexes = np.arange(len(self.labels))
+
+        if self.shuffle:
+            self.indexes = np.random.shuffle(indexes)
+        else:
+            self.indexes = indexes
+
 def main(args):
     name = "classifier-[" + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
     savepath = os.path.join(args.save, name)
@@ -39,6 +88,8 @@ def main(args):
     train_file = h5py.File(train_dir, "r")
     validate_dir = h5py.File(validate_dir, "r")
     test_dir = h5py.File(test_dir, "r")
+
+    train_loader = DataSequence(DIMS, CHANNELS, args.batch_size)
 
 def parse():
     parser = argparse.ArgumentParser(description="Keras Classifier Training")
