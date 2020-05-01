@@ -3,6 +3,7 @@ from comet_ml import Experiment
 import os, time, re, glob, warnings
 import argparse
 import json
+import h5py
 
 os.environ["KMP_AFFINITY"] = "none"
 
@@ -25,7 +26,19 @@ CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
 def main(args):
-    pass
+    name = "classifier-[" + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
+    savepath = os.path.join(args.save, name)
+
+    if args.log:
+        experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk", project_name="general", workspace="xandrovich")
+
+    train_dir = os.path.join(args.data, "train.h5")
+    validate_dir = os.path.join(args.data, "validate.h5")
+    test_dir = os.path.join(args.data, "test.h5")
+
+    train_file = h5py.File(train_dir, "r")
+    validate_dir = h5py.File(validate_dir, "r")
+    test_dir = h5py.File(test_dir, "r")
 
 def parse():
     parser = argparse.ArgumentParser(description="Keras Classifier Training")
@@ -43,5 +56,7 @@ def parse():
     parser.add_argument("-lr", "--learning_rate", default=0.0003, type=float, metavar="R", help="Nadam learning rate")
     parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
     return parser.parse_args()
+
 if __name__ == "__main__":
     args = parse()
+    main(args)
