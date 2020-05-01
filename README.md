@@ -33,4 +33,4 @@ Daniil Mironov - daniil.mironov@stfc.ac.uk
 Jos Cooper     - jos.cooper@stfc.ac.uk
 
 ## Acknowledgements
-Many thanks to the support provided by the SciML group at the Rutherford Appleton Laboratory for their expertise and assistance with this project - in particular, we'd like to thank Rebecca Mackenzie for being so key in laying the groundwork, and giving the project a strong foundation.
+Many thanks for the collaboration of the Scientific Machine Learning group at the Rutherford Appleton Laboratory, their expertise and assistance with this project - in particular, we'd like to thank Rebecca Mackenzie for being so key in laying the groundwork, and giving the project a strong foundation.
