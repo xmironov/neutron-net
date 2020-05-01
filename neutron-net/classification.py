@@ -29,11 +29,19 @@ def main(args):
 
 def parse():
     parser = argparse.ArgumentParser(description="Keras Classifier Training")
+    # Meta Parameters
     parser.add_argument("data", metavar="PATH", help="path to data directory")
     parser.add_argument("save", metavar="PATH", help="path to save directory")
+    parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
 
+    # Model parameters
     parser.add_argument("-e", "--epochs", default=2, type=int, metavar="N", help="number of epochs")
-    parser.add_argument()
-
+    parser.add_argument("-b", "--batch_size", default=20, type=int, metavar="N", help="no. samples per batch (def:20)")
+    parser.add_argument("-j", "--workers", default=6, type=int, metavar="N", help="no. data loading workers (def:6)")
+    
+    # Learning parameters
+    parser.add_argument("-lr", "--learning_rate", default=0.0003, type=float, metavar="R", help="Nadam learning rate")
+    parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
+    return parser.parse_args()
 if __name__ == "__main__":
     args = parse()
