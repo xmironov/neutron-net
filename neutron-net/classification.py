@@ -27,9 +27,9 @@ tf.compat.v1.disable_eager_execution()
 
 class Sequencer(Sequence):
     """ Use Keras Sequence class to load image data from h5 file"""
-    def __init__(self, file, dim, channels, batch_size, debug=False, shuffle=False):
+    def __init__(self, file, labels, dim, channels, batch_size, debug=False, shuffle=False):
         self.file       = file
-        # self.labels     = labels
+        self.labels     = labels
         self.dim        = dim
         self.channels   = channels
         self.batch_size = batch_size
@@ -55,13 +55,13 @@ class Sequencer(Sequence):
 
         for i, idx in enumerate(indexes):
             image = self.file["images"][idx]
-            images[i,] = image
-            classes[i,] = self.file["layers"][idx]      
+            images[i,] = np.array(image)
+            classes[i,] = self.labels[idx]      
         return images, classes
     
     def on_epoch_end(self):
         """Updates indexes after each epoch"""
-        indexes = np.arange(0, len(self.file["images"]))
+        indexes = np.arange(len(self.file["images"]))
 
         if self.shuffle:
             np.random.shuffle(indexes)
@@ -153,22 +153,30 @@ def main(args):
     name = "classifier-[" + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
     savepath = os.path.join(args.save, name)
 
-    data = r"D:\Users\Public\Documents\stfc\neutron-net\data\single"
+    data = r"C:\Users\mtk57988\stfc\ml-neutron\neutron_net\data\perfect_w_classes\all"
 
     if args.log:
         experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk", project_name="general", workspace="xandrovich")
 
     train_dir = os.path.join(data, "train.h5")
-    validate_dir = os.path.join(data, "validate.h5")
+    validate_dir = os.path.join(data, "valid.h5")
     test_dir = os.path.join(data, "test.h5")
 
     train_file = h5py.File(train_dir, "r")
     validate_file = h5py.File(validate_dir, "r")
     test_file = h5py.File(test_dir, "r")
 
-    train_loader = Sequencer(train_file, DIMS, CHANNELS, args.batch_size, debug=True, shuffle=True)
-    validate_loader = Sequencer(validate_file, DIMS, CHANNELS, args.batch_size, shuffle=False)
-    test_loader = Sequencer(test_file, DIMS, CHANNELS, args.batch_size, shuffle=False)
+    labels = load_labels(data)
+    train_labels, validate_labels, test_labels = labels["train"], labels["valid"], labels["test"]
+
+    print("\nTraining set size:", len(train_labels), 
+          "\nValidation set size:", len(validate_labels),
+          "\nTesting set size:", len(test_labels))
+
+
+    train_loader = Sequencer(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
+    validate_loader = Sequencer(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
+    test_loader = Sequencer(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
 
     model = Classifier(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers)
     model.summary()
@@ -191,6 +199,14 @@ def parse():
     parser.add_argument("-lr", "--learning_rate", default=0.0003, type=float, metavar="R", help="Nadam learning rate")
     parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
     return parser.parse_args()
+
+def load_labels(path):
+    data = {}
+    for section in ["train", "valid", "test"]:
+        with h5py.File(os.path.join(path, "{}.h5".format(section)), "r") as f:
+            data["{}".format(section)] = np.array(f["class"])
+
+    return data
 
 if __name__ == "__main__":
     args = parse()
