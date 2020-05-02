@@ -21,6 +21,8 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Nadam
 
+import confusion_matrix_pretty_print
+
 DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
@@ -69,7 +71,7 @@ class Sequencer(Sequence):
         self.indexes = indexes
 
 class Classifier():
-    def __init__(self, dims, channels, epochs, dropout, lr, workers):
+    def __init__(self, dims, channels, epochs, dropout, lr, workers, batch_size):
         """ Initialisation"""
         self.dims       = dims
         self.channels   = channels
@@ -77,6 +79,7 @@ class Classifier():
         self.dropout    = dropout
         self.lr         = lr
         self.workers    = workers
+        self.batch_size = batch_size
         self.model      = self.create_model()
 
     def train(self, train_sequence, validate_sequence):
@@ -89,6 +92,7 @@ class Classifier():
             min_lr=0.000001,
         )
 
+        start = time.time()
         self.history = self.model.fit(
             train_sequence,
             validation_data=validate_sequence,
@@ -98,8 +102,44 @@ class Classifier():
             verbose=1,
             callbacks=[learning_rate_reduction_cbk],
         )
-
+        elapsed_time = time.time() - start
+        self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         return self.history
+
+    def test(self, test_sequence, test_labels, savepath):
+        predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
+        predictions = np.argmax(predictions, axis=1)
+        remainder = len(test_labels) % self.batch_size
+
+        if remainder:
+            test_labels = test_labels[:-remainder]
+
+        cm = confusion_matrix(test_labels, predictions)
+        df_cm = pd.DataFrame(cm, index=[i for i in "12"], columns=[i for i in "12"])
+        confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, savepath)
+
+    def save(self, savepath):
+        try:
+            os.makedirs(savepath)
+        except OSError:
+            pass
+
+        with open(os.path.join(savepath, "history.json"), "w") as f:
+            json_dump = convert_to_float(self.history.history)
+            json_dump["time_taken"] = self.time_taken
+            json.dump(json_dump, f)
+
+        model_yaml = self.model.to_yaml()
+
+        with open(os.path.join(savepath, "model.yaml"), "w") as yaml_file:
+            yaml_file.write(model_yaml)
+
+        self.model.save_weights(os.path.join(savepath, "model_weights.h5"))
+
+        with open(os.path.join(savepath, "summary.txt"), "w") as f:
+            self.model.summary(print_fn=lambda x: f.write(x + "\n"))
+
+        self.model.save(os.path.join(savepath, "full_model.h5"))
 
     def create_model(self):
         model = Sequential()
@@ -148,11 +188,9 @@ class Classifier():
     def summary(self):
         self.model.summary()
 
-
 def main(args):
     name = "classifier-[" + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
     savepath = os.path.join(args.save, name)
-
     data = r"C:\Users\mtk57988\stfc\ml-neutron\neutron_net\data\perfect_w_classes\all"
 
     if args.log:
@@ -169,19 +207,22 @@ def main(args):
     labels = load_labels(data)
     train_labels, validate_labels, test_labels = labels["train"], labels["valid"], labels["test"]
 
-    print("\nTraining set size:", len(train_labels), 
-          "\nValidation set size:", len(validate_labels),
-          "\nTesting set size:", len(test_labels))
-
-
     train_loader = Sequencer(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
     validate_loader = Sequencer(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
     test_loader = Sequencer(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
 
-    model = Classifier(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers)
-    model.summary()
-    model.train(train_loader, validate_loader)
+    model = Classifier(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size)
+    
+    if args.summary:
+        model.summary()
 
+    model.train(train_loader, validate_loader)
+    model.test(test_loader, test_labels, savepath)
+    model.save()
+
+    train_file.close()
+    validate_file.close()
+    test_file.close()
 
 def parse():
     parser = argparse.ArgumentParser(description="Keras Classifier Training")
@@ -189,6 +230,7 @@ def parse():
     parser.add_argument("data", metavar="PATH", help="path to data directory")
     parser.add_argument("save", metavar="PATH", help="path to save directory")
     parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
+    parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
 
     # Model parameters
     parser.add_argument("-e", "--epochs", default=2, type=int, metavar="N", help="number of epochs")
