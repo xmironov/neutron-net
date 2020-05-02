@@ -185,7 +185,6 @@ def pretty_plot_confusion_matrix(df_cm, savepath, annot=True, cmap="Oranges", fm
     ax.set_xlabel(xlbl)
     ax.set_ylabel(ylbl)
     plt.tight_layout()  #set layout slim
-    plt.show()
     plt.savefig(savepath)
 #
 
