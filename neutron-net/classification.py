@@ -218,7 +218,7 @@ def main(args):
 
     model.train(train_loader, validate_loader)
     model.test(test_loader, test_labels, savepath)
-    model.save()
+    model.save(savepath)
 
     train_file.close()
     validate_file.close()
@@ -249,6 +249,16 @@ def load_labels(path):
             data["{}".format(section)] = np.array(f["class"])
 
     return data
+
+def convert_to_float(dictionary):
+	""" For saving model output to json"""
+	jsoned_dict = {}
+	for key in dictionary.keys():
+		if type(dictionary[key]) == list:
+			jsoned_dict[key] = [float(i) for i in dictionary[key]]
+		else:
+			jsoned_dict[key] = float(dictionary[key])
+	return jsoned_dict
 
 if __name__ == "__main__":
     args = parse()
