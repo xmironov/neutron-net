@@ -72,6 +72,116 @@ class Sequencer(Sequence):
 
         self.indexes = indexes
 
+class Regressor():
+    def __init__(self, base, epochs, dropout, lr, workers, batch_size, layers):
+        """ Initialisation"""
+        self.base       = base
+        self.epochs     = epochs
+        self.dropout    = dropout
+        self.lr         = lr
+        self.workers    = workers
+        self.batch_size = batch_size
+        self.layers     = layers
+        self.model      = self.create_model()
+
+    def train(self, train_sequence, validate_sequence):
+        """ Train and validate network"""
+        learning_rate_reduction_cbk = ReduceLROnPlateau(
+            monitor="val_loss",
+            patience=10,
+            verbose=1,
+            factor=0.5,
+            min_lr=0.000001,
+        )
+
+        start = time.time()
+        self.history = self.model.fit(
+            train_sequence,
+            validation_data=validate_sequence,
+            epochs=self.epochs,
+            workers=self.workers,
+            use_multiprocessing=False,
+            verbose=1,
+            callbacks=[learning_rate_reduction_cbk],
+        )
+        elapsed_time = time.time() - start
+        self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+        return self.history
+
+    def test(self, test_sequence, test_labels, savepath):
+        predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
+        predictions = np.argmax(predictions, axis=1)
+        remainder = len(test_labels) % self.batch_size
+
+        if remainder:
+            test_labels = test_labels[:-remainder]
+
+        cm = confusion_matrix(test_labels, predictions)
+        df_cm = pd.DataFrame(cm, index=[i for i in "12"], columns=[i for i in "12"])
+        confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, savepath)
+
+    def save(self, savepath):
+        try:
+            os.makedirs(savepath)
+        except OSError:
+            pass
+
+        with open(os.path.join(savepath, "history.json"), "w") as f:
+            json_dump = convert_to_float(self.history.history)
+            json_dump["time_taken"] = self.time_taken
+            json.dump(json_dump, f)
+
+        model_yaml = self.model.to_yaml()
+
+        with open(os.path.join(savepath, "model.yaml"), "w") as yaml_file:
+            yaml_file.write(model_yaml)
+
+        self.model.save_weights(os.path.join(savepath, "model_weights.h5"))
+
+        with open(os.path.join(savepath, "summary.txt"), "w") as f:
+            self.model.summary(print_fn=lambda x: f.write(x + "\n"))
+
+        self.model.save(os.path.join(savepath, "full_model.h5"))
+
+    def create_model(self):
+        model = load_model(self.base)
+
+        for i in range(20):
+            model.layers[i].trainable = False
+        
+        for i in range(20, 24):
+            model.layers[i].trainable = True
+
+        base_model = model.layers[24].output
+        depth_dense = Dense(50, activation="relu", name="depth_dense")(base_model)
+        sld_dense = Dense(50, activation="relu", name="sld_dense")(base_model)
+        dropout_depth = Dropout(self.dropout, name="dropout_depth")(depth_dense)
+        dropout_sld = Dropout(self.dropout, name="dropout_sld")(sld_dense)
+        depth_output = Dense(units=self.layers, activation="linear", name="depth")(dropout_depth)
+        sld_output = Dense(units=self.layers, activation="linear", name="sld")(dropout_sld)
+
+        new_model = Model(inputs=model.input, outputs=[depth_output, sld_output])
+
+        new_model.compile(
+            loss={
+                "depth":"mse",
+                "sld":"mse",
+            },
+            loss_weights={
+                "depth":1,
+                "sld":1,
+            },
+            optimizer=Nadam(self.lr),
+            metrics={
+                "depth":"mae",
+                "sld":"mae",
+            }
+        )
+        return new_model
+    
+    def summary(self):
+        self.model.summary()
+
 def main(args):
     name = "regressor-%s[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
     save = r"C:\Users\mtk57988\stfc\neutron-net\neutron-net\models\investigate"
@@ -97,6 +207,12 @@ def main(args):
     train_loader = Sequencer(train_file, train_targets, DIMS, CHANNELS, args.batch_size, args.layers)
     validate_loader = Sequencer(validate_file, validate_targets, DIMS, CHANNELS, args.batch_size, args.layers)
     test_loader = Sequencer(test_file, test_targets, DIMS, CHANNELS, args.batch_size, args.layers)
+
+    # Define model
+    model = Regressor(base, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size, args.layers)
+
+    if args.summary:
+        model.summary()
 
 def parse():
     parser = argparse.ArgumentParser(description="Keras Regressor Training")
