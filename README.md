@@ -3,7 +3,9 @@
 A lightweight tool to analyse neutron reflectivity curves and generate initial GenX fits.
 
 ## About The Project
-A neural network based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves. The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples in operando.
+A neural network based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to two layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC Neutron Reflectometer) is processed and passed through the neural networks to produce layer parameter predictions. These predictions are then fed into GenX, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is opening the fitting software and pressing the "fit", and "simulate" buttons.
+
+The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>.
 
 ### Built With
 * TensorFlow Keras
