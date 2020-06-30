@@ -22,7 +22,7 @@ from tensorflow.keras.models import Sequential, Model, load_model
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, LeakyReLU, BatchNormalization, Dropout, Input
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam, Nadam
 
 DIMS = (300, 300)
@@ -87,14 +87,7 @@ class Net():
 
     def train(self, train_seq, valid_seq):
         'Trains data on Sequences'
-
-        # early_stop_cbk = EarlyStopping(
-        #     monitor='val_loss',
-        #     mode='min',
-        #     patience=5,
-        #     restore_best_weights=True,
-        # )
-
+        
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor='val_loss',
             patience=10,
