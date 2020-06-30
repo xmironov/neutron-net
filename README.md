@@ -1,13 +1,16 @@
 # neutron-net
-![neutron-curve](/neutron-net/resources/neutron-curve.png) <br />
+![neutron-curve](/neutron-net/resources/real_sim.png) <br />
 A lightweight tool to analyse neutron reflectivity curves and generate initial GenX fits.
 
 ## About The Project
-Analysis of neutron-reflectivity curves is a process typically of a tedious and monotonous nature. This tool was motivated by the desire to automate the boring part, and simultaenously lower the barrier for entry to use the OFFSPEC instrument at the ISIS Neutron & Muon Source.
+A neural network based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to two layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC Neutron Reflectometer) is processed and passed through the neural networks to produce layer parameter predictions. These predictions are then fed into GenX, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is opening the fitting software and pressing the "fit", and "simulate" buttons.
+
+The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>.
 
 ### Built With
 * TensorFlow Keras
 * Python
+* GenX
 
 ## Getting Started
 ### Environment
@@ -33,4 +36,4 @@ Daniil Mironov - daniil.mironov@stfc.ac.uk
 Jos Cooper     - jos.cooper@stfc.ac.uk
 
 ## Acknowledgements
-Many thanks to the support provided by the SciML group at the Rutherford Appleton Laboratory for their expertise and assistance with this project - in particular, we'd like to thank Rebecca Mackenzie for being so key in laying the groundwork, and giving the project a strong foundation.
+Many thanks for the collaboration of the Scientific Machine Learning group at the Rutherford Appleton Laboratory, their expertise and assistance with this project - in particular, we'd like to thank Rebecca Mackenzie for being so key in laying the groundwork, and giving the project a strong foundation. The authors would like to thank Johnathan Xue, whose initial work and results allowed the project to go ahead. We thank the Ada Lovelace Centre for funding.
