@@ -31,53 +31,34 @@ tf.compat.v1.disable_eager_execution()
 
 class KerasDropoutPredicter():
     def __init__(self, model, sequence):
+        # Define model with toggleable Dropout, K.learning_phase()
         self.f = K.function(
             [model.layers[0].input, K.learning_phase()], 
             [model.layers[-2].output, model.layers[-1].output])
 
-    def predict(self, seq, n_iter=2):
+    def predict(self, sequencer, n_iter=2):
         steps_done = 0
         all_out = []
-        steps = len(seq)
-        output_generator = iter_sequence_infinite(seq)
+        steps = len(sequencer)
+        output_generator = iter_sequence_infinite(sequencer)
 
         while steps_done < steps:
             generator_output = next(output_generator)
-            x, y = generator_output
+            images, targets = generator_output
 
             results = []
             for i in range(n_iter):
-                result = self.f([x, 1])
+                # Set Dropout to True: 1
+                result = self.f([images, 1])
                 results.append(result)
 
             results = np.array(results)
             prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
             outs = [prediction, uncertainty]
-            y_depth = y["depth"]
-            y_sld = y["sld"]
-            y_sum = np.array([y_depth, y_sld])
-            outs = np.array([prediction, uncertainty, y_sum])
-
-            # print("\n", "Prediction shape:", prediction.shape)
-            # print("\n", "Uncertainty shape:", uncertainty.shape)
-            # print("\n", "Depth ground shape:", y_depth.shape)
-            # print("\n", "SLD ground shape:", y_sld.shape)
-            # print("\n", "Y shape:", y_sum.shape)
-            # test = np.array([prediction, uncertainty, y_sum])
-            # test2 = test.copy()
-
-            # bombat = np.concatenate([test, test2], axis=2)
-
-            # for thing, name in zip(bombat, ["Prediction", "Uncertainty", "Ground Truth"]):
-            #     print("\n", name, "\n", thing.shape)
-            #     print(thing)
-
-
-            # sys.exit()
-            # result = np.array(result).reshape(n_iter, len(x)).T
-            # outs = self.f([x, 1])
-            # outs = to_list(outs)
-            # print("\n", prediction)
+            targets_depth = targets["depth"]
+            targets_sld = targets["sld"]
+            targets_sum = np.array([targets_depth, targets_sld])
+            outs = np.array([prediction, uncertainty, targets_sum])
 
             if not all_out:
                 for out in outs:
@@ -87,7 +68,7 @@ class KerasDropoutPredicter():
                 all_out[i].append(out)
 
             steps_done += 1
-        # return np.concatenate([out for out in all_out])
+
         return [np.concatenate(out, axis=1) for out in all_out]
 
 class Net():
