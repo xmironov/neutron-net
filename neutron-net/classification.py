@@ -153,6 +153,7 @@ class Classifier():
         model.add(Conv2D(128, (3,3), strides=(1,1), padding='same', activation="relu"))
         model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2)))
 
+
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu"))
         model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2)))
 

@@ -4,11 +4,13 @@ import os, time, re, glob, warnings
 import argparse
 import json
 import h5py
+import pickle
 
 os.environ["KMP_AFFINITY"] = "none"
 
 import numpy as np 
 import pandas as pd 
+import matplotlib.pyplot as plt
 
 from datetime import datetime
 from sklearn.metrics import mean_squared_error, confusion_matrix
@@ -32,7 +34,7 @@ class Sequencer(Sequence):
     def __init__(self, file, labels, dim, channels, batch_size, layers, debug=False, shuffle=False):
         self.indexes    = np.where(np.array(file["class"]) == layers)[0]
         self.file       = file
-        self.labels     = labels[self.indexes]
+        self.labels     = labels
         self.dim        = dim
         self.channels   = channels
         self.batch_size = batch_size
@@ -55,13 +57,24 @@ class Sequencer(Sequence):
     def __data_generation(self, indexes):
         """ Generates data containing batch_size samples"""
         images = np.empty((self.batch_size, *self.dim, self.channels))
-        classes = np.empty((self.batch_size, 1), dtype=int)
+        targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
+        targets_sld = np.empty((self.batch_size, self.layers), dtype=float)
 
         for i, idx in enumerate(indexes):
             image = self.file["images"][idx]
+            targets = self.labels[idx]
+            length = len(targets)
+
+            difference = length - self.layers * 2
+
+            if difference:
+                targets = targets[:-difference]
+
             images[i,] = np.array(image)
-            classes[i,] = self.labels[idx]      
-        return images, classes
+            targets_depth[i,] = targets[::2]    
+            targets_sld[i,] = targets[1::2]
+
+        return images, {"depth":targets_depth, "sld":targets_sld}
     
     def on_epoch_end(self):
         """Updates indexes after each epoch"""
@@ -103,22 +116,68 @@ class Regressor():
             use_multiprocessing=False,
             verbose=1,
             callbacks=[learning_rate_reduction_cbk],
+            shuffle=False,
         )
         elapsed_time = time.time() - start
         self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         return self.history
 
-    def test(self, test_sequence, test_labels, savepath):
+    def test(self, test_sequence, test_labels, datapath, savepath, indexes):
+        test_labels = test_labels[indexes]
+        scaler = pickle.load(open(os.path.join(datapath, "output_scaler.p"), "rb"))
         predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
-        predictions = np.argmax(predictions, axis=1)
+        depth, sld = predictions[0], predictions[1]
+        
+        if self.layers == 2:
+            padded_depth = np.c_[depth[:,0], np.zeros(len(depth)), depth[:,1], np.zeros(len(depth))]
+            padded_sld = np.c_[np.zeros(len(sld)), sld[:,0], np.zeros(len(sld)), sld[:,1]]
+            transformed_depth = scaler.inverse_transorm(padded_depth)
+            transformed_sld = scaler.inverse_transform(padded_sld)
+            predictions = np.c_[transformed_depth[:,0], transformed_sld[:,1],
+                                transformed_depth[:,2], transformed_sld[:,3]]
+
+        elif self.layers == 1:
+            padded_depth = np.c_[depth[:,0], np.zeros(len(depth)), np.zeros(len(depth)), np.zeros(len(depth))]
+            padded_sld = np.c_[np.zeros(len(sld)), sld[:,0], np.zeros(len(sld)), np.zeros(len(sld))]
+            transformed_depth = scaler.inverse_transform(padded_depth)
+            transformed_sld = scaler.inverse_transform(padded_sld)
+            predictions = np.c_[transformed_depth[:,0], transformed_sld[:,1],
+                                np.zeros(len(sld)), np.zeros(len(sld))]
+
+        # print("Labels length", len(test_labels), "Predictions length", len(predictions))
         remainder = len(test_labels) % self.batch_size
 
         if remainder:
             test_labels = test_labels[:-remainder]
 
-        cm = confusion_matrix(test_labels, predictions)
-        df_cm = pd.DataFrame(cm, index=[i for i in "12"], columns=[i for i in "12"])
-        confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, savepath)
+        fig, ax = plt.subplots(2,2, figsize=(15,10))
+        ax[0,0].scatter(test_labels[:,0], predictions[:,0], alpha=0.2)
+        ax[0,0].set_title('Layer 1')
+        ax[0,0].set_xlabel('Actual depth')
+        ax[0,0].set_ylabel('Predicted depth')
+
+        ax[0,1].scatter(test_labels[:,2], predictions[:,2], alpha=0.2)
+        ax[0,1].set_title('Layer 2')
+        ax[0,1].set_xlabel('Actual depth')
+        ax[0,1].set_ylabel('Predicted depth')
+
+        ax[1,0].scatter(test_labels[:,1], predictions[:,1], alpha=0.2)
+        ax[1,0].set_xlabel('Actual SLD')
+        ax[1,0].set_ylabel('Predicted SLD')
+
+        ax[1,1].scatter(test_labels[:,3], predictions[:,3], alpha=0.2)
+        ax[1,1].set_xlabel('Actual SLD')
+        ax[1,1].set_ylabel('Predicted SLD')
+
+        for i in range(2):
+            ax[0,i].set_ylim(-100,3010)
+            ax[0,i].set_xlim(-100,3010)
+        
+        for i in range(2):
+            ax[1,i].set_ylim(-0.1,1.1)
+            ax[1,i].set_xlim(-0.1,1.1)
+
+        plt.savefig(os.path.join(savepath))
 
     def save(self, savepath):
         try:
@@ -146,19 +205,22 @@ class Regressor():
     def create_model(self):
         model = load_model(self.base)
 
-        for i in range(20):
-            model.layers[i].trainable = False
+        # for i in range(8):
+        #     model.layers[i].trainable = False
         
-        for i in range(20, 24):
+        # for i in range(8, 24):
+        #     model.layers[i].trainable = True
+        for i in range(len(model.layers)):
             model.layers[i].trainable = True
 
-        base_model = model.layers[24].output
-        depth_dense = Dense(50, activation="relu", name="depth_dense")(base_model)
-        sld_dense = Dense(50, activation="relu", name="sld_dense")(base_model)
-        dropout_depth = Dropout(self.dropout, name="dropout_depth")(depth_dense)
-        dropout_sld = Dropout(self.dropout, name="dropout_sld")(sld_dense)
-        depth_output = Dense(units=self.layers, activation="linear", name="depth")(dropout_depth)
-        sld_output = Dense(units=self.layers, activation="linear", name="sld")(dropout_sld)
+        base_model = model.layers[26].output
+        # depth_dense = Dense(50, activation="relu", name="depth_dense")(base_model)
+        # sld_dense = Dense(50, activation="relu", name="sld_dense")(base_model)
+
+        # dropout_depth = Dropout(self.dropout, name="dropout_depth")(depth_dense)
+        # dropout_sld = Dropout(self.dropout, name="dropout_sld")(sld_dense)
+        depth_output = Dense(units=self.layers, activation="linear", name="depth")(base_model)
+        sld_output = Dense(units=self.layers, activation="linear", name="sld")(base_model)
 
         new_model = Model(inputs=model.input, outputs=[depth_output, sld_output])
 
@@ -183,10 +245,10 @@ class Regressor():
         self.model.summary()
 
 def main(args):
-    name = "regressor-%s[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
+    name = "regressor-%s-layer[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
     save = r"C:\Users\mtk57988\stfc\neutron-net\neutron-net\models\investigate"
     base = r"C:\Users\mtk57988\stfc\neutron-net\neutron-net\models\investigate\classifier-[2020-05-03T104626]\full_model.h5"
-    data = r"C:\Users\mtk57988\stfc\ml-neutron\neutron_net\data\perfect_w_classes\all"
+    data = r"D:\Users\Public\Documents\stfc\neutron-net\data\perfect-legacy\complete"
 
     savepath = os.path.join(save, name)
 
@@ -214,6 +276,10 @@ def main(args):
     if args.summary:
         model.summary()
 
+    indexes = np.where(np.array(test_file["class"]) == args.layers)[0]
+    model.train(train_loader, validate_loader)
+    model.test(test_loader, test_targets, data, savepath, indexes)
+
 def parse():
     parser = argparse.ArgumentParser(description="Keras Regressor Training")
 
@@ -237,9 +303,12 @@ def parse():
 
 def load_targets(path):
     data = {}
-    for section in ["train", "valid", "test"]:
+    for section in ["train", "valid"]:
         with h5py.File(os.path.join(path, "{}.h5".format(section)), "r") as f:
             data["{}".format(section)] = np.array(f["scaledY"])
+
+    with h5py.File(os.path.join(path, "test.h5"), "r") as f:
+        data["test"] = np.array(f["Y"])
 
     return data
 
