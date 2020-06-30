@@ -12,11 +12,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-# import imgaug as ia 
 
 from datetime import datetime
 from sklearn.metrics import mean_squared_error
-# from imgaug import augmenters as iaa
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -31,23 +29,7 @@ DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
-class KerasDropoutPredicter(object):
-    def __init__(self, model):
-        self.f = K.function(
-            [model.layers[0].input,
-            K.learning_phase()],
-            [model.layers[-1].output]
-        )
-
-    def predict(self, x, n_iter=10):
-        result = []
-        for i in range(n_iter):
-            result.append(self.f([x, 1]))
-        result = np.array(result).reshape(n_iter, len(x)).T
-
-        return result
-
-class KerasDropoutPredicter2():
+class KerasDropoutPredicter():
     def __init__(self, model, sequence):
         self.f = K.function(
             [model.layers[0].input, K.learning_phase()], 
@@ -617,8 +599,8 @@ def main(args):
         scaler = pickle.load(open(os.path.join(args.data, "output_scaler.p"), "rb"))
 
         if args.bayesian:
-            kdp_1_layer = KerasDropoutPredicter2(model_1_layer, test_loader_1_layer)
-            kdp_2_layer = KerasDropoutPredicter2(model_2_layer, test_loader_2_layer)
+            kdp_1_layer = KerasDropoutPredicter(model_1_layer, test_loader_1_layer)
+            kdp_2_layer = KerasDropoutPredicter(model_2_layer, test_loader_2_layer)
 
             preds_1_layer = kdp_1_layer.predict(test_loader_1_layer, n_iter=1)
             preds_2_layer = kdp_2_layer.predict(test_loader_2_layer, n_iter=1)
