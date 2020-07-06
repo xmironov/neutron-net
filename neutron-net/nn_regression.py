@@ -574,26 +574,26 @@ def main(args):
 
     else:
         name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
-        savepath = os.path.join(args.save, name)
+        save_path = os.path.join(args.save, name)
 
         # Log to CometML: need to add own api_key and details
         if args.log:
             experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
                                     project_name="general", workspace="xandrovich")
 
-        traindir = os.path.join(args.data, str(args.layers), 'train.h5')
-        valdir = os.path.join(args.data, str(args.layers), 'valid.h5')
-        testdir = os.path.join(args.data, str(args.layers), 'test.h5')
+        train_dir = os.path.join(args.data, str(args.layers), 'train.h5')
+        val_dir = os.path.join(args.data, str(args.layers), 'valid.h5')
+        test_dir = os.path.join(args.data, str(args.layers), 'test.h5')
 
-        trainh5 = h5py.File(traindir, 'r')
-        valh5 = h5py.File(valdir, 'r')
-        testh5 = h5py.File(testdir, 'r')
+        train_h5 = h5py.File(train_dir, 'r')
+        val_h5 = h5py.File(val_dir, 'r')
+        test_h5 = h5py.File(test_dir, 'r')
 
-        test_labels = np.array(testh5["Y"])
+        test_labels = np.array(test_h5["Y"])
 
-        train_loader = DataLoader(trainh5, DIMS, CHANNELS, args.batch_size, args.layers)
-        valid_loader = DataLoader(valh5, DIMS, CHANNELS, args.batch_size, args.layers)
-        test_loader = DataLoader(testh5, DIMS, CHANNELS, args.batch_size, args.layers)
+        train_loader = DataLoader(train_h5, DIMS, CHANNELS, args.batch_size, args.layers)
+        valid_loader = DataLoader(val_h5, DIMS, CHANNELS, args.batch_size, args.layers)
+        test_loader = DataLoader(test_h5, DIMS, CHANNELS, args.batch_size, args.layers)
 
         model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, 
             args.learning_rate, args.workers, args.layers, args.batch_size)
@@ -603,8 +603,8 @@ def main(args):
 
         model.train(train_loader, valid_loader)
         model.test(test_loader, args.data) 
-        model.plot(test_labels, savepath)
-        model.save(savepath)
+        model.plot(test_labels, save_path)
+        model.save(save_path)
 
 def parse():
     parser = argparse.ArgumentParser(description="Keras Regressor Training")
