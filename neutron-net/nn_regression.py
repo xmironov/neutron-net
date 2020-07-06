@@ -113,9 +113,6 @@ class Net():
             callbacks = [learning_rate_reduction_cbk]
         )
 
-        elapsed_time = time.time() - start 
-        self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-
         train_seq.close_file()
         valid_seq.close_file()
 
@@ -211,29 +208,15 @@ class Net():
         
         plt.savefig(savepath)
 
-    def save(self, savepath):
+    def save(self, save_path):
         try:
-            os.makedirs(savepath)
-            print('Created path: ' + savepath)
+            os.makedirs(save_path)
+            print('Created path: ' + save_path)
+
         except OSError:
             pass
 
-        with open(os.path.join(savepath, 'history.json'), 'w') as f:
-            json_dump = convert_to_float(self.history.history)
-            json_dump['timetaken'] = self.time_taken
-            json.dump(json_dump, f)
-
-        model_yaml = self.model.to_yaml()
-
-        with open(os.path.join(savepath, 'model.yaml'), 'w') as yaml_file:
-            yaml_file.write(model_yaml)
-
-        self.model.save_weights(os.path.join(savepath, 'model_weights.h5'))
-
-        with open(os.path.join(savepath, 'summary.txt'), 'w') as f:
-            self.model.summary(print_fn=lambda x: f.write(x + '\n'))
-
-        self.model.save(os.path.join(savepath, 'full_model.h5'))
+        self.model.save(os.path.join(save_path, 'full_model.h5'))
 
 class DataLoader(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
@@ -332,8 +315,8 @@ def plot(preds, labels, savepath, batch_size, error):
         labels = labels[:-remainder]
     
     total_plots = 6
-    columns = 2 # depth & sld
-    rows = total_plots // columns # If 2-layer system: total_plots=2*2=4, rows=4//2=2
+    columns = 2
+    rows = total_plots // columns 
 
     outer_grid = gridspec.GridSpec(3, 2, hspace=0.00, wspace=0.390, left=0.19, right=0.9, top=0.950, bottom=0.110)
 
@@ -349,7 +332,6 @@ def plot(preds, labels, savepath, batch_size, error):
     ax0.set_yticks([0, 1000, 2000, 3000])
     ax0.set_yticklabels([0, 1000, 2000, 3000])
     ax0.set_xticklabels([])
-    # ax0.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=8)
     ax0.annotate("$\mathregular{1^{i}}$", xy=(0., 0.5), xytext=(-ax0.yaxis.labelpad - pad, v_pad),
                         xycoords="axes points", textcoords="offset points",
                         size="large", ha="right", va="center")
@@ -364,7 +346,6 @@ def plot(preds, labels, savepath, batch_size, error):
     ax0_1.set_yticks([0, 0.5, 1])
     ax0_1.set_yticklabels([0, 0.5, 1])
     ax0_1.set_xticklabels([])
-    # ax0_1.set_ylabel("$\mathregular{SLD_{predict}\ (fm\ Å^{-3})}$", fontsize=8)
     ax0_1.set_facecolor("xkcd:very light blue")
 
     ax1 = fig.add_subplot(outer_grid[1, 0])
@@ -375,12 +356,10 @@ def plot(preds, labels, savepath, batch_size, error):
     ax1.set_yticks([0, 1000, 2000, 3000])
     ax1.set_yticklabels([0, 1000, 2000, 3000])
     ax1.set_xticklabels([])
-    # ax1.set_xticks([])
     ax1.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
     ax1.annotate("$\mathregular{2^{i}}$", xy=(0, 0.5), xytext=(-ax0.yaxis.labelpad - pad, v_pad),
                         xycoords="axes points", textcoords="offset points",
                         size="large", ha="right", va="center")
-    # ax1.set_facecolor("xkcd:peach")
 
     ax2 = fig.add_subplot(outer_grid[1, 1])
     ax2.errorbar(labels_2_b, preds_2_b, error_2_b,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="g",zorder=-130,markersize=4)
@@ -390,10 +369,7 @@ def plot(preds, labels, savepath, batch_size, error):
     ax2.set_yticks([0, 0.5, 1])
     ax2.set_yticklabels([0, 0.5, 1])
     ax2.set_xticklabels([])
-    # ax2.set_xticks([])
     ax2.set_ylabel("$\mathregular{SLD_{predict}\ (fm\ Å^{-3})}$", fontsize=11, weight="bold")
-    # ax2.get_yaxis().set_label_coords(-0.15, -0.15)
-    # ax2.set_facecolor("xkcd:peach")
 
     ax3 = fig.add_subplot(outer_grid[2, 0])
     ax3.errorbar(labels_2_c, preds_2_c, error_2_c,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="b",zorder=-130,markersize=4)
@@ -403,11 +379,9 @@ def plot(preds, labels, savepath, batch_size, error):
     ax3.set_yticks([0, 1000, 2000, 3000])
     ax3.set_yticklabels([0, 1000, 2000, 3000])
     ax3.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
-    # ax3.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=8)
     ax3.annotate("$\mathregular{2^{ii}}$", xy=(0, 0.5), xytext=(-ax3.yaxis.labelpad - pad, v_pad),
                         xycoords="axes points", textcoords="offset points",
                         size="large", ha="right", va="center")
-    # ax3.set_facecolor("xkcd:peach")
 
     ax4 = fig.add_subplot(outer_grid[2, 1])
     ax4.errorbar(labels_2_d, preds_2_d, error_2_d,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="g",zorder=-130,markersize=4)
@@ -419,56 +393,8 @@ def plot(preds, labels, savepath, batch_size, error):
     ax4.set_yticks([0, 0.5, 1])
     ax4.set_yticklabels([0, 0.5, 1])
     ax4.set_xlabel("$\mathregular{SLD_{true}\ (fm\ Å^{-3})}$", fontsize=10, weight="bold")
-    # ax4.set_ylabel("$\mathregular{SLD_{predict}\ (fm\ Å^{-3})}$", fontsize=8)
-    # ax4.set_facecolor("xkcd:peach")
 
-    
-
-    # fig = plt.gcf()
-    # gs.tight_layout(fig)
-    # plt.show()
     plt.savefig('onetwolayer.png', dpi=600)
-
-
-    ### MATPLOTLIB SUBPLOTS
-    # column_headers = ["Depth", "SLD"]
-    # row_headers = ["Layer {}".format(row+1) for row in range(rows)]
-    # pad = 5
-    # fig = plt.figure(tight_layout=True)
-
-    # for k in range(total_plots):
-    #     ax = fig.add_subplot(rows, columns, position[k])
-    #     ax.set_aspect(aspect='equal')
-    #     if k % 2 == 0:
-    #         ax.errorbar(labels[:,k], preds[:,k], error[:,k], fmt='o', mec='k', mew=.5, alpha=0.6, capsize=3, color='b', zorder=-130, markersize=3, ) 
-    #     else:
-    #         ax.errorbar(labels[:,k], preds[:,k], error[:,k], fmt='o', mec='k', mew=.5, alpha=0.6, capsize=3, color='g', zorder=-130, markersize=3) 
-        
-    #     ax.plot([0,1], [0,1], 'k', transform=ax.transAxes) # plot y=x
-         
-    #     if k == 0:
-    #         ax.set_title(column_headers[k])
-    #     elif k == 1:
-    #         ax.set_title(column_headers[k])
-        
-    #     if k % 2 == 0:
-    #         if k == total_plots - 2:
-    #             ax.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$")
-    #         ax.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$")
-    #         ax.set_xlim(-100, 3000)
-    #         ax.set_ylim(-100, 3000)
-    #         ax.annotate(row_headers[k//2], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-    #                     xycoords=ax.yaxis.label, textcoords="offset points",
-    #                     size="large", ha="right", va="center", rotation=90)
-    #     else:
-    #         if k == total_plots - 1:
-    #             ax.set_xlabel("$\mathregular{SLD_{true}\ (fm\ Å^{-3})}$")
-    #         ax.set_ylabel("$\mathregular{SLD_{predict}\ (fm\ Å^{-3})}$")
-    #         ax.set_xlim(-0.1, 1.1)
-    #         ax.set_ylim(-0.1, 1.1)
-
-    # plt.show()
-    # plt.savefig(savepath)
 
 def main(args):
     if args.test:
