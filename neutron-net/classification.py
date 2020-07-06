@@ -27,7 +27,7 @@ DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
-class Sequencer(Sequence):
+class DataLoader(Sequence):
     """ Use Keras Sequence class to load image data from h5 file"""
     def __init__(self, file, labels, dim, channels, batch_size, debug=False, shuffle=False):
         self.file       = file
@@ -70,7 +70,7 @@ class Sequencer(Sequence):
 
         self.indexes = indexes
 
-class Classifier():
+class Net():
     def __init__(self, dims, channels, epochs, dropout, lr, workers, batch_size):
         """ Initialisation"""
         self.dims       = dims
@@ -208,11 +208,11 @@ def main(args):
     labels = load_labels(data)
     train_labels, validate_labels, test_labels = labels["train"], labels["valid"], labels["test"]
 
-    train_loader = Sequencer(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
-    validate_loader = Sequencer(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
-    test_loader = Sequencer(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
+    train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
+    validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
+    test_loader = DataLoader(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
 
-    model = Classifier(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size)
+    model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size)
     
     if args.summary:
         model.summary()
