@@ -87,7 +87,7 @@ class Net():
 
     def train(self, train_seq, valid_seq):
         'Trains data on Sequences'
-        
+
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor='val_loss',
             patience=10,
@@ -362,9 +362,9 @@ class DataLoader(Sequence):
     def close_file(self):
         self.file.close()
     
-def iter_sequence_infinite(seq):
+def iter_sequence_infinite(sequence):
     while True:
-        for item in seq:
+        for item in sequence:
             yield item
 
 def plot(preds, labels, savepath, batch_size, error):
@@ -400,18 +400,8 @@ def plot(preds, labels, savepath, batch_size, error):
     total_plots = 6
     columns = 2 # depth & sld
     rows = total_plots // columns # If 2-layer system: total_plots=2*2=4, rows=4//2=2
-    # position = range(1, total_plots+1)
 
-    ### GRIDSPEC
-    # grid_position = range(total_plots)
     outer_grid = gridspec.GridSpec(3, 2, hspace=0.00, wspace=0.390, left=0.19, right=0.9, top=0.950, bottom=0.110)
-
-    # gs_top = gridspec.GridSpec(1, 2, hspace=0.5)
-    # top_cell = outer_grid[0, 0:2] # upperpart
-    # gs_top = gridspec.GridSpecFromSubplotSpec(1, 2, top_cell, wspace=0.36, hspace=0)
-
-    # bottom_cell = outer_grid[1:3, 0:2]
-    # gs_bottom = gridspec.GridSpecFromSubplotSpec(2, 2, bottom_cell, wspace=0.36, hspace=0)
 
     fig = plt.figure()
     pad = 55
