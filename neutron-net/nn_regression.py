@@ -237,21 +237,17 @@ class Net():
 
 class DataLoader(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, h5_file, dim, channels, batch_size, layers, random_sample=None):
+    def __init__(self, h5_file, dim, channels, batch_size, layers):
         'Initialisation'
         self.file       = h5_file                 # H5 file to read
         self.dim        = dim                     # Image dimensions
         self.channels   = channels                # Image channels                   
         self.batch_size = batch_size              # Batch size
         self.layers     = layers
-        self.random_sample = random_sample
         self.on_epoch_end()
 
     def __len__(self):
         'Denotes number of batches per epoch'
-        if self.random_sample:
-            return int(np.floor(len(np.array(self.file['images'])[self.random_sample]) / self.batch_size))
-
         return int(np.floor(len(np.array(self.file['images'])[100:200]) / self.batch_size))
 
     def __getitem__(self, index):
@@ -294,11 +290,8 @@ class DataLoader(Sequence):
         return images, {'depth': targets_depth, 'sld': targets_sld}
 
     def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        if self.random_sample:
-            self.indexes = np.arange(len(self.file['images']))[self.random_sample]
-        else:    
-            self.indexes = np.arange(len(self.file['images']))[100:200]
+        'Updates indexes after each epoch'    
+        self.indexes = np.arange(len(self.file['images']))[100:200]
 
     def close_file(self):
         self.file.close()
