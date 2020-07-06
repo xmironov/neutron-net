@@ -72,7 +72,7 @@ class KerasDropoutPredicter():
         return [np.concatenate(out, axis=1) for out in all_out]
 
 class Net():
-    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers, layers, batch_size, base_model_path=None):
+    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers, layers, batch_size):
         'Initialisation'
         self.outputs       = layers
         self.dims          = dims
@@ -82,7 +82,6 @@ class Net():
         self.learning_rate = learning_rate
         self.workers       = workers
         self.batch_size    = batch_size
-        self.base          = base_model_path
         self.model         = self.create_model()
 
     def train(self, train_seq, valid_seq):
@@ -141,41 +140,6 @@ class Net():
         # print(ys_keras[0:10])
 
     def create_model(self):
-        if self.base:
-            model = load_model(os.path.join(self.base, "full_model.h5"), compile=False)
-            bottleneck_input = model.get_layer(index=0).input
-            bottleneck_output = model.get_layer(index=8).output
-            bottleneck_model = Model(inputs=bottleneck_input, outputs=bottleneck_output)
-
-            for layer in bottleneck_model.layers:
-                layer.trainable = False
-
-            new_model = Sequential()
-            new_model.add(bottleneck_model)
-            new_model.add(Dense(300, activation="relu"))
-            new_model.add(Dropout(self.learning_rate))
-            # # Freeze convolutional layers
-            # for i in range(8):
-            #     model.layers[i].trainable = False
-            # # Clear dense layers
-            # for i in range(8,24):
-            #     model.layers[i].trainable = True
-            # base_output = model.layers[24].output
-
-            # # depth_dense = Dense(50, activation="relu", name="depth_dense")(base_output)
-            # # sld_dense = Dense(50, activation="relu", name="sld_dense")(base_output)
-            # # depth_dropout = Dropout(self.dropout, name="depth_dropout")(depth_dense)
-            # # sld_dropout = Dropout(self.dropout, name="sld_dropout")(sld_dense)
-            # # depth_output = Dense(self.outputs, activation="linear", name="depth")(depth_dropout)
-            # # sld_output = Dense(self.outputs, activation="linear", name="sld")(sld_dropout)
-
-            # # new_model = Model(inputs=model.input, outputs=[depth_output, sld_output])
-            # # new_model.compile(loss={"depth":"mse","sld":"mse"}, 
-            # #                     loss_weights={"depth":1, "sld":1},
-            # #                     optimizer=Nadam(self.learning_rate),
-            # #                     metrics={"depth":"mae","sld":"mae"})
-            # return new_model
-
         # Convolutional Encoder
         input_img = Input(shape=(*self.dims, self.channels))
         conv_1 = Conv2D(32, (3,3), activation='relu')(input_img)
@@ -642,9 +606,6 @@ def main(args):
         name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
         savepath = os.path.join(args.save, name)
 
-        if not args.base:
-            args.base = None
-
         if args.log:
             experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
                                     project_name="general", workspace="xandrovich")
@@ -664,7 +625,7 @@ def main(args):
         test_loader = DataLoader(testh5, DIMS, CHANNELS, args.batch_size, args.layers)
 
         model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, 
-            args.learning_rate, args.workers, args.layers, args.batch_size, args.base)
+            args.learning_rate, args.workers, args.layers, args.batch_size)
         
         if args.summary:
             model.summary()
@@ -683,7 +644,6 @@ def parse():
     parser.add_argument("layers", metavar="N", type=int, help="no. layers of system")
     parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
     parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
-    parser.add_argument("--base", metavar="PATH", help="path to base classifier model")
     parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
     parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
 
