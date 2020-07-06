@@ -133,11 +133,6 @@ class Net():
         elif self.outputs ==1:
             padded_preds = np.c_[depth[:,0], sld[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
             self.preds = scaler.inverse_transform(padded_preds)
-        
-        # kdp = KerasDropoutPredicter(self.model)
-        # result = kdp.predict(test_seq, 10)
-        # ys_keras = result.flatten()
-        # print(ys_keras[0:10])
 
     def create_model(self):
         # Convolutional Encoder
@@ -267,54 +262,36 @@ class DataLoader(Sequence):
         return images, targets
 
     def __data_generation(self, indexes):
-        # 'Generates data containing batch_size samples'
-        # images = np.empty((self.batch_size, *self.dim, self.channels))
-        # targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
-        # targets_sld = np.empty((self.batch_size, self.layers), dtype=float)
-        x = np.empty((self.batch_size, *self.dim, self.channels))
-        y_depth = np.empty((self.batch_size, self.layers), dtype=float)
-        y_sld = np.empty((self.batch_size, self.layers), dtype=float)
+        'Generates data containing batch_size samples'
+        images = np.empty((self.batch_size, *self.dim, self.channels))
+        targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
+        targets_sld = np.empty((self.batch_size, self.layers), dtype=float)
 
         for i, idx in enumerate(indexes):
             image = self.file['images'][idx]
-
-
-            # plt.imshow(image.squeeze(), interpolation="nearest")
-            # plt.show()
-            # sys.exit()
             values = self.file['Y'][idx]
+
             length = len(values)
             difference = length - self.layers * 2
 
             if difference:
-                # print(difference)
                 values = values[:-difference]
 
-            # fill preallocated arrays
-            x[i,] = image
-            y_depth[i,] = values[::2]
-            y_sld[i,] = values[1::2]
+            images[i,] = image
+            targets_depth[i,] = values[::2]
+            targets_sld[i,] = values[1::2]
 
         for image, depth, sld in zip(x, y_depth, y_sld):
-            print(depth, sld)
-            # fig = plt.figure(figsize=(3,3))
-            plt.imshow(image.squeeze(), interpolation="nearest", cmap='Greys_r')
-            # plt.xlim(0,0.3)
-            # plt.ylim(1e-08,1.5) #this hadnt been set previously!
-            plt.axis("off")
-            plt.show()
-            plt.close()
-
-
-        # for i, idx in enumerate(indexes):
-        #     image = self.file['images'][idx]
-        #     target = self.file['scaled_targets'][idx]
-
-        #     images[i,] = image
-        #     targets_depth[i,] = target[::2]
-        #     targets_sld[i,] = target[1::2]
+            # print(depth, sld)
+            # # fig = plt.figure(figsize=(3,3))
+            # plt.imshow(image.squeeze(), interpolation="nearest", cmap='Greys_r')
+            # # plt.xlim(0,0.3)
+            # # plt.ylim(1e-08,1.5) #this hadnt been set previously!
+            # plt.axis("off")
+            # plt.show()
+            # plt.close()
         
-        return x, {'depth':y_depth, 'sld':y_sld}
+        return images, {'depth': targets_depth, 'sld': targets_sld}
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
@@ -606,6 +583,7 @@ def main(args):
         name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
         savepath = os.path.join(args.save, name)
 
+        # Log to CometML: need to add own api_key and details
         if args.log:
             experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
                                     project_name="general", workspace="xandrovich")
@@ -630,7 +608,6 @@ def main(args):
         if args.summary:
             model.summary()
 
-        sys.exit()
         model.train(train_loader, valid_loader)
         model.test(test_loader, args.data) 
         model.plot(test_labels, savepath)
