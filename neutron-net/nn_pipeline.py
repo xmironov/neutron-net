@@ -12,12 +12,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-# import imgaug as ia 
 
 from datetime import datetime
 from sklearn.metrics import mean_squared_error
 from skimage import data, color
-# from imgaug import augmenters as iaa
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -29,7 +27,7 @@ DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
-class DataLoader_Classification(Sequence):
+class DataLoaderClassification(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
     def __init__(self, labels, dim, channels, batch_size):
         'Initialisation'
@@ -71,7 +69,7 @@ class DataLoader_Classification(Sequence):
     def close_file(self):
         self.file.close()
 
-class DataLoader_Regression(Sequence):
+class DataLoaderRegression(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
     def __init__(self, labels, dim, channels, batch_size, layers):
         'Initialisation'
@@ -117,7 +115,7 @@ class DataLoader_Regression(Sequence):
     def close_file(self):
         self.file.close()
 
-class KerasDropoutPredicter2():
+class KerasDropoutPredicter():
     def __init__(self, model, sequence):
         self.f = K.function(
             [model.layers[0].input, K.learning_phase()], 
@@ -152,9 +150,8 @@ class KerasDropoutPredicter2():
             steps_done += 1
         return [np.concatenate(out, axis=1) for out in all_out]
 
-def main():
-    data_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/data"
-    scaler_path = os.path.join(data_path, "output_scaler.p")
+def main(args):
+    scaler_path = os.path.join(args.data, "output_scaler.p")
 
     one_layer_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-1-layer-[2020-05-05T153216]/full_model.h5"
     two_layer_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-2-layer-[2020-05-06T231932]/full_model.h5"
@@ -164,7 +161,7 @@ def main():
     dat_files, npy_image_filenames = dat_files_to_npy_images(data_path, save_paths["img"])
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
-    classification_loader = DataLoader_Classification(class_labels, DIMS, CHANNELS, 1)
+    classification_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
     classification_model = get_model(class_path)
     classification_model.load_weights(os.path.join(class_path, "model_weights.h5"))
 
@@ -179,14 +176,14 @@ def main():
     #                          'class': int(layer_prediction)}                    
     #                     for filename, layer_prediction in zip(npy_image_filenames, test_classification_predictions)}
 
-    regression_loader_one = DataLoader_Regression(class_labels, DIMS, CHANNELS, 1, 1)
-    regression_loader_two = DataLoader_Regression(class_labels, DIMS, CHANNELS, 1, 2)
+    regression_loader_one = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 1)
+    regression_loader_two = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 2)
     # values_predictions = two_layer_model.predict(regression_loader_two, verbose=1)
 
     scaler = pickle.load(open(scaler_path, "rb"))
 
     # kdp_2_layer = KerasDropoutPredicter2(two_layer_model, regression_loader_two)
-    kdp_1_layer = KerasDropoutPredicter2(one_layer_model, regression_loader_one)
+    kdp_1_layer = KerasDropoutPredicter(one_layer_model, regression_loader_one)
 
     # preds_2_layer = kdp_2_layer.predict(regression_loader_two, n_iter=100)
     # depth_2, sld_2 = preds_2_layer[0][0], preds_2_layer[0][1]
@@ -419,4 +416,5 @@ def parse():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    main()
+    args = parse()
+    main(args)
