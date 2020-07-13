@@ -32,7 +32,7 @@ Contributions are gladly accepted and would be very much appreciated.
 Distributed under the GNU AGPLv3 license. See ```LICENSE``` for more information.
 
 ## Contact
-Daniil Mironov - daniil.mironov@stfc.ac.uk
+Daniil Mironov - daniil.mironov@stfc.ac.uk\
 Jos Cooper     - jos.cooper@stfc.ac.uk
 
 ## Acknowledgements
