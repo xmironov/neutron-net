@@ -1,0 +1,1 @@
+{"loss": [0.6416672180514587], "sparse_categorical_accuracy": [0.6508815884590149], "val_loss": [0.5916837755637833], "val_sparse_categorical_accuracy": [0.6753164529800415], "lr": [0.00039999998989515007], "timetaken": "00:08:05"}
