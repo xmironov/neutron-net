@@ -154,12 +154,10 @@ class KerasDropoutPredicter2():
 
 def main():
     data_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/data"
-    # data_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/data/development"
-    scaler_path = r"C:/Users/mtk57988/stfc/ml-neutron/neutron_net/data/perfect_test/output_scaler.p"
+    scaler_path = os.path.join(data_path, "output_scaler.p")
+
     one_layer_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-1-layer-[2020-05-05T153216]/full_model.h5"
     two_layer_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-2-layer-[2020-05-06T231932]/full_model.h5"
-    # two_layer_path = r"C:/Users/mtk57988/stfc/ml-neutron/neutron_net/investigate/investigate/refnet_20200130-145325/full_model.h5"
-    # class_path = r"C:/Users/mtk57988/stfc/ml-neutron/neutron_net/scripts/predicting/models/refnet-classifier-2020-02-07T142948"
     class_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/deploy/classification/refnet-classifier-2020-03-29T182024"
 
     save_paths = create_save_directories(data_path)
@@ -206,7 +204,7 @@ def main():
     padded_error_1 = np.c_[depth_std_1[:,0], sld_std_1[:,0], np.zeros(len(depth_1)), np.zeros(len(sld_1))]
     error_1 = scaler.inverse_transform(padded_error_1)
     preds_1 = scaler.inverse_transform(padded_preds_1)
-    preds_1[:,0] = preds_1[:,0] / 1.5 
+    preds_1[:,0] = preds_1[:,0] 
     preds_1[:,2] = 0
     preds_1[:,3] = 0
 
@@ -311,7 +309,6 @@ def iter_sequence_infinite(seq):
         for item in seq:
             yield item
 
-
 def dat_to_genX(directory, filename, pars=[50,50,0,0.1,0.1]):
     """ Copy base GenX file and populate the data and parameters in it """
     path = os.path.split(filename)
@@ -410,7 +407,16 @@ def extract_data(filename):
     e_data = data["Error"]
     return [x_data,y_data,e_data]
 
+def parse():
+    parser = argparse.ArgumentParser(description="Prediction Pipeline")
+    # Meta Parameters
+    parser.add_argument("data", metavar="PATH", help="path to data directory with .dat files")
+    parser.add_argument("save", metavar="PATH", help="path to save directory")
 
+    parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
+    parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
+
+    return parser.parse_args()
 
 if __name__ == "__main__":
     main()
