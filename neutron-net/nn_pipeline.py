@@ -151,24 +151,25 @@ class KerasDropoutPredicter():
         return [np.concatenate(out, axis=1) for out in all_out]
 
 def main(args):
-    # Necessary Paths
     scaler_path = os.path.join(args.data, "output_scaler.p")
-    r_1_path = args.regression_1_layer
-    r_2_path = args.regression_2_layer
-    c_path = args.classification
     save_paths = create_save_directories(args.data)
 
     dat_files, npy_image_filenames = dat_files_to_npy_images(args.data, save_paths["img"])
-    sys.exit()
 
+    # Create a dict with placeholder labels for each .npy image
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
-    classification_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
-    classification_model = get_model(class_path)
-    classification_model.load_weights(os.path.join(class_path, "model_weights.h5"))
+    classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
+    one_layer_loader = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 1)
+    two_layer_loader = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 2)
 
-    one_layer_model = load_model(one_layer_path)
-    two_layer_model = load_model(two_layer_path)
+    scaler = pickle.load(open(scaler_path, "rb"))
+    
+    classifier = load_model(args.classifier)
+    one_layer = load_model(args.one_layer)
+    two_layer = load_model(args.two_layer)
+
+    sys.exit()
 
     # layer_predictions = np.argmax(classification_model.predict(classification_loader, verbose=1), axis=1)
 
@@ -178,8 +179,6 @@ def main(args):
     #                          'class': int(layer_prediction)}                    
     #                     for filename, layer_prediction in zip(npy_image_filenames, test_classification_predictions)}
 
-    regression_loader_one = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 1)
-    regression_loader_two = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 2)
     # values_predictions = two_layer_model.predict(regression_loader_two, verbose=1)
 
     scaler = pickle.load(open(scaler_path, "rb"))
@@ -417,9 +416,9 @@ def parse():
 
     # Meta Parameters
     parser.add_argument("data", metavar="datapath", help="path to data directory with .dat files")
-    parser.add_argument("-c", "--classification", metavar="PATH", help="path to classifier model")
-    parser.add_argument("-r1", "--regression_1_layer", metavar="PATH", help="path to 1-layer regression model")
-    parser.add_argument("-r2", "--regression_2_layer", metavar="PATH", help="path to 2-layer regression model")
+    parser.add_argument("classifier", metavar="classifier", help="path to classifier full_model.h5")
+    parser.add_argument("one_layer", metavar="one_layer", help="path to one-layer regression full_model.h5")
+    parser.add_argument("two_layer", metavar="two_layer", help="path to two-layer regression full_model.h5")
 
     parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
     parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
