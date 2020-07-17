@@ -151,6 +151,7 @@ class KerasDropoutPredicter():
         return [np.concatenate(out, axis=1) for out in all_out]
 
 def main(args):
+    # Necessary Paths
     scaler_path = os.path.join(args.data, "output_scaler.p")
     r_1_path = args.regression_1_layer
     r_2_path = args.regression_2_layer
@@ -222,19 +223,27 @@ def main(args):
 
 
 def create_save_directories(data):
+    'Create necessary directory structure for saving fits and figures'
     savepaths = {}
-    name = 'DEVELOPMENT-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')
-
+    name = 'Dev-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')
     directories = ['img', 'fits', 'predictions', 'results']
+
     for directory in directories:
+        # General results directory for all runs
         if directory == 'results':
             directory_path = os.path.join(data, directory)
+
+        # Specific run directories
         else:
             directory_path = os.path.join(data, directory, name)
 
-        if not os.path.exists(directory_path):
+        try:
             os.makedirs(directory_path)
+        except OSError:
+            print("Data path provided does not exist")
+
         savepaths[directory] = directory_path
+
     return savepaths
 
 def dat_files_to_npy_images(data, savepath):
