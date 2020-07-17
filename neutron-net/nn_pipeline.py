@@ -156,8 +156,9 @@ def main(args):
     r_1_path = args.regression_1_layer
     r_2_path = args.regression_2_layer
     c_path = args.classification
+    save_paths = create_save_directories(args.data)
 
-    save_paths = create_save_directories(data_path)
+    sys.exit()
     dat_files, npy_image_filenames = dat_files_to_npy_images(data_path, save_paths["img"])
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
@@ -243,7 +244,6 @@ def create_save_directories(data):
             print("Data path provided does not exist")
 
         savepaths[directory] = directory_path
-
     return savepaths
 
 def dat_files_to_npy_images(data, savepath):
@@ -414,13 +414,13 @@ def extract_data(filename):
 
 def parse():
     parser = argparse.ArgumentParser(description="Prediction Pipeline")
-    # Meta Parameters
-    parser.add_argument("data", metavar="PATH", help="path to data directory with .dat files")
-    parser.add_argument("save", metavar="PATH", help="path to save directory")
 
-    parser.add_argument("-c", "--classification", help="path to classifier model")
-    parser.add_argument("-r1", "--regression_1_layer", help="path to 1-layer regression model")
-    parser.add_argument("-r2", "--regression_2_layer", help="path to 2-layer regression model")
+    # Meta Parameters
+    parser.add_argument("data", metavar="datapath", help="path to data directory with .dat files")
+    parser.add_argument("-c", "--classification", metavar="PATH", help="path to classifier model")
+    parser.add_argument("-r1", "--regression_1_layer", metavar="PATH", help="path to 1-layer regression model")
+    parser.add_argument("-r2", "--regression_2_layer", metavar="PATH", help="path to 2-layer regression model")
+
     parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
     parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
 
