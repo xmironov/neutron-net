@@ -158,8 +158,8 @@ def main(args):
     c_path = args.classification
     save_paths = create_save_directories(args.data)
 
-    sys.exit()
-    dat_files, npy_image_filenames = dat_files_to_npy_images(data_path, save_paths["img"])
+    dat_files, npy_image_filenames = dat_files_to_npy_images(args.data, save_paths["img"])
+
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
     classification_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
@@ -238,17 +238,16 @@ def create_save_directories(data):
         else:
             directory_path = os.path.join(data, directory, name)
 
-        try:
+        if not os.path.exists(directory_path):
             os.makedirs(directory_path)
-        except OSError:
-            print("Data path provided does not exist")
 
         savepaths[directory] = directory_path
     return savepaths
 
-def dat_files_to_npy_images(data, savepath):
+def dat_files_to_npy_images(data_path, save_path):
+    'Find .dat files at data_path and call create .npy images'
     dat_files = glob.glob(os.path.join(data, '*.dat'))
-    image_filenames = create_images_from_directory(dat_files, data, savepath)
+    image_filenames = create_images_from_directory(dat_files, data, save_path)
     return dat_files, image_filenames
 
 def create_images_from_directory(files, datapath, savepath):
