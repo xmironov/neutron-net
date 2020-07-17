@@ -152,10 +152,9 @@ class KerasDropoutPredicter():
 
 def main(args):
     scaler_path = os.path.join(args.data, "output_scaler.p")
-
-    one_layer_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-1-layer-[2020-05-05T153216]/full_model.h5"
-    two_layer_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-2-layer-[2020-05-06T231932]/full_model.h5"
-    class_path = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/deploy/classification/refnet-classifier-2020-03-29T182024"
+    r_1_path = args.regression_1_layer
+    r_2_path = args.regression_2_layer
+    c_path = args.classification
 
     save_paths = create_save_directories(data_path)
     dat_files, npy_image_filenames = dat_files_to_npy_images(data_path, save_paths["img"])
@@ -410,6 +409,9 @@ def parse():
     parser.add_argument("data", metavar="PATH", help="path to data directory with .dat files")
     parser.add_argument("save", metavar="PATH", help="path to save directory")
 
+    parser.add_argument("-c", "--classification", help="path to classifier model")
+    parser.add_argument("-r1", "--regression_1_layer", help="path to 1-layer regression model")
+    parser.add_argument("-r2", "--regression_2_layer", help="path to 2-layer regression model")
     parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
     parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
 
