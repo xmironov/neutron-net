@@ -159,6 +159,7 @@ def main(args):
     save_paths = create_save_directories(args.data)
 
     dat_files, npy_image_filenames = dat_files_to_npy_images(args.data, save_paths["img"])
+    sys.exit()
 
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
@@ -246,8 +247,8 @@ def create_save_directories(data):
 
 def dat_files_to_npy_images(data_path, save_path):
     'Find .dat files at data_path and call create .npy images'
-    dat_files = glob.glob(os.path.join(data, '*.dat'))
-    image_filenames = create_images_from_directory(dat_files, data, save_path)
+    dat_files = glob.glob(os.path.join(data_path, '*.dat'))
+    image_filenames = create_images_from_directory(dat_files, data_path, save_path)
     return dat_files, image_filenames
 
 def create_images_from_directory(files, datapath, savepath):
