@@ -115,6 +115,85 @@ class DataLoaderRegression(Sequence):
     def close_file(self):
         self.file.close()
 
+class DataLoaderRegression2(Sequence):
+    ''' Use Keras sequence to load image data from a dictionary '''
+    def __init__(self, labels_dict, dim, channels):
+        'Initialisation'
+        self.labels_dict = labels_dict            
+        self.dim        = dim                     # Image dimensions
+        self.channels   = channels                # Image channels                   
+        self.on_epoch_end()
+
+    def __len__(self):
+        'Denotes number of batches per epoch'
+        # batch_size set as 1
+        return int(np.floor(len(self.labels_dict.keys()) / 1))
+
+    def __getitem__(self, index):
+        'Generates one batch of data'
+        indexes = self.indexes[index: (index + 1)]
+        indexes = [list(self.labels_dict.keys())[k] for k in indexes]
+        images = self.__data_generation(indexes)
+        return images
+
+    def __data_generation(self, indexes):
+        # 'Generates data containing batch_size samples'
+        images = np.empty((1, *self.dim, self.channels))
+        layers = np.empty((1, 1))
+
+        for i, np_image_filename in enumerate(indexes):
+            images[i,] = np.load(np_image_filename)
+            layers[i,] = self.labels_dict[np_image_filename]["class"]
+
+        return images, layers
+
+    def on_epoch_end(self):
+        'Updates indexes after each epoch'
+        self.indexes = np.arange(len(self.labels_dict.keys()))
+    
+class KerasDropoutPredicter2():
+    def __init__(self, models):
+        # One-layer model function
+        self.f_1 = K.function([models[1].layers[0].input, K.learning_phase()],
+                              [models[1].layers[-2].output, models[1].layers[-1].output])
+
+        # Two-layer model function
+        self.f_2 = K.function([models[2].layers[0].input, K.learning_phase()],
+                              [models[2].layers[-2].output, models[2].layers[-1].output])
+
+    def predict(self, sequence, n_iter=5):
+        steps_done = 0
+        all_out = []
+        steps = len(sequence)
+        output_generator = iter_sequence_infinite(sequence)
+
+        while steps_done < steps:
+            # Yield the sample image, and the number of layers it is predicted to have
+            x, y = next(output_generator)
+            results = []
+
+            for i in range(n_iter):
+                if y[0][0] == 1:
+                    result = self.f_1([x, 1])
+                elif y[0][0] == 2:
+                    result = self.f_2([x, 1])
+                results.append(result)
+
+            results = np.array(results)
+            prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
+            outs = np.array([prediction, uncertainty])
+
+            if not all_out:
+                for out in outs:
+                    all_out.append([])
+
+            for i, out in enumerate(outs):
+                all_out[i].append(out)
+            
+            steps_done+=1
+        return [np.concatenate(out, axis=1) for out in all_out]
+
+
 class KerasDropoutPredicter():
     def __init__(self, model, sequence):
         self.f = K.function(
@@ -158,21 +237,14 @@ def main(args):
 
     # Create a dict with placeholder labels for each .npy image
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
-
     classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
-    one_layer_loader = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 1)
-    two_layer_loader = DataLoaderRegression(class_labels, DIMS, CHANNELS, 1, 2)
-
     scaler = pickle.load(open(scaler_path, "rb"))
     
     # Load models directly from paths
     classifier = load_model(args.classifier)
     one_layer = load_model(args.one_layer)
     two_layer = load_model(args.two_layer)
-
-    # Convert regression models into Dropout Bayesian approximations
-    kdp_one_layer = KerasDropoutPredicter(one_layer, one_layer_loader)
-    kdp_two_layer = KerasDropoutPredicter(two_layer, two_layer_loader)
+    models = {1: one_layer, 2: two_layer}
 
     layer_predictions = np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)
     
@@ -181,15 +253,14 @@ def main(args):
                                 "class": int(layer_prediction)}
                         for filename, layer_prediction in zip(npy_image_filenames, layer_predictions)}
 
+    loader = DataLoaderRegression2(values_labels, DIMS, CHANNELS)
+    
+    # Use custom class to activate Dropout at test time in models
+    kdp = KerasDropoutPredicter2(models)
+    kdp_predictions = kdp.predict(loader, n_iter=100)
+
+
     sys.exit()
-    # values_labels = {filename: 
-    #                         {'depth': np.zeros((1,int(layer_prediction))), 
-    #                          'sld': np.zeros((1,int(layer_prediction))), 
-    #                          'class': int(layer_prediction)}                    
-    #                     for filename, layer_prediction in zip(npy_image_filenames, test_classification_predictions)}
-
-    # values_predictions = two_layer_model.predict(regression_loader_two, verbose=1)
-
     # preds_2_layer = kdp_2_layer.predict(regression_loader_two, n_iter=100)
     # depth_2, sld_2 = preds_2_layer[0][0], preds_2_layer[0][1]
     # depth_std_2, sld_std_2 = preds_2_layer[1][0], preds_2_layer[1][1]
