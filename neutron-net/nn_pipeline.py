@@ -238,7 +238,11 @@ def main(args):
     # Create a dict with placeholder labels for each .npy image
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
     classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
-    scaler = pickle.load(open(scaler_path, "rb"))
+
+    try:
+        scaler = pickle.load(open(scaler_path, "rb"))
+    except OSError:
+        print("output_scaler.p file not found in data directory provided")
     
     # Load models directly from paths
     classifier = load_model(args.classifier)
@@ -246,8 +250,10 @@ def main(args):
     two_layer = load_model(args.two_layer)
     models = {1: one_layer, 2: two_layer}
 
+    # No. layer predictions
     layer_predictions = np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)
     
+    # Dictionary to pair image with "depth", "sld", "class" values
     values_labels = {filename: {"depth": np.zeros((1, int(layer_prediction))),
                                 "sld": np.zeros((1, int(layer_prediction))),
                                 "class": int(layer_prediction)}
@@ -257,41 +263,44 @@ def main(args):
     
     # Use custom class to activate Dropout at test time in models
     kdp = KerasDropoutPredicter2(models)
-    kdp_predictions = kdp.predict(loader, n_iter=100)
+    kdp_predictions = kdp.predict(loader, n_iter=1)
 
+    depth_predictions, sld_predictions = kdp_predictions[0][0], kdp_predictions[0][1]
+    depth_error, sld_error = kdp_predictions[1][0], kdp_predictions[1][1]
 
-    sys.exit()
-    # preds_2_layer = kdp_2_layer.predict(regression_loader_two, n_iter=100)
-    # depth_2, sld_2 = preds_2_layer[0][0], preds_2_layer[0][1]
-    # depth_std_2, sld_std_2 = preds_2_layer[1][0], preds_2_layer[1][1]
-    # padded_preds_2 = np.c_[depth_2[:,0], sld_2[:,0], depth_2[:,1], sld_2[:,1]]
-    # padded_error_2 = np.c_[depth_std_2[:,0], sld_std_2[:,0], depth_std_2[:,1], sld_std_2[:,1]]
-    # error_2 = scaler.inverse_transform(padded_error_2)
-    # preds_2 = scaler.inverse_transform(padded_preds_2)
-    # preds_2 = preds_2
+    # Formatting data into structure of output_scaler.p
+    ## Current scaler expects 4-dimensional data of shape [depth_1, sld_1, depth_2, sld_2]
+    ## As data can vary in dimensions depending on number of layers within sample,
+    ## the resulting array has to be manually manipulated to be of the same dimensions as the scaler
+    ## so that the values can be scaled correctly   
+    # frmt_predictions = np.c_[depth_predictions[:,0], sld_predictions[:,0], depth_predictions[:,1], sld_predictions[:,1]]
+    # frmt_std = np.c_[depth_std[:,0], sld_std[:,0], depth_std[:,1], sld_std[:,1]]
+    
+    frmt_predictions = []
+    frmt_errors = []
+    for d_pred, s_pred, d_error, s_error in zip(depth_predictions, sld_predictions, depth_error, sld_error):
+        if (len(d_pred) == 1) & (len(s_pred) == 1):
+            frmt_pred = np.c_[d_pred[0], s_pred[0], np.zeros(len(d_pred)), np.zeros(len(s_pred))]
+            frmt_error = np.c_[d_error[0], s_error[0], np.zeros(len(d_pred)), np.zeros(len(s_pred))]
+            
+        elif (len(d_pred) == 2) & (len(s_pred) == 2):
+            frmt_pred = np.c_[d_pred[0], s_pred[0], d_pred[1], s_pred[1]]
+            frmt_error = np.c_[d_error[0], s_error[0], d_error[1], s_error[1]]
+        
+        frmt_predictions.append(frmt_pred)
+        frmt_errors.append(frmt_error)
+    
+    frmt_predictions = np.vstack(frmt_predictions)
+    frmt_errors = np.vstack(frmt_errors)
+    
+    scaled_predictions = scaler.inverse_transform(frmt_predictions)
+    scaled_errors = scaler.inverse_transform(frmt_errors)
 
-    preds_1_layer = kdp_1_layer.predict(regression_loader_one, n_iter=500)
-    depth_1, sld_1 = preds_1_layer[0][0], preds_1_layer[0][1]
-    depth_std_1, sld_std_1 = preds_1_layer[1][0], preds_1_layer[1][1]
-    padded_preds_1 = np.c_[depth_1[:,0], sld_1[:,0], np.zeros(len(depth_1)), np.zeros(len(sld_1))]
-    padded_error_1 = np.c_[depth_std_1[:,0], sld_std_1[:,0], np.zeros(len(depth_1)), np.zeros(len(sld_1))]
-    error_1 = scaler.inverse_transform(padded_error_1)
-    preds_1 = scaler.inverse_transform(padded_preds_1)
-    preds_1[:,0] = preds_1[:,0] 
-    preds_1[:,2] = 0
-    preds_1[:,3] = 0
-
-    for file, prediction in zip(dat_files, preds_1):
+    for file, prediction in zip(dat_files, scaled_predictions):
         prediction = prediction.tolist()
         prediction[1], prediction[2] = prediction[2], prediction[1]
         prediction.insert(2, 0)
         dat_to_genX(save_paths["fits"], file, prediction)
-
-    # for file, prediction in zip(dat_files, preds_2):
-    #     prediction = prediction.tolist()
-    #     prediction[1], prediction[2] = prediction[2], prediction[1]
-    #     prediction.insert(2, 0)
-    #     dat_to_genX(save_paths["fits"], file, prediction)
 
     
     
