@@ -165,14 +165,23 @@ def main(args):
 
     scaler = pickle.load(open(scaler_path, "rb"))
     
+    # Load models directly from paths
     classifier = load_model(args.classifier)
     one_layer = load_model(args.one_layer)
     two_layer = load_model(args.two_layer)
 
+    # Convert regression models into Dropout Bayesian approximations
+    kdp_one_layer = KerasDropoutPredicter(one_layer, one_layer_loader)
+    kdp_two_layer = KerasDropoutPredicter(two_layer, two_layer_loader)
+
+    layer_predictions = np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)
+    
+    values_labels = {filename: {"depth": np.zeros((1, int(layer_prediction))),
+                                "sld": np.zeros((1, int(layer_prediction))),
+                                "class": int(layer_prediction)}
+                        for filename, layer_prediction in zip(npy_image_filenames, layer_predictions)}
+
     sys.exit()
-
-    # layer_predictions = np.argmax(classification_model.predict(classification_loader, verbose=1), axis=1)
-
     # values_labels = {filename: 
     #                         {'depth': np.zeros((1,int(layer_prediction))), 
     #                          'sld': np.zeros((1,int(layer_prediction))), 
@@ -180,11 +189,6 @@ def main(args):
     #                     for filename, layer_prediction in zip(npy_image_filenames, test_classification_predictions)}
 
     # values_predictions = two_layer_model.predict(regression_loader_two, verbose=1)
-
-    scaler = pickle.load(open(scaler_path, "rb"))
-
-    # kdp_2_layer = KerasDropoutPredicter2(two_layer_model, regression_loader_two)
-    kdp_1_layer = KerasDropoutPredicter(one_layer_model, regression_loader_one)
 
     # preds_2_layer = kdp_2_layer.predict(regression_loader_two, n_iter=100)
     # depth_2, sld_2 = preds_2_layer[0][0], preds_2_layer[0][1]
