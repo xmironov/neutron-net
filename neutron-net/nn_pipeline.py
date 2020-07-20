@@ -302,10 +302,6 @@ def main(args):
         prediction.insert(2, 0)
         dat_to_genX(save_paths["fits"], file, prediction)
 
-    
-    
-
-
 
 def create_save_directories(data):
     'Create necessary directory structure for saving fits and figures'
@@ -402,9 +398,8 @@ def dat_to_genX(directory, filename, pars=[50,50,0,0.1,0.1]):
     path = os.path.split(filename)
     name = os.path.splitext(path[1])
     hdf_name = str(name[0]) + "_starting_fit.hgx"
-    
-    base_directory = os.getcwd()
 
+    base_directory = os.getcwd()
     copy_in_place(directory, base_directory, "GenX_Base_config.hgx", hdf_name)
 
     [x, y, e] = extract_data(filename)
@@ -503,9 +498,6 @@ def parse():
     parser.add_argument("classifier", metavar="classifier", help="path to classifier full_model.h5")
     parser.add_argument("one_layer", metavar="one_layer", help="path to one-layer regression full_model.h5")
     parser.add_argument("two_layer", metavar="two_layer", help="path to two-layer regression full_model.h5")
-
-    parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
-    parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
 
     return parser.parse_args()
 
