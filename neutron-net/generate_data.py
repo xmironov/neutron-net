@@ -43,27 +43,30 @@ def main(args):
             concatenated[split][key] = concat
     del split_data
    
-    print('\n### Shuffling data')
+    print("\n", "> Shuffling data...")
     shuffle_data(concatenated)
-    print('\n### Scaling targets')
-    output_scaler = scale_targets(concatenated)
-    with open(scaler_filename, 'wb') as f:
-            pickle.dump(output_scaler, f)
 
-    print('\n### Scaling inputs')
+    print("\n", "> Scaling targets...")
+    output_scaler = scale_targets(concatenated)
+
+    # with open(scaler_filename, 'wb') as f:
+    #         pickle.dump(output_scaler, f)
+
+    print("\n", "> Scaling inputs...")
     scale_inputs(concatenated) 
     shapes = get_shapes(concatenated, chunk_size=1000)
-    print('\n### Creating .h5 files')
+
+    print("\n", "> Creating .h5 files...")
     for section, dictionary in concatenated.items():
         file = os.path.normpath(os.path.join(args.save, '{}.h5'.format(section)))
         
         if not os.path.exists(file):
-            print('\n### Filling in data for {}.h5'.format(section))
+            print("\n", "> Filling in data for {}.h5".format(section))
             with h5py.File(file, 'w') as base_file:
                 for type_of_data, data in dictionary.items():
                     base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
             
-            print('\n### Generating images for {}.h5'.format(section))
+            print("\n", "> Generating images for {}.h5".format(section))
             with h5py.File(file, 'a') as modified_file:
                 images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(1000,300,300,1))
 
