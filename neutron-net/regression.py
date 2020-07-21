@@ -168,7 +168,7 @@ class Net():
     def summary(self):
         self.model.summary()
 
-    def plot(self, labels, savepath):
+    def plot(self, labels, save_path):
         remainder = len(labels) % self.batch_size
 
         if remainder:
@@ -206,7 +206,7 @@ class Net():
                 ax.set_xlim(-0.1, 1.1)
                 ax.set_ylim(-0.1, 1.1)
         
-        plt.savefig(savepath)
+        plt.savefig(save_path)
 
     def save(self, save_path):
         try:
@@ -248,7 +248,7 @@ class DataLoader(Sequence):
 
         for i, idx in enumerate(indexes):
             image = self.file['images'][idx]
-            values = self.file['Y'][idx]
+            values = self.file['scaledY'][idx]
 
             length = len(values)
             difference = length - self.layers * 2
@@ -274,7 +274,9 @@ def iter_sequence_infinite(sequence):
         for item in sequence:
             yield item
 
-def plot(preds, labels, savepath, batch_size, error):
+def plot(preds, labels, save_path, batch_size, error):
+    # Weird bug was causing passed arrays to have indexing issues
+    # The following is specific for the graphs generated in the paper graphics
     labels_1_a = labels[0][:,0]
     preds_1_a = preds[0][:,0]
     error_1_a = error[0][:,0]
@@ -393,7 +395,7 @@ def main(args):
         path_2_layer = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-2-layer-[2020-05-06T231932]/full_model.h5"
         
         name = os.path.basename(os.path.dirname(os.path.abspath(args.test)))
-        savepath = os.path.join(args.save, name)
+        save_path = os.path.join(args.save, name)
 
         model_1_layer = load_model(path_1_layer)
         model_2_layer = load_model(path_2_layer)
@@ -451,9 +453,9 @@ def main(args):
             labels = [labels_1, labels_2]
             error = [error_1, error_2]
 
-            plot(preds, labels, savepath, args.batch_size, error)
+            plot(preds, labels, save_path, args.batch_size, error)
 
-        # Else test normally without applying Dropout
+        # Else if no --bayesian flag passed, test normally without applying Dropout
         else:
             preds = model.predict(test_loader, use_multiprocessing=False, verbose=1)
             depth, sld = preds[0], preds[1]
@@ -465,10 +467,10 @@ def main(args):
                 preds = scaler.inverse_transform(padded_preds)
 
             ## the plot() function is currently hard-coded to produce the publication graphics
-            # plot(sample_preds, sample_labels, savepath, args.batch_size, args.layers, )
-        # model.plot(test_labels, savepath)
+            # plot(sample_preds, sample_labels, save_path, args.batch_size, args.layers, )
+        # model.plot(test_labels, save_path)
     
-    # If not testing produce to train network and save it
+    # If not testing proceed to train network and save it
     else:
         name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
         save_path = os.path.join(args.save, name)
