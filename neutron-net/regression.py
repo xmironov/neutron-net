@@ -494,8 +494,9 @@ def main(args):
 
         # Log to CometML: need to add own api_key and details
         if args.log:
-            experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk",
-                                    project_name="general", workspace="xandrovich")
+            pass
+            # Set up account with Comet-ML and retrieve api_key from them to track experiments
+            # experiment = Experiment(api_key="", project_name="", workspace="")
 
         train_dir = os.path.join(args.data, str(args.layers), 'train.h5')
         val_dir = os.path.join(args.data, str(args.layers), 'valid.h5')
