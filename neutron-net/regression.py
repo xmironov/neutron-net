@@ -214,7 +214,7 @@ class Net():
             print('Created path: ' + save_path)
 
         except OSError:
-            pass
+            print("Couldn't create save directory")
 
         self.model.save(os.path.join(save_path, 'full_model.h5'))
 
