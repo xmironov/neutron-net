@@ -15,10 +15,9 @@ from sklearn.metrics import mean_squared_error, confusion_matrix
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, LeakyReLU, Dropout, Input
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout, Input
 from tensorflow.keras.utils import Sequence
-from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
 import confusion_matrix_pretty_print
@@ -64,10 +63,8 @@ class DataLoader(Sequence):
     def on_epoch_end(self):
         """Updates indexes after each epoch"""
         indexes = np.arange(len(self.file["images"]))
-
         if self.shuffle:
             np.random.shuffle(indexes)
-
         self.indexes = indexes
 
 class Net():
@@ -111,6 +108,8 @@ class Net():
         predictions = np.argmax(predictions, axis=1)
         remainder = len(test_labels) % self.batch_size
 
+        # Sometimes batch_size may not divide evenly into number of samples
+        # and so some trimming may be required
         if remainder:
             test_labels = test_labels[:-remainder]
 
@@ -133,7 +132,6 @@ class Net():
 
     def create_model(self):
         model = Sequential()
-
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu", input_shape=(*self.dims, self.channels)))
         model.add(MaxPooling2D(pool_size=(2,2)))
         model.add(Conv2D(64, (3,3), strides=(1,1), padding='same', activation="relu"))
@@ -143,7 +141,7 @@ class Net():
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu"))
         model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2)))
 
-        model.add(Flatten()) # Length: 256 filters x 18 x 18 = 82944
+        model.add(Flatten())
         model.add(Dense(300, activation="relu"))
         model.add(Dropout(self.dropout))
         model.add(Dense(192, activation="relu"))
@@ -171,6 +169,7 @@ def main(args):
     save_path = os.path.join(args.save, name)
 
     if args.log:
+        pass
         # Set up account with Comet-ML and retrieve api_key from them to track experiments
         # experiment = Experiment(api_key="", project_name="", workspace="")
         # experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk", project_name="general", workspace="xandrovich")
@@ -203,24 +202,6 @@ def main(args):
     validate_file.close()
     test_file.close()
 
-def parse():
-    parser = argparse.ArgumentParser(description="Keras Classifier Training")
-    # Meta Parameters
-    parser.add_argument("data", metavar="PATH", help="path to data directory")
-    parser.add_argument("save", metavar="PATH", help="path to save directory")
-    parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
-    parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
-
-    # Model parameters
-    parser.add_argument("-e", "--epochs", default=2, type=int, metavar="N", help="number of epochs")
-    parser.add_argument("-b", "--batch_size", default=40, type=int, metavar="N", help="no. samples per batch (def:40)")
-    parser.add_argument("-j", "--workers", default=1, type=int, metavar="N", help="no. data loading workers (def:1)")
-    
-    # Learning parameters
-    parser.add_argument("-lr", "--learning_rate", default=0.0003, type=float, metavar="R", help="Nadam learning rate")
-    parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
-    return parser.parse_args()
-
 def load_labels(path):
     data = {}
     for section in ["train", "valid", "test"]:
@@ -238,6 +219,24 @@ def convert_to_float(dictionary):
 		else:
 			jsoned_dict[key] = float(dictionary[key])
 	return jsoned_dict
+
+def parse():
+    parser = argparse.ArgumentParser(description="Keras Classifier Training")
+    # Meta Parameters
+    parser.add_argument("data", metavar="PATH", help="path to data directory")
+    parser.add_argument("save", metavar="PATH", help="path to save directory")
+    parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
+    parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
+
+    # Model parameters
+    parser.add_argument("-e", "--epochs", default=2, type=int, metavar="N", help="number of epochs")
+    parser.add_argument("-b", "--batch_size", default=40, type=int, metavar="N", help="no. samples per batch (def:40)")
+    parser.add_argument("-j", "--workers", default=1, type=int, metavar="N", help="no. data loading workers (def:1)")
+    
+    # Learning parameters
+    parser.add_argument("-lr", "--learning_rate", default=0.0003, type=float, metavar="R", help="Nadam learning rate")
+    parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
+    return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse()
