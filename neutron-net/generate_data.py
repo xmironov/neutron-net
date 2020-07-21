@@ -192,8 +192,6 @@ def output_scale(t, fit=True, scaler=None):
         
     return (scaler, trans_t)
 
-# test
-
 def sample_scale(x):
     """Scales both X and Y values in a sample using MinMaxScaling. Expects a 2D array as input"""
     ### for two dimensional data
