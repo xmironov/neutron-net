@@ -136,34 +136,21 @@ class Net():
 
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu", input_shape=(*self.dims, self.channels)))
         model.add(MaxPooling2D(pool_size=(2,2)))
-
         model.add(Conv2D(64, (3,3), strides=(1,1), padding='same', activation="relu"))
         model.add(MaxPooling2D(pool_size=(2,2)))
-
         model.add(Conv2D(128, (3,3), strides=(1,1), padding='same', activation="relu"))
         model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2)))
-
-
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu"))
         model.add(MaxPooling2D(pool_size=(3,3), strides=(2,2)))
 
         model.add(Flatten()) # Length: 256 filters x 18 x 18 = 82944
-        # model.add(Dense(150, activation="relu"))
         model.add(Dense(300, activation="relu"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(240, activation="relu"))
         model.add(Dropout(self.dropout))
         model.add(Dense(192, activation="relu"))
         model.add(Dropout(self.dropout))
-        model.add(Dense(154, activation="relu"))
-        model.add(Dropout(self.dropout))
         model.add(Dense(123, activation="relu"))
         model.add(Dropout(self.dropout))
-        model.add(Dense(98, activation="relu"))
-        model.add(Dropout(self.dropout))
         model.add(Dense(79, activation="relu"))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(63, activation="relu"))
         model.add(Dropout(self.dropout))
         model.add(Dense(50, activation="relu"))
         model.add(Dropout(self.dropout))
