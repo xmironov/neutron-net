@@ -520,7 +520,7 @@ def main(args):
 
         model.train(train_loader, valid_loader)
         model.test(test_loader, args.data) 
-        model.plot(test_labels, save_path)
+        # model.plot(test_labels, save_path)
         model.save(save_path)
 
 def parse():
