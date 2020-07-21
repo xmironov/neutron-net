@@ -70,52 +70,6 @@ class DataLoaderClassification(Sequence):
         self.file.close()
 
 class DataLoaderRegression(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, labels, dim, channels, batch_size, layers):
-        'Initialisation'
-        self.labels      = labels                
-
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.layers     = layers
-
-        self.on_epoch_end()
-
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(self.labels.keys()) / self.batch_size))
-
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        indexes = [list(self.labels.keys())[k] for k in indexes]
-        images = self.__data_generation(indexes)
-
-        return images
-
-    def __data_generation(self, indexes):
-        # 'Generates data containing batch_size samples'
-        images = np.empty((self.batch_size, *self.dim, self.channels))
-        # targets_depth = []
-        # targets_sld = []
-
-        for i, np_image_filename in enumerate(indexes):
-            images[i,] = np.load(np_image_filename)
-            # targets_depth.append(self.labels[np_image_filename]["depth"])
-            # targets_sld.append(self.labels[np_image_filename]["sld"])
-            
-        # , {'depth': np.array(targets_depth), 'sld': np.array(targets_sld)}
-        return images
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'
-        self.indexes = np.arange(len(self.labels.keys()))
-
-    def close_file(self):
-        self.file.close()
-
-class DataLoaderRegression2(Sequence):
     ''' Use Keras sequence to load image data from a dictionary '''
     def __init__(self, labels_dict, dim, channels):
         'Initialisation'
@@ -151,7 +105,8 @@ class DataLoaderRegression2(Sequence):
         'Updates indexes after each epoch'
         self.indexes = np.arange(len(self.labels_dict.keys()))
     
-class KerasDropoutPredicter2():
+class KerasDropoutPredicter():
+    """ Class that takes trained models and uses Dropout at test time to make Bayesian-like predictions"""
     def __init__(self, models):
         # One-layer model function
         self.f_1 = K.function([models[1].layers[0].input, K.learning_phase()],
@@ -173,8 +128,10 @@ class KerasDropoutPredicter2():
             results = []
 
             for i in range(n_iter):
+                # If one-layer
                 if y[0][0] == 1:
                     result = self.f_1([x, 1])
+                # else if two-layer
                 elif y[0][0] == 2:
                     result = self.f_2([x, 1])
                 results.append(result)
@@ -193,49 +150,11 @@ class KerasDropoutPredicter2():
             steps_done+=1
         return [np.concatenate(out, axis=1) for out in all_out]
 
-
-class KerasDropoutPredicter():
-    def __init__(self, model, sequence):
-        self.f = K.function(
-            [model.layers[0].input, K.learning_phase()], 
-            [model.layers[-2].output, model.layers[-1].output])
-
-    def predict(self, seq, n_iter=2):
-        steps_done = 0
-        all_out = []
-        steps = len(seq)
-        output_generator = iter_sequence_infinite(seq)
-
-        while steps_done < steps:
-            generator_output = next(output_generator)
-            x = generator_output
-
-            results = []
-            for i in range(n_iter):
-                result = self.f([x, 1])
-                results.append(result)
-
-            results = np.array(results)
-            prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
-            outs = np.array([prediction, uncertainty])
-
-            if not all_out:
-                for out in outs:
-                    all_out.append([])
-
-            for i, out in enumerate(outs):
-                all_out[i].append(out)
-
-            steps_done += 1
-        return [np.concatenate(out, axis=1) for out in all_out]
-
 def main(args):
     scaler_path = os.path.join(args.data, "output_scaler.p")
     save_paths = create_save_directories(args.data)
 
     dat_files, npy_image_filenames = dat_files_to_npy_images(args.data, save_paths["img"])
-
-    # Create a dict with placeholder labels for each .npy image
     class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
     classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
 
@@ -259,26 +178,28 @@ def main(args):
                                 "class": int(layer_prediction)}
                         for filename, layer_prediction in zip(npy_image_filenames, layer_predictions)}
 
-    loader = DataLoaderRegression2(values_labels, DIMS, CHANNELS)
+    loader = DataLoaderRegression(values_labels, DIMS, CHANNELS)
     
     # Use custom class to activate Dropout at test time in models
-    kdp = KerasDropoutPredicter2(models)
+    kdp = KerasDropoutPredicter(models)
     kdp_predictions = kdp.predict(loader, n_iter=1)
 
+    # Predictions given as [depth_1, depth_2], [sld_1, sld_2]
     depth_predictions, sld_predictions = kdp_predictions[0][0], kdp_predictions[0][1]
+
+    # Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
     depth_error, sld_error = kdp_predictions[1][0], kdp_predictions[1][1]
 
-    # Formatting data into structure of output_scaler.p
+    ##########################################################################################################
     ## Current scaler expects 4-dimensional data of shape [depth_1, sld_1, depth_2, sld_2]
-    ## As data can vary in dimensions depending on number of layers within sample,
-    ## the resulting array has to be manually manipulated to be of the same dimensions as the scaler
-    ## so that the values can be scaled correctly   
-    # frmt_predictions = np.c_[depth_predictions[:,0], sld_predictions[:,0], depth_predictions[:,1], sld_predictions[:,1]]
-    # frmt_std = np.c_[depth_std[:,0], sld_std[:,0], depth_std[:,1], sld_std[:,1]]
-    
+    ## Order of entries in data in array must be arranged to order expected by scaler
+    ## If one-layer data, array must be expanded to [depth_1, sld_1, 0, 0] to keep same dimension as scaler
+    ## If two-layer data, array does not need expanding, but still needs rearranging
+    ##########################################################################################################
     frmt_predictions = []
     frmt_errors = []
     for d_pred, s_pred, d_error, s_error in zip(depth_predictions, sld_predictions, depth_error, sld_error):
+        # If data is for one-layer expand matrix with zeros
         if (len(d_pred) == 1) & (len(s_pred) == 1):
             frmt_pred = np.c_[d_pred[0], s_pred[0], np.zeros(len(d_pred)), np.zeros(len(s_pred))]
             frmt_error = np.c_[d_error[0], s_error[0], np.zeros(len(d_pred)), np.zeros(len(s_pred))]
@@ -304,7 +225,7 @@ def main(args):
 
 
 def create_save_directories(data):
-    '''Takes a data path and creates a save directory structure for .npy images, fits and etc.'''
+    """Takes a data path and creates a save directory structure for .npy images, fits and etc."""
     savepaths = {}
     name = 'Dev-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')
     directories = ['img', 'fits', 'predictions', 'results']
@@ -325,17 +246,19 @@ def create_save_directories(data):
     return savepaths
 
 def dat_files_to_npy_images(data_path, save_path):
-    '''Locate any .dat files in given data_path, create .npy images and save them in save_path '''
+    """Locate any .dat files in given data_path, create .npy images and save them in save_path"""
     dat_files = glob.glob(os.path.join(data_path, '*.dat'))
     image_filenames = create_images_from_directory(dat_files, save_path)
     return dat_files, image_filenames
 
 def create_images_from_directory(dat_files, save_path):
-    '''Take list of .dat files, creat .npy images and save them in savepath'''
+    """Take list of .dat files, creat .npy images and save them in savepath"""
     image_files = []
 
     for dat_file in dat_files:
+        # Identify if there are column headings, or whether the header is empty
         header_setting = identify_header(dat_file)
+
         if header_setting is None:
             data = pd.read_csv(dat_file, header=0, delim_whitespace=True, names=['X', 'Y', 'Error'])
         else:
@@ -353,6 +276,7 @@ def create_images_from_directory(dat_files, save_path):
     return image_files
 
 def identify_header(path, n=5, th=0.9):
+    """Parse the .dat file header to find out if there are headings or if it's empty"""
     df1 = pd.read_csv(path, header='infer', nrows=n)
     df2 = pd.read_csv(path, header=None, nrows=n)
     sim = (df1.dtypes.values == df2.dtypes.values).mean()
@@ -373,28 +297,20 @@ def get_image(x,y):
     plt.xlim(0,0.3)
     plt.ylim(1e-08,1.5) #this hadnt been set previously!
     plt.axis("off")
-    # plt.show()
     fig.canvas.draw()
     width, height = fig.get_size_inches() * fig.get_dpi()
-    #print(width,height)
     mplimage = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
     gray_image = color.rgb2gray(mplimage)
-    # plt.show()
     plt.close()
     return gray_image
 
-def get_model(path):
-    yaml_file = open(os.path.join(path, 'model.yaml'), 'r')
-    model_yaml = yaml_file.read()
-    yaml_file.close()
-    return model_from_yaml(model_yaml)
-
-def iter_sequence_infinite(seq):
+def iter_sequence_infinite(sequence):
+    """Infinite iterator for sequence"""
     while True:
-        for item in seq:
+        for item in sequence:
             yield item
 
-def dat_to_genX(directory, filename, pars=[50,50,0,0.1,0.1]):
+def dat_to_genX(directory, filename, parameters=[50,50,0,0.1,0.1]):
     """ Copy base GenX file and populate the data and parameters in it """
     path = os.path.split(filename)
     name = os.path.splitext(path[1])
@@ -414,10 +330,10 @@ def dat_to_genX(directory, filename, pars=[50,50,0,0.1,0.1]):
     for heading, datum in zip(headings, overwriting_data):
         hdf_overwrite(hdf_path, 'current/data/datasets/0//' + str(heading), datum)
 
-    for i in range(len(pars)):
-        hdf_overwrite(hdf_path, 'current/parameters/data col 1', pars[i], single_value=True, index=i)
-        hdf_overwrite(hdf_path, 'current/parameters/data col 3', pars[i]*0.1, single_value=True, index=i)
-        hdf_overwrite(hdf_path, 'current/parameters/data col 4', pars[i]*3, single_value=True, index=i)
+    for i in range(len(parameters)):
+        hdf_overwrite(hdf_path, 'current/parameters/data col 1', parameters[i], single_value=True, index=i)
+        hdf_overwrite(hdf_path, 'current/parameters/data col 3', parameters[i]*0.1, single_value=True, index=i)
+        hdf_overwrite(hdf_path, 'current/parameters/data col 4', parameters[i]*3, single_value=True, index=i)
 
     # hdf_read(hdf_path, 'current/parameters/data col 1')
 
@@ -445,9 +361,9 @@ def hdf_overwrite(file_name, group, new_data, single_value=False, index=0):
         f1.close() 
 
 def copy_in_place(directory, base_directory, original_file, new_file_name):
-    '''This copies a file into a temporary location, and then renames it and moves it back, keeping the original intact
+    """This copies a file into a temporary location, and then renames it and moves it back, keeping the original intact
     It should be greral, but some file meta-data may be lost by shutil.copy
-    It will overwrite any files with the same name as new_file_name in the original folder'''
+    It will overwrite any files with the same name as new_file_name in the original folder"""
     try:
         extension = os.path.splitext(original_file)[1] # Get the file extension in order to preserve it
         temp_folder = os.path.normpath(os.path.join(directory, "temp"))
@@ -493,13 +409,10 @@ def extract_data(filename):
 
 def parse():
     parser = argparse.ArgumentParser(description="Prediction Pipeline")
-
-    # Meta Parameters
     parser.add_argument("data", metavar="datapath", help="path to data directory with .dat files")
     parser.add_argument("classifier", metavar="classifier", help="path to classifier full_model.h5")
     parser.add_argument("one_layer", metavar="one_layer", help="path to one-layer regression full_model.h5")
     parser.add_argument("two_layer", metavar="two_layer", help="path to two-layer regression full_model.h5")
-
     return parser.parse_args()
 
 if __name__ == "__main__":
