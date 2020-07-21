@@ -388,13 +388,12 @@ def plot(preds, labels, savepath, batch_size, error):
 
 def main(args):
     if args.test:
+        # Change to paths which have the one- and two-layer models, respectively
         path_1_layer = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-1-layer-[2020-05-05T153216]/full_model.h5"
         path_2_layer = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-2-layer-[2020-05-06T231932]/full_model.h5"
         
         name = os.path.basename(os.path.dirname(os.path.abspath(args.test)))
         savepath = os.path.join(args.save, name)
-
-        # model = load_model(args.test)
 
         model_1_layer = load_model(path_1_layer)
         model_2_layer = load_model(path_2_layer)
@@ -412,15 +411,13 @@ def main(args):
 
         scaler = pickle.load(open(os.path.join(args.data, "output_scaler.p"), "rb"))
 
+        # If --bayesian flag passed, use Dropout at testing, currently hard-coded for paper
         if args.bayesian:
             kdp_1_layer = KerasDropoutPredicter(model_1_layer, test_loader_1_layer)
             kdp_2_layer = KerasDropoutPredicter(model_2_layer, test_loader_2_layer)
 
             preds_1_layer = kdp_1_layer.predict(test_loader_1_layer, n_iter=1)
             preds_2_layer = kdp_2_layer.predict(test_loader_2_layer, n_iter=1)
-
-            print("length", len(preds_1_layer[0][0]))
-            sys.exit()
 
             ####################################################################################
             # y_predictions[n] : n = 0:mean prediction, 1:standard deviation, 2:ground truth
@@ -454,23 +451,9 @@ def main(args):
             labels = [labels_1, labels_2]
             error = [error_1, error_2]
 
-            # if args.layers == 2:
-            #     padded_preds = np.c_[depth[:,0], sld[:,0], depth[:,1], sld[:,1]]
-            #     labels = np.c_[depth_ground[:,0], sld_ground[:,0], depth_ground[:,1], sld_ground[:,1]]
-            #     padded_error = np.c_[depth_std[:,0], sld_std[:,0], depth_std[:,1], sld_std[:,1]]
-            #     error = scaler.inverse_transform(padded_error)
-            #     preds = scaler.inverse_transform(padded_preds)
-
-            # elif args.layers == 1:
-            #     padded_preds = np.c_[depth[:,0], sld[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
-            #     padded_error = np.c_[depth_std[:,0], sld_std[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
-            #     labels = np.c_[depth_ground[:,0], sld_ground[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
-            #     error = scaler.inverse_transform(padded_error)
-            #     preds = scaler.inverse_transform(padded_preds)
-
             plot(preds, labels, savepath, args.batch_size, error)
 
-
+        # Else test normally without applying Dropout
         else:
             preds = model.predict(test_loader, use_multiprocessing=False, verbose=1)
             depth, sld = preds[0], preds[1]
@@ -481,13 +464,11 @@ def main(args):
                 padded_preds = np.c_[depth[:,0], sld[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
                 preds = scaler.inverse_transform(padded_preds)
 
-            random_sample = random.sample(range(0, len(preds)), 1000)
-            sample_preds = preds[random_sample]
-            sample_labels = test_labels[random_sample]
-
-            plot(sample_preds, sample_labels, savepath, args.batch_size, args.layers, )
+            ## the plot() function is currently hard-coded to produce the publication graphics
+            # plot(sample_preds, sample_labels, savepath, args.batch_size, args.layers, )
         # model.plot(test_labels, savepath)
-
+    
+    # If not testing produce to train network and save it
     else:
         name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
         save_path = os.path.join(args.save, name)
