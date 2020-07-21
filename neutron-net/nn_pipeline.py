@@ -304,7 +304,7 @@ def main(args):
 
 
 def create_save_directories(data):
-    'Create necessary directory structure for saving fits and figures'
+    '''Takes a data path and creates a save directory structure for .npy images, fits and etc.'''
     savepaths = {}
     name = 'Dev-' + datetime.now().strftime('%Y-%m-%dT%H%M%S')
     directories = ['img', 'fits', 'predictions', 'results']
@@ -325,23 +325,24 @@ def create_save_directories(data):
     return savepaths
 
 def dat_files_to_npy_images(data_path, save_path):
-    'Find .dat files at data_path and call create .npy images'
+    '''Locate any .dat files in given data_path, create .npy images and save them in save_path '''
     dat_files = glob.glob(os.path.join(data_path, '*.dat'))
-    image_filenames = create_images_from_directory(dat_files, data_path, save_path)
+    image_filenames = create_images_from_directory(dat_files, save_path)
     return dat_files, image_filenames
 
-def create_images_from_directory(files, datapath, savepath):
+def create_images_from_directory(dat_files, save_path):
+    '''Take list of .dat files, creat .npy images and save them in savepath'''
     image_files = []
 
-    for file in files:
-        header_setting = identify_header(file)
+    for dat_file in dat_files:
+        header_setting = identify_header(dat_file)
         if header_setting is None:
-            data = pd.read_csv(file, header=0, delim_whitespace=True, names=['X', 'Y', 'Error'])
+            data = pd.read_csv(dat_file, header=0, delim_whitespace=True, names=['X', 'Y', 'Error'])
         else:
-            data = pd.read_csv(file, header=header_setting)
+            data = pd.read_csv(dat_file, header=header_setting)
 
-        head, tail = os.path.split(file)
-        name = os.path.normpath(os.path.join(savepath, tail)).replace(".dat", ".npy")
+        head, tail = os.path.split(dat_file)
+        name = os.path.normpath(os.path.join(save_path, tail)).replace(".dat", ".npy")
         image_files.append(name)
         sample_momentum = data["X"]
         sample_reflect = data["Y"]
