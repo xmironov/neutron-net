@@ -106,7 +106,7 @@ class Net():
         self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         return self.history
 
-    def test(self, test_sequence, test_labels, savepath):
+    def test(self, test_sequence, test_labels, save_path):
         predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
         predictions = np.argmax(predictions, axis=1)
         remainder = len(test_labels) % self.batch_size
@@ -116,30 +116,30 @@ class Net():
 
         cm = confusion_matrix(test_labels, predictions)
         df_cm = pd.DataFrame(cm, index=[i for i in "12"], columns=[i for i in "12"])
-        confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, savepath)
+        confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, save_path)
 
-    def save(self, savepath):
+    def save(self, save_path):
         try:
-            os.makedirs(savepath)
+            os.makedirs(save_path)
         except OSError:
             pass
 
-        with open(os.path.join(savepath, "history.json"), "w") as f:
+        with open(os.path.join(save_path, "history.json"), "w") as f:
             json_dump = convert_to_float(self.history.history)
             json_dump["time_taken"] = self.time_taken
             json.dump(json_dump, f)
 
         model_yaml = self.model.to_yaml()
 
-        with open(os.path.join(savepath, "model.yaml"), "w") as yaml_file:
+        with open(os.path.join(save_path, "model.yaml"), "w") as yaml_file:
             yaml_file.write(model_yaml)
 
-        self.model.save_weights(os.path.join(savepath, "model_weights.h5"))
+        self.model.save_weights(os.path.join(save_path, "model_weights.h5"))
 
-        with open(os.path.join(savepath, "summary.txt"), "w") as f:
+        with open(os.path.join(save_path, "summary.txt"), "w") as f:
             self.model.summary(print_fn=lambda x: f.write(x + "\n"))
 
-        self.model.save(os.path.join(savepath, "full_model.h5"))
+        self.model.save(os.path.join(save_path, "full_model.h5"))
 
     def create_model(self):
         model = Sequential()
@@ -191,21 +191,22 @@ class Net():
 
 def main(args):
     name = "classifier-[" + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
-    savepath = os.path.join(args.save, name)
-    data = r"C:\Users\mtk57988\stfc\ml-neutron\neutron_net\data\perfect_w_classes\all"
+    save_path = os.path.join(args.save, name)
 
     if args.log:
-        experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk", project_name="general", workspace="xandrovich")
+        # Set up account with Comet-ML and retrieve api_key from them to track experiments
+        # experiment = Experiment(api_key="", project_name="", workspace="")
+        # experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk", project_name="general", workspace="xandrovich")
 
-    train_dir = os.path.join(data, "train.h5")
-    validate_dir = os.path.join(data, "valid.h5")
-    test_dir = os.path.join(data, "test.h5")
+    train_dir = os.path.join(args.data, "train.h5")
+    validate_dir = os.path.join(args.data, "valid.h5")
+    test_dir = os.path.join(args.data, "test.h5")
 
     train_file = h5py.File(train_dir, "r")
     validate_file = h5py.File(validate_dir, "r")
     test_file = h5py.File(test_dir, "r")
 
-    labels = load_labels(data)
+    labels = load_labels(args.data)
     train_labels, validate_labels, test_labels = labels["train"], labels["valid"], labels["test"]
 
     train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
@@ -218,8 +219,8 @@ def main(args):
         model.summary()
 
     model.train(train_loader, validate_loader)
-    model.test(test_loader, test_labels, savepath)
-    model.save(savepath)
+    model.test(test_loader, test_labels, save_path)
+    model.save(save_path)
 
     train_file.close()
     validate_file.close()
