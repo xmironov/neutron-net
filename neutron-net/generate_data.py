@@ -25,26 +25,24 @@ def main(args):
         print("\n   {} one-layer .dat file(s) found".format(len(one_layer_files)))
         print("   {} two-layer .dat file(s) found".format(len(two_layer_files)))
 
-    sys.exit()
-    
     layers_dict = {
         1: load_simulated_files(one_layer_files, 1),
         2: load_simulated_files(two_layer_files, 2),
     }
-    
+  
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
     scaler_filename = os.path.join(args.save, 'output_scaler.p')
     split_data = train_valid_test_split(layers_dict, split_ratios)
     
     concatenated = {}
-    for split, data in split_data.items():
+    for split, layer_dict in split_data.items():
         concatenated[split] = {}
 
-        for key in data[1].keys():
-            concat = np.concatenate([data[layer][key] for layer in data.keys()])
+        for key in layer_dict[1].keys():
+            concat = np.concatenate([layer_dict[layer][key] for layer in layer_dict.keys()])
             concatenated[split][key] = concat
     del split_data
-              
+   
     print('\n### Shuffling data')
     shuffle_data(concatenated)
     print('\n### Scaling targets')
