@@ -20,6 +20,7 @@ def main(args):
 
     if (not one_layer_files) or (not two_layer_files):
         print("\n   .dat files not found. Check data path.")
+        sys.exit()
         return None
     else:
         print("\n   {} one-layer .dat file(s) found".format(len(one_layer_files)))
