@@ -122,22 +122,12 @@ class Net():
         try:
             os.makedirs(save_path)
         except OSError:
-            pass
+            print("Couldn't create savepath")
 
         with open(os.path.join(save_path, "history.json"), "w") as f:
             json_dump = convert_to_float(self.history.history)
             json_dump["time_taken"] = self.time_taken
             json.dump(json_dump, f)
-
-        model_yaml = self.model.to_yaml()
-
-        with open(os.path.join(save_path, "model.yaml"), "w") as yaml_file:
-            yaml_file.write(model_yaml)
-
-        self.model.save_weights(os.path.join(save_path, "model_weights.h5"))
-
-        with open(os.path.join(save_path, "summary.txt"), "w") as f:
-            self.model.summary(print_fn=lambda x: f.write(x + "\n"))
 
         self.model.save(os.path.join(save_path, "full_model.h5"))
 
