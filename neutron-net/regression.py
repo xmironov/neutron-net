@@ -526,9 +526,9 @@ def main(args):
 def parse():
     parser = argparse.ArgumentParser(description="Keras Regressor Training")
     # Meta Parameters
-    parser.add_argument("data", metavar="PATH", help="path to data directory")
-    parser.add_argument("save", metavar="PATH", help="path to save directory")
-    parser.add_argument("layers", metavar="N", type=int, help="no. layers of system")
+    parser.add_argument("data", metavar="data_path", help="path to data directory")
+    parser.add_argument("save", metavar="save_path", help="path to save directory")
+    parser.add_argument("layers", metavar="no_layers", type=int, help="no. layers of system")
     parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
     parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
     parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
