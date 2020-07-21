@@ -231,7 +231,7 @@ class DataLoader(Sequence):
 
     def __len__(self):
         'Denotes number of batches per epoch'
-        return int(np.floor(len(np.array(self.file['images'])[100:200]) / self.batch_size))
+        return int(np.floor(len(np.array(self.file['images'])) / self.batch_size))
 
     def __getitem__(self, index):
         'Generates one batch of data'
@@ -259,22 +259,12 @@ class DataLoader(Sequence):
             images[i,] = image
             targets_depth[i,] = values[::2]
             targets_sld[i,] = values[1::2]
-
-        for image, depth, sld in zip(x, y_depth, y_sld):
-            # print(depth, sld)
-            # # fig = plt.figure(figsize=(3,3))
-            # plt.imshow(image.squeeze(), interpolation="nearest", cmap='Greys_r')
-            # # plt.xlim(0,0.3)
-            # # plt.ylim(1e-08,1.5) #this hadnt been set previously!
-            # plt.axis("off")
-            # plt.show()
-            # plt.close()
         
         return images, {'depth': targets_depth, 'sld': targets_sld}
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'    
-        self.indexes = np.arange(len(self.file['images']))[100:200]
+        self.indexes = np.arange(len(self.file['images']))
 
     def close_file(self):
         self.file.close()
