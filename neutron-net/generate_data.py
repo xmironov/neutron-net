@@ -15,8 +15,8 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage import data, color
 
 def main(args):
-    one_layer_files = glob.glob(os.path.join(args.data, 'O') + '*')
-    two_layer_files = glob.glob(os.path.join(args.data, 'Tw') + '*')
+    one_layer_files = glob.glob(os.path.join(args.data, 'One') + '*')
+    two_layer_files = glob.glob(os.path.join(args.data, 'Two') + '*')
 
     if (not one_layer_files) or (not two_layer_files):
         print("\n   .dat files not found. Check data path.")
@@ -49,8 +49,9 @@ def main(args):
     print("\n", "> Scaling targets...")
     output_scaler = scale_targets(concatenated)
 
-    # with open(scaler_filename, 'wb') as f:
-    #         pickle.dump(output_scaler, f)
+    print("\n", "> Dumping scaler in data directory")
+    with open(scaler_filename, 'wb') as f:
+            pickle.dump(output_scaler, f)
 
     print("\n", "> Scaling inputs...")
     scale_inputs(concatenated) 
@@ -67,6 +68,7 @@ def main(args):
                     base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
             
             print("\n", "> Generating images for {}.h5".format(section))
+            # Once h5 files created with .npy data, create images
             with h5py.File(file, 'a') as modified_file:
                 images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(1000,300,300,1))
 
