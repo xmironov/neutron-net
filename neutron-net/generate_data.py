@@ -15,12 +15,8 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage import data, color
 
 def main(args):
-    savepath = r'D:\Users\Public\Documents\stfc\neutron-net\data\test'
-
-    dat_files_dir = args.data
-
-    one_layer_files = glob.glob(os.path.join(dat_files_dir, 'O') + '*')
-    two_layer_files = glob.glob(os.path.join(dat_files_dir, 'Tw') + '*')
+    one_layer_files = glob.glob(os.path.join(args.data, 'O') + '*')
+    two_layer_files = glob.glob(os.path.join(args.data, 'Tw') + '*')
 
     if (not one_layer_files) or (not two_layer_files):
         print("\n   .dat files not found. Check data path.")
@@ -28,6 +24,8 @@ def main(args):
     else:
         print("\n   {} one-layer .dat file(s) found".format(len(one_layer_files)))
         print("   {} two-layer .dat file(s) found".format(len(two_layer_files)))
+
+    sys.exit()
     
     layers_dict = {
         1: load_simulated_files(one_layer_files, 1),
@@ -35,7 +33,7 @@ def main(args):
     }
     
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
-    scaler_filename = os.path.join(savepath, 'output_scaler.p')
+    scaler_filename = os.path.join(args.save, 'output_scaler.p')
     split_data = train_valid_test_split(layers_dict, split_ratios)
     
     concatenated = {}
@@ -59,7 +57,7 @@ def main(args):
     shapes = get_shapes(concatenated, chunk_size=1000)
     print('\n### Creating .h5 files')
     for section, dictionary in concatenated.items():
-        file = os.path.normpath(os.path.join(savepath, '{}.h5'.format(section)))
+        file = os.path.normpath(os.path.join(args.save, '{}.h5'.format(section)))
         
         if not os.path.exists(file):
             print('\n### Filling in data for {}.h5'.format(section))
@@ -227,11 +225,11 @@ def image_process(sample):
     return(np.resize(image, (300,300,1)))
 
 def parse():
-    parser = argparse.ArgumentParser(description='Data Generation')
-    parser.add_argument('data', metavar='DATADIR',
-                        help='path to dataset')  
-    parser.add_argument('save', metavar='SAVEDIR',
-                        help='path to save directory')
+    parser = argparse.ArgumentParser(description="Data Generation")
+    parser.add_argument("data", metavar="data_directory",
+                        help="path to directory with raw .h5 files")  
+    parser.add_argument("save", metavar="save_directory",
+                        help="path to save directory")
     args = parser.parse_args()
     return args
 
