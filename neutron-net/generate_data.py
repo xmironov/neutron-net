@@ -15,20 +15,23 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage import data, color
 
 def main(args):
-    one_layer_files = glob.glob(os.path.join(args.data, 'One') + '*')
-    two_layer_files = glob.glob(os.path.join(args.data, 'Two') + '*')
+    one_layer_files   = glob.glob(os.path.join(args.data, '1') + '*')
+    two_layer_files   = glob.glob(os.path.join(args.data, '2') + '*')
+    #three_layer_files = glob.glob(os.path.join(args.data, 'Three') + '*')
+
 
     if (not one_layer_files) or (not two_layer_files):
-        print("\n   .dat files not found. Check data path.")
+        print("\n   .h5 files not found. Check data path.")
         sys.exit()
         return None
     else:
-        print("\n   {} one-layer .dat file(s) found".format(len(one_layer_files)))
-        print("   {} two-layer .dat file(s) found".format(len(two_layer_files)))
+        print("\n   {} one-layer .h5 file(s) found".format(len(one_layer_files)))
+        print("   {} two-layer .h5 file(s) found".format(len(two_layer_files)))
+        #print("   {} three-layer .h5 file(s) found".format(len(three_layer_files)))
 
     layers_dict = {
         1: load_simulated_files(one_layer_files, 1),
-        2: load_simulated_files(two_layer_files, 2),
+        2: load_simulated_files(two_layer_files, 2)
     }
   
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
@@ -56,7 +59,7 @@ def main(args):
 
     print("\n", "> Scaling inputs...")
     scale_inputs(concatenated) 
-    shapes = get_shapes(concatenated, chunk_size=1000)
+    shapes = get_shapes(concatenated, chunk_size=100)
 
     print("\n", "> Creating .h5 files...")
     for section, dictionary in concatenated.items():
@@ -71,7 +74,7 @@ def main(args):
             print("\n", "> Generating images for {}.h5".format(section))
             # Once h5 files created with .npy data, create images
             with h5py.File(file, 'a') as modified_file:
-                images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(1000,300,300,1))
+                images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(100,300,300,1))
 
                 for i, sample in enumerate(modified_file['inputs']):
                     img = image_process(sample)
@@ -91,17 +94,15 @@ def scale_targets(concatenated):
     for regime, data in concatenated.items():
         if output_scaler is None:
             output_scaler, scaled_target = output_scale(data['targets'], fit=True)
-            assert np.max(scaled_target) == 1.0
             
         elif output_scaler:
             output_scaler, scaled_target = output_scale(data['targets'], fit=False, scaler=output_scaler)
-            assert np.max(scaled_target) == 1.0
         
         concatenated[regime]['targets_scaled'] = scaled_target
 
     return output_scaler
 
-def get_shapes(concatenated, chunk_size=1000):
+def get_shapes(concatenated, chunk_size=100):
     shapes = {}
 
     for data_type, data in concatenated['train'].items():

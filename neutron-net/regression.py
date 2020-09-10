@@ -1,5 +1,3 @@
-from comet_ml import Experiment
-
 import os 
 os.environ["KMP_AFFINITY"] = "none"
 
@@ -72,7 +70,7 @@ class KerasDropoutPredicter():
         return [np.concatenate(out, axis=1) for out in all_out]
 
 class Net():
-    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers, layers, batch_size):
+    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers, layers, batch_size, save_path=None):
         'Initialisation'
         self.outputs       = layers
         self.dims          = dims
@@ -82,7 +80,10 @@ class Net():
         self.learning_rate = learning_rate
         self.workers       = workers
         self.batch_size    = batch_size
-        self.model         = self.create_model()
+        if save_path is None:
+            self.model = self.create_model()
+        else:
+            self.model = load_model(save_path)
 
     def train(self, train_seq, valid_seq):
         'Trains data on Sequences'
@@ -119,6 +120,11 @@ class Net():
         return self.history
     
     def test(self, test_seq, datapath):
+        print("\nEvaluating")
+        results = self.model.evaluate(test_seq)
+        print(results)
+        #print("Test Loss: {0} | Test Accuracy: {1}".format(loss, accuracy))
+        
         scaler = pickle.load(open(os.path.join(datapath, "output_scaler.p"), "rb"))
         preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
         depth, sld = preds[0], preds[1]
@@ -248,7 +254,7 @@ class DataLoader(Sequence):
 
         for i, idx in enumerate(indexes):
             image = self.file['images'][idx]
-            values = self.file['scaledY'][idx]
+            values = self.file['targets_scaled'][idx]
 
             length = len(values)
             difference = length - self.layers * 2
@@ -402,11 +408,11 @@ def main(args):
         
         testdir_1_layer = os.path.join(args.data, "1", "test.h5")
         testh5_1_layer = h5py.File(testdir_1_layer, "r")
-        test_labels_1_layer = np.array(testh5_1_layer["Y"])
+        test_labels_1_layer = np.array(testh5_1_layer["targets"])
 
         testdir_2_layer = os.path.join(args.data, "2", "test.h5")
         testh5_2_layer = h5py.File(testdir_2_layer, "r")
-        test_labels_2_layer = np.array(testh5_2_layer["Y"])
+        test_labels_2_layer = np.array(testh5_2_layer["targets"])
 
         test_loader_1_layer = DataLoader(testh5_1_layer, DIMS, CHANNELS, args.batch_size, 1)
         test_loader_2_layer = DataLoader(testh5_2_layer, DIMS, CHANNELS, args.batch_size, 2)
@@ -472,7 +478,7 @@ def main(args):
     
     # If not testing proceed to train network and save it
     else:
-        name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
+        name = "regressor-%s-layer"
         save_path = os.path.join(args.save, name)
 
         # Log to CometML: need to add own api_key and details
@@ -481,15 +487,15 @@ def main(args):
             # Set up account with Comet-ML and retrieve api_key from them to track experiments
             # experiment = Experiment(api_key="", project_name="", workspace="")
 
-        train_dir = os.path.join(args.data, str(args.layers), 'train.h5')
-        val_dir = os.path.join(args.data, str(args.layers), 'valid.h5')
-        test_dir = os.path.join(args.data, str(args.layers), 'test.h5')
+        train_dir = os.path.join(args.data, 'train.h5')
+        val_dir = os.path.join(args.data,'validate.h5')
+        test_dir = os.path.join(args.data, 'test.h5')
 
         train_h5 = h5py.File(train_dir, 'r')
         val_h5 = h5py.File(val_dir, 'r')
         test_h5 = h5py.File(test_dir, 'r')
 
-        test_labels = np.array(test_h5["Y"])
+        #test_labels = np.array(test_h5["targets"])
 
         train_loader = DataLoader(train_h5, DIMS, CHANNELS, args.batch_size, args.layers)
         valid_loader = DataLoader(val_h5, DIMS, CHANNELS, args.batch_size, args.layers)

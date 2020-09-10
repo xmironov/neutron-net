@@ -1,5 +1,3 @@
-from comet_ml import Experiment
-
 import os, time, re, glob, warnings
 import argparse
 import json
@@ -14,13 +12,13 @@ from datetime import datetime
 from sklearn.metrics import mean_squared_error, confusion_matrix
 
 import tensorflow as tf
-from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.models import Sequential, Model, load_model
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout, Input
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
-import confusion_matrix_pretty_print
+import matplotlib.pyplot as plt
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -68,7 +66,7 @@ class DataLoader(Sequence):
         self.indexes = indexes
 
 class Net():
-    def __init__(self, dims, channels, epochs, dropout, lr, workers, batch_size):
+    def __init__(self, dims, channels, epochs, dropout, lr, workers, batch_size, save_path=None):
         """ Initialisation"""
         self.dims       = dims
         self.channels   = channels
@@ -77,9 +75,13 @@ class Net():
         self.lr         = lr
         self.workers    = workers
         self.batch_size = batch_size
-        self.model      = self.create_model()
+        
+        if save_path is None:
+            self.model = self.create_model()
+        else:
+            self.model = load_model(save_path)
 
-    def train(self, train_sequence, validate_sequence):
+    def train(self, train_sequence, validate_sequence, log):
         """ Train and validate network"""
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor="val_loss",
@@ -88,7 +90,7 @@ class Net():
             factor=0.5,
             min_lr=0.000001,
         )
-
+        
         start = time.time()
         self.history = self.model.fit(
             train_sequence,
@@ -104,6 +106,10 @@ class Net():
         return self.history
 
     def test(self, test_sequence, test_labels, save_path):
+        print("\nEvaluating")
+        loss, accuracy = self.model.evaluate(test_sequence)
+        print("Test Loss: {0} | Test Accuracy: {1}".format(loss, accuracy))
+        
         predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
         predictions = np.argmax(predictions, axis=1)
         remainder = len(test_labels) % self.batch_size
@@ -112,11 +118,10 @@ class Net():
         # and so some trimming may be required
         if remainder:
             test_labels = test_labels[:-remainder]
-
+            
         cm = confusion_matrix(test_labels, predictions)
-        df_cm = pd.DataFrame(cm, index=[i for i in "12"], columns=[i for i in "12"])
-        confusion_matrix_pretty_print.pretty_plot_confusion_matrix(df_cm, save_path)
-
+        print("Confusion Matrix\n", cm)
+        
     def save(self, save_path):
         try:
             os.makedirs(save_path)
@@ -152,7 +157,7 @@ class Net():
         model.add(Dropout(self.dropout))
         model.add(Dense(50, activation="relu"))
         model.add(Dropout(self.dropout))
-        model.add(Dense(3, activation="softmax"))
+        model.add(Dense(4, activation="softmax"))
 
         model.compile(
             optimizer=Nadam(self.lr),
@@ -165,17 +170,11 @@ class Net():
         self.model.summary()
 
 def main(args):
-    name = "classifier-[" + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
+    name = "classifier"
     save_path = os.path.join(args.save, name)
 
-    if args.log:
-        pass
-        # Set up account with Comet-ML and retrieve api_key from them to track experiments
-        # experiment = Experiment(api_key="", project_name="", workspace="")
-        # experiment = Experiment(api_key="Qeixq3cxlTfTRSfJ2hyPlMWjk", project_name="general", workspace="xandrovich")
-
     train_dir = os.path.join(args.data, "train.h5")
-    validate_dir = os.path.join(args.data, "valid.h5")
+    validate_dir = os.path.join(args.data, "validate.h5")
     test_dir = os.path.join(args.data, "test.h5")
 
     train_file = h5py.File(train_dir, "r")
@@ -183,18 +182,17 @@ def main(args):
     test_file = h5py.File(test_dir, "r")
 
     labels = load_labels(args.data)
-    train_labels, validate_labels, test_labels = labels["train"], labels["valid"], labels["test"]
+    train_labels, validate_labels, test_labels = labels["train"], labels["validate"], labels["test"]
 
     train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
     validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
     test_loader = DataLoader(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
-
-    model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size)
+    model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size, "./models/deploy/classification/new/full_model.h5")
     
     if args.summary:
         model.summary()
 
-    model.train(train_loader, validate_loader)
+    model.train(train_loader, validate_loader, args.log)
     model.test(test_loader, test_labels, save_path)
     model.save(save_path)
 
@@ -204,9 +202,9 @@ def main(args):
 
 def load_labels(path):
     data = {}
-    for section in ["train", "valid", "test"]:
+    for section in ["train", "validate", "test"]:
         with h5py.File(os.path.join(path, "{}.h5".format(section)), "r") as f:
-            data["{}".format(section)] = np.array(f["class"])
+            data["{}".format(section)] = np.array(f["layers"])
 
     return data
 
