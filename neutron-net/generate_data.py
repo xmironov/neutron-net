@@ -1,41 +1,36 @@
 import os
-import sys
 import glob
 import h5py
 import pickle
 import random
-import argparse
+import sys
 
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from numpy.random import seed
 from sklearn.preprocessing import MinMaxScaler
-from skimage import data, color
+from skimage import color
 
-def main(args):
-    one_layer_files   = glob.glob(os.path.join(args.data, '1') + '*')
-    two_layer_files   = glob.glob(os.path.join(args.data, '2') + '*')
-    #three_layer_files = glob.glob(os.path.join(args.data, 'Three') + '*')
+layers_str = {1: "One", 2: "Two", 3: "Three"}
 
+def main(data_path, save_path, layers, chunk_size=1000):
+    layers_files = {layer: glob.glob(os.path.join(data_path, layers_str[layer]) + '*') for layer in layers}
+    layers_dict = {}
 
-    if (not one_layer_files) or (not two_layer_files):
+    if None in layers_files: #Is None the right thing here?
         print("\n   .h5 files not found. Check data path.")
         sys.exit()
         return None
     else:
-        print("\n   {} one-layer .h5 file(s) found".format(len(one_layer_files)))
-        print("   {} two-layer .h5 file(s) found".format(len(two_layer_files)))
-        #print("   {} three-layer .h5 file(s) found".format(len(three_layer_files)))
-
-    layers_dict = {
-        1: load_simulated_files(one_layer_files, 1),
-        2: load_simulated_files(two_layer_files, 2)
-    }
+        i = 1
+        for layer in layers:
+            print("\n   {0} {1}-layer .h5 file(s) selected".format(len(layers_files[layer]), layers_str[layer]))
+            layers_dict[i] = load_simulated_files(layers_files[layer], layer)
+            i += 1
   
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
-    scaler_filename = os.path.join(args.save, 'output_scaler.p')
+    scaler_filename = os.path.join(save_path, 'output_scaler.p')
     split_data = train_valid_test_split(layers_dict, split_ratios)
     
     concatenated = {}
@@ -59,11 +54,11 @@ def main(args):
 
     print("\n", "> Scaling inputs...")
     scale_inputs(concatenated) 
-    shapes = get_shapes(concatenated, chunk_size=100)
+    shapes = get_shapes(concatenated, chunk_size=chunk_size)
 
     print("\n", "> Creating .h5 files...")
     for section, dictionary in concatenated.items():
-        file = os.path.normpath(os.path.join(args.save, '{}.h5'.format(section)))
+        file = os.path.normpath(os.path.join(save_path, '{}.h5'.format(section)))
         
         if not os.path.exists(file):
             print("\n", "> Filling in data for {}.h5".format(section))
@@ -74,7 +69,7 @@ def main(args):
             print("\n", "> Generating images for {}.h5".format(section))
             # Once h5 files created with .npy data, create images
             with h5py.File(file, 'a') as modified_file:
-                images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(100,300,300,1))
+                images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(chunk_size,300,300,1))
 
                 for i, sample in enumerate(modified_file['inputs']):
                     img = image_process(sample)
@@ -83,10 +78,6 @@ def main(args):
 def scale_inputs(concatenated):
     for regime, data in concatenated.items():
         concatenated[regime]['inputs_scaled'] = sample_scale(data['inputs'])
-
-    # for data in split_data.values():
-    #     for layer in data.keys():
-    #         data[layer]['scaled_inputs'] = sample_scale(data[layer]['inputs'])
 
 def scale_targets(concatenated):
     output_scaler = None
@@ -102,7 +93,7 @@ def scale_targets(concatenated):
 
     return output_scaler
 
-def get_shapes(concatenated, chunk_size=100):
+def get_shapes(concatenated, chunk_size=1000):
     shapes = {}
 
     for data_type, data in concatenated['train'].items():
@@ -196,7 +187,6 @@ def output_scale(t, fit=True, scaler=None):
 
 def sample_scale(x):
     """Scales both X and Y values in a sample using MinMaxScaling. Expects a 2D array as input"""
-    ### for two dimensional data
     scaler = MinMaxScaler()
     x_scaled = []
     for sample in x:
@@ -227,15 +217,9 @@ def image_process(sample):
     image = get_image(x,y)
     return(np.resize(image, (300,300,1)))
 
-def parse():
-    parser = argparse.ArgumentParser(description="Data Generation")
-    parser.add_argument("data", metavar="data_directory",
-                        help="path to directory with raw .h5 files")  
-    parser.add_argument("save", metavar="save_directory",
-                        help="path to save directory")
-    args = parser.parse_args()
-    return args
 
 if __name__ == "__main__":
-    args = parse()
-    main(args)
+    data_path = "./models/investigate/classification/test/Two"
+    save_path = "./models/investigate/classification/test/Two"
+    layers = [2]
+    main(data_path, save_path, layers, chunk_size=50)

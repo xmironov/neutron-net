@@ -123,8 +123,8 @@ class Net():
         print("\nEvaluating")
         results = self.model.evaluate(test_seq)
         print(results)
-        #print("Test Loss: {0} | Test Accuracy: {1}".format(loss, accuracy))
         
+        """
         scaler = pickle.load(open(os.path.join(datapath, "output_scaler.p"), "rb"))
         preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
         depth, sld = preds[0], preds[1]
@@ -136,6 +136,7 @@ class Net():
         elif self.outputs ==1:
             padded_preds = np.c_[depth[:,0], sld[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
             self.preds = scaler.inverse_transform(padded_preds)
+        """
 
     def create_model(self):
         # Convolutional Encoder
@@ -478,7 +479,7 @@ def main(args):
     
     # If not testing proceed to train network and save it
     else:
-        name = "regressor-%s-layer"
+        name = "regressor"
         save_path = os.path.join(args.save, name)
 
         # Log to CometML: need to add own api_key and details
@@ -509,7 +510,7 @@ def main(args):
 
         model.train(train_loader, valid_loader)
         model.test(test_loader, args.data) 
-        # model.plot(test_labels, save_path)
+        #model.plot(test_labels, save_path)
         model.save(save_path)
 
 def parse():

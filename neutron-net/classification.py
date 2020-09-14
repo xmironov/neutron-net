@@ -187,7 +187,7 @@ def main(args):
     train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
     validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
     test_loader = DataLoader(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
-    model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size, "./models/deploy/classification/new/full_model.h5")
+    model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size)
     
     if args.summary:
         model.summary()

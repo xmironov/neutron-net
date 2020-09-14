@@ -3,6 +3,7 @@ import h5py
 import random
 import matplotlib.pyplot as plt
 from refnx.reflect import SLD, ReflectModel
+import os
 
 class CurveGenerator:
     @staticmethod
@@ -24,8 +25,8 @@ class CurveGenerator:
         if substrate:
             thickness = 0
         else:
-            thickness = random.uniform(thick_bounds[0], thick_bounds[1])
-            
+            thickness = random.uniform(thick_bounds[0], thick_bounds[1]) #Could try to bias these towards thinner thicknesses?
+
         if not substrate or substrate_SLD is None:
             sld = random.uniform(sld_bounds[0], sld_bounds[1])
         else:
@@ -49,8 +50,12 @@ class CurveGenerator:
         plt.yscale('log')
 
     @staticmethod
-    def save(filename, structures, qMin=0.005, qMax=0.3, points=1000, bkg=0, scale=1, dq=5):
-        with h5py.File(filename, 'w') as file:
+    def save(save_path, name, structures, qMin=0.005, qMax=0.3, points=200, bkg=0, scale=1, dq=5):
+        save_path = save_path + "/" + name
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        
+        with h5py.File(save_path + "/{}-Layer.h5".format(name), 'w') as file:
             parameters = []
             data = []
             q = np.linspace(qMin, qMax, points)
@@ -59,20 +64,23 @@ class CurveGenerator:
                 model = ReflectModel(structure, bkg=bkg, scale=scale, dq=dq)
                 r = model(q)
                 data.append(list(zip(q, r)))
-                
+
                 #CurveGenerator.plot_reflectivity(q, r)
-                
+
                 temp = [0, 0, 0, 0, 0, 0]
                 for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate
                     temp[2*i]   = component.thick.value
                     temp[2*i+1] = component.sld.real.value / 10
                 parameters.append(temp)
-    
+
             file.create_dataset("SLD_NUMS", data=parameters, chunks=True)
             file.create_dataset("DATA",     data=data,       chunks=True)
 
 if __name__ == "__main__":
-    for i, name in enumerate(['1', '2']):
+    save_path = './models/investigate/classification/test'
+    layers = ['One', 'Two']
+    
+    for i, name in enumerate(layers):
         layers = i+1
-        structures = CurveGenerator.generate(1000, layers, substrate_SLD=2.047)
-        CurveGenerator.save('./models/investigate/classification/test/{}-Layer.h5'.format(name), structures)
+        structures = CurveGenerator.generate(500, layers, substrate_SLD=2.047)
+        CurveGenerator.save(save_path, name, structures)
