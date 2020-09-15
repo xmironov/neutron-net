@@ -1,4 +1,4 @@
-import time, json, h5py, os
+import h5py, os
 os.environ["KMP_AFFINITY"] = "none"
 
 import numpy as np 
@@ -14,16 +14,6 @@ from tensorflow.keras.optimizers import Nadam
 DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
-
-def convert_to_float(dictionary):
-	""" For saving model output to json"""
-	jsoned_dict = {}
-	for key in dictionary.keys():
-		if type(dictionary[key]) == list:
-			jsoned_dict[key] = [float(i) for i in dictionary[key]]
-		else:
-			jsoned_dict[key] = float(dictionary[key])
-	return jsoned_dict
 
 class DataLoader(Sequence):
     """ Use Keras Sequence class to load image data from h5 file"""
@@ -92,7 +82,6 @@ class Classifier():
             min_lr=0.000001,
         )
         
-        start = time.time()
         self.history = self.model.fit(
             train_sequence,
             validation_data=validate_sequence,
@@ -102,8 +91,6 @@ class Classifier():
             verbose=1,
             callbacks=[learning_rate_reduction_cbk],
         )
-        elapsed_time = time.time() - start
-        self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         return self.history
 
     def test(self, test_sequence, test_labels):
@@ -126,11 +113,6 @@ class Classifier():
     def save(self, save_path):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-
-        with open(os.path.join(save_path, "history.json"), "w") as f:
-            json_dump = convert_to_float(self.history.history)
-            json_dump["time_taken"] = self.time_taken
-            json.dump(json_dump, f)
 
         self.model.save(os.path.join(save_path, "full_model.h5"))
 
@@ -185,9 +167,9 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
     labels = load_labels(data_path)
     train_labels, validate_labels, test_labels = labels["train"], labels["validate"], labels["test"]
 
-    train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, batch_size, debug=False, shuffle=False)
+    train_loader    = DataLoader(train_file,    train_labels,    DIMS, CHANNELS, batch_size, shuffle=False)
     validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, batch_size, shuffle=False)
-    test_loader = DataLoader(test_file, test_labels, DIMS, CHANNELS, batch_size, shuffle=False)
+    test_loader     = DataLoader(test_file,     test_labels,     DIMS, CHANNELS, batch_size, shuffle=False)
     
     model = Classifier(DIMS, CHANNELS, epochs, learning_rate, batch_size, dropout_rate, workers, load_path)
     if summary:

@@ -3,33 +3,16 @@ os.environ["KMP_AFFINITY"] = "none"
 import numpy as np 
 
 import tensorflow as tf
-from tensorflow.keras import backend as K
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout, Input
-from tensorflow.keras.utils import Sequence
-from tensorflow.keras.callbacks import ReduceLROnPlateau
+tf.compat.v1.disable_eager_execution()
+from tensorflow.keras.models     import Model, load_model
+from tensorflow.keras.layers     import Dense, Flatten, Conv2D, MaxPooling2D, Dropout, Input
+from tensorflow.keras.utils      import Sequence
+from tensorflow.keras.callbacks  import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
 DIMS = (300, 300)
 CHANNELS = 1
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
-tf.compat.v1.disable_eager_execution()
-
-def iter_sequence_infinite(sequence):
-    while True:
-        for item in sequence:
-            yield item
-
-def convert_to_float(dictionary):
-	""" For saving model output to json"""
-	jsoned_dict = {}
-	for key in dictionary.keys():
-		if type(dictionary[key]) == list:
-			jsoned_dict[key] = [float(i) for i in dictionary[key]]
-		else:
-			jsoned_dict[key] = float(dictionary[key])
-	return jsoned_dict
-
 
 class DataLoader(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
@@ -82,48 +65,6 @@ class DataLoader(Sequence):
     def close_file(self):
         self.file.close()
 
-
-class KerasDropoutPredicter():
-    def __init__(self, model, sequence):
-        # Define model with toggleable Dropout, K.learning_phase()
-        self.f = K.function(
-            [model.layers[0].input, K.learning_phase()], 
-            [model.layers[-2].output, model.layers[-1].output])
-
-    def predict(self, sequencer, n_iter=2):
-        steps_done = 0
-        all_out = []
-        steps = len(sequencer)
-        output_generator = iter_sequence_infinite(sequencer)
-
-        while steps_done < steps:
-            generator_output = next(output_generator)
-            images, targets = generator_output
-
-            results = []
-            for i in range(n_iter):
-                # Set Dropout to True: 1
-                result = self.f([images, 1])
-                results.append(result)
-
-            results = np.array(results)
-            prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
-            outs = [prediction, uncertainty]
-            targets_depth = targets["depth"]
-            targets_sld = targets["sld"]
-            targets_sum = np.array([targets_depth, targets_sld])
-            outs = np.array([prediction, uncertainty, targets_sum])
-
-            if not all_out:
-                for out in outs:
-                    all_out.append([])
-
-            for i, out in enumerate(outs):
-                all_out[i].append(out)
-
-            steps_done += 1
-
-        return [np.concatenate(out, axis=1) for out in all_out]
 
 class Regressor():
     def __init__(self, dims, channels, layers, epochs, learning_rate, batch_size, dropout, workers, load_path=None):
@@ -205,14 +146,14 @@ class Regressor():
                         metrics={'depth':'mae','sld':'mae'})
         return model
 
-    def summary(self):
-        self.model.summary()
-
     def save(self, save_path):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
             
         self.model.save(os.path.join(save_path, 'full_model.h5'))
+
+    def summary(self):
+        self.model.summary()
 
 
 def regress(data_path, layer, save_path=None, load_path=None, train=True, summary=False, epochs=2,

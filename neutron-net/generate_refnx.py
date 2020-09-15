@@ -68,7 +68,7 @@ class CurveGenerator:
                 temp = [0, 0, 0, 0, 0, 0]
                 for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate
                     temp[2*i]   = component.thick.value
-                    temp[2*i+1] = component.sld.real.value / 10
+                    temp[2*i+1] = component.sld.real.value
                 parameters.append(temp)
 
             file.create_dataset("SLD_NUMS", data=parameters, chunks=True)

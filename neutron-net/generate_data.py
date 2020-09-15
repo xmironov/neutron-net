@@ -1,58 +1,24 @@
-import os, glob, h5py, pickle, random
+import os, glob, h5py, random
 import matplotlib.pyplot as plt
 import numpy as np
+np.seterr(divide='ignore', invalid='ignore')
 from numpy.random import seed
-from sklearn.preprocessing import MinMaxScaler
 from skimage import color
 
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
+DEPTH_BOUNDS = (0, 3000)
+SLD_BOUNDS   = (-0.5, 10)
 
-class ImageGenerator:
-    @staticmethod
-    def scale_inputs(concatenated):
-        for regime, data in concatenated.items():
-            concatenated[regime]['inputs_scaled'] = ImageGenerator.__sample_scale(data['inputs'])
-      
-    @staticmethod
-    def __sample_scale(x):
-        """Scales both X and Y values in a sample using MinMaxScaling. Expects a 2D array as input"""
-        scaler = MinMaxScaler()
-        x_scaled = []
-        for sample in x:
-            scaled = scaler.fit_transform(sample[:,1].reshape(-1,1))
-            qs = scaler.fit_transform(sample[:,0].reshape(-1,1))
-            x_scaled.append(np.array(list(zip(qs,scaled))))
-        return np.array(x_scaled)
-    
+class ImageGenerator:    
     @staticmethod
     def scale_targets(concatenated):
-        output_scaler = None
-    
-        for regime, data in concatenated.items():
-            if output_scaler is None:
-                output_scaler, scaled_target = ImageGenerator.__output_scale(data['targets'], fit=True)
-                
-            elif output_scaler:
-                output_scaler, scaled_target = ImageGenerator.__output_scale(data['targets'], fit=False, scaler=output_scaler)
-            
-            concatenated[regime]['targets_scaled'] = scaled_target
-    
-        return output_scaler
-    
+        for split, data in concatenated.items():
+            targets = data['targets']
+            mean = np.mean(targets, axis=0)
+            std  = np.std(targets,  axis=0)
+            concatenated[split]['targets_scaled'] = (targets - mean) / std
+        
     @staticmethod
-    def __output_scale(t, fit=True, scaler=None):
-        """Scale output values such that each has a min/max of 0/1. e.g. max: 1,1,1,1
-        Arguments:
-        t - np.array to scale
-        fit - create and fit a new scaler
-        scaler - predefined scaler (already fit)"""
-        if fit == True:
-            scaler = MinMaxScaler()
-            scaler.fit(t)
-        trans_t = scaler.transform(t)
-            
-        return (scaler, trans_t)
-    
     def get_shapes(concatenated, chunk_size=1000):
         shapes = {}
     
@@ -178,7 +144,6 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
         i += 1
   
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1}
-    scaler_filename = os.path.join(save_path, 'output_scaler.p')
     split_data = ImageGenerator.train_valid_test_split(layers_dict, split_ratios)
     
     concatenated = {}
@@ -190,38 +155,26 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
             concatenated[split][key] = concat
     del split_data
    
-    if display_status:  print("\n", "> Shuffling data...")
     ImageGenerator.shuffle_data(concatenated)
+    ImageGenerator.scale_targets(concatenated)
 
-    if display_status: print("\n", "> Scaling targets...")
-    output_scaler = ImageGenerator.scale_targets(concatenated)
-
-    if display_status: print("\n", "> Dumping scaler in data directory")
-    with open(scaler_filename, 'wb') as f:
-            pickle.dump(output_scaler, f)
-
-    if display_status: print("\n", "> Scaling inputs...")
-    ImageGenerator.scale_inputs(concatenated) 
     shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size)
-
-    if display_status: print("\n", "> Creating .h5 files...")
     for section, dictionary in concatenated.items():
         file = os.path.normpath(os.path.join(save_path, '{}.h5'.format(section)))
         
-        if not os.path.exists(file):
-            if display_status: print("\n", "> Filling in data for {}.h5".format(section))
-            with h5py.File(file, 'w') as base_file:
-                for type_of_data, data in dictionary.items():
-                    base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
-            
-            if display_status: print("\n", "> Generating images for {}.h5".format(section))
-            # Once h5 files created with .npy data, create images
-            with h5py.File(file, 'a') as modified_file:
-                images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(chunk_size,300,300,1))
+        with h5py.File(file, 'w') as base_file:
+            for type_of_data, data in dictionary.items():
+                base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
+        
+        if display_status: 
+            print("\n>>> Generating images for {}.h5".format(section))
+        
+        with h5py.File(file, 'a') as modified_file:
+            images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(chunk_size,300,300,1))
 
-                for i, sample in enumerate(modified_file['inputs']):
-                    img = ImageGenerator.image_process(sample)
-                    images[i] = img
+            for i, sample in enumerate(modified_file['inputs']):
+                img = ImageGenerator.image_process(sample)
+                images[i] = img
 
 if __name__ == "__main__":
     data_path = "./models/investigate/test/data/one"
