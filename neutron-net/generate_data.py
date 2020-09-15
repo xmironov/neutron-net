@@ -224,7 +224,7 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
                     images[i] = img
 
 if __name__ == "__main__":
-    data_path = "./models/investigate/classification/test/Two"
-    save_path = "./models/investigate/classification/test/Two"
-    layers = [2]
+    data_path = "./models/investigate/test/data/one"
+    save_path = "./models/investigate/test/data/one"
+    layers = [1]
     generate_images(data_path, save_path, layers, chunk_size=50)

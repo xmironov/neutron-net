@@ -1,5 +1,5 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #Suppress TensorFlow warnings
 
 from generate_refnx import CurveGenerator
 from generate_data  import generate_images
@@ -9,7 +9,7 @@ from regression     import regress
 
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
 
-def setup():
+def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, generate_data=True, train_classifier=True, train_regressor=True):
     save_path = './models/investigate/test'
     layers = [1, 2]
     curve_num  = 500
@@ -54,4 +54,12 @@ def setup():
         print()
 
 if __name__ == "__main__":
-    setup()
+    save_path = './models/investigate/test'
+    layers = [1, 2]
+    curve_num  = 500
+    chunk_size = 50 
+    generate_data = False
+    train_classifier = False
+    train_regressor  = False
+    
+    setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor)

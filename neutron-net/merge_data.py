@@ -29,9 +29,9 @@ def merge(save_path, layers_paths):
 
 
 if __name__ == "__main__":
-    layers = [1, 2, 3]
-    layers_paths = ["./models/investigate/classification/test/{}".format(LAYERS_STR[layer]) for layer in layers]
-    save_path = "./models/investigate/classification/test"
+    layers = [1, 2]
+    layers_paths = ["./models/investigate/test/data/{}".format(LAYERS_STR[layer]) for layer in layers]
+    save_path = "./models/investigate/test/data"
     
     merge(save_path, layers_paths)
         

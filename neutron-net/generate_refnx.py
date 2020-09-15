@@ -75,7 +75,7 @@ class CurveGenerator:
             file.create_dataset("DATA",     data=data,       chunks=True)
 
 if __name__ == "__main__":
-    save_path = './models/investigate/classification/test'
+    save_path = './models/investigate/test/data'
     layers = ['one', 'two']
     
     for i, name in enumerate(layers):

@@ -248,4 +248,4 @@ if __name__ == "__main__":
     save_path = "./models/investigate/test"
     #load_path = "./models/investigate/test/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
     
-    regress(data_path, layer, save_path, epochs=3)
+    regress(data_path, layer, save_path, epochs=1)
