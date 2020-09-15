@@ -1,28 +1,29 @@
-import os, time, re, glob, warnings
-import argparse
-import json
-import h5py
-
+import time, json, h5py, os
 os.environ["KMP_AFFINITY"] = "none"
 
 import numpy as np 
-import pandas as pd 
-
-from datetime import datetime
-from sklearn.metrics import mean_squared_error, confusion_matrix
+from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
-from tensorflow.keras.models import Sequential, Model, load_model
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout, Input
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
-import matplotlib.pyplot as plt
-
 DIMS = (300, 300)
 CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
+
+def convert_to_float(dictionary):
+	""" For saving model output to json"""
+	jsoned_dict = {}
+	for key in dictionary.keys():
+		if type(dictionary[key]) == list:
+			jsoned_dict[key] = [float(i) for i in dictionary[key]]
+		else:
+			jsoned_dict[key] = float(dictionary[key])
+	return jsoned_dict
 
 class DataLoader(Sequence):
     """ Use Keras Sequence class to load image data from h5 file"""
@@ -65,23 +66,23 @@ class DataLoader(Sequence):
             np.random.shuffle(indexes)
         self.indexes = indexes
 
-class Net():
-    def __init__(self, dims, channels, epochs, dropout, lr, workers, batch_size, save_path=None):
+class Classifier():
+    def __init__(self, dims, channels, epochs, lr, batch_size, dropout, workers, load_path=None):
         """ Initialisation"""
         self.dims       = dims
         self.channels   = channels
         self.epochs     = epochs
-        self.dropout    = dropout
         self.lr         = lr
-        self.workers    = workers
         self.batch_size = batch_size
+        self.dropout    = dropout
+        self.workers    = workers
         
-        if save_path is None:
+        if load_path is None:
             self.model = self.create_model()
         else:
-            self.model = load_model(save_path)
+            self.model = load_model(load_path)
 
-    def train(self, train_sequence, validate_sequence, log):
+    def train(self, train_sequence, validate_sequence):
         """ Train and validate network"""
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor="val_loss",
@@ -105,8 +106,8 @@ class Net():
         self.time_taken = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         return self.history
 
-    def test(self, test_sequence, test_labels, save_path):
-        print("\nEvaluating")
+    def test(self, test_sequence, test_labels):
+        print("Evaluating")
         loss, accuracy = self.model.evaluate(test_sequence)
         print("Test Loss: {0} | Test Accuracy: {1}".format(loss, accuracy))
         
@@ -123,10 +124,8 @@ class Net():
         print("Confusion Matrix\n", cm)
         
     def save(self, save_path):
-        try:
+        if not os.path.exists(save_path):
             os.makedirs(save_path)
-        except OSError:
-            print("Couldn't create savepath")
 
         with open(os.path.join(save_path, "history.json"), "w") as f:
             json_dump = convert_to_float(self.history.history)
@@ -169,32 +168,38 @@ class Net():
     def summary(self):
         self.model.summary()
 
-def main(args):
-    name = "classifier"
-    save_path = os.path.join(args.save, name)
+def classify(data_path, save_path=None, load_path=None, train=True, summary=False, epochs=2, 
+         learning_rate=0.0003, batch_size=40, dropout_rate=0.1, workers=1):
+    
+    if save_path is not None:
+        save_path = os.path.join(save_path, "classifier")
 
-    train_dir = os.path.join(args.data, "train.h5")
-    validate_dir = os.path.join(args.data, "validate.h5")
-    test_dir = os.path.join(args.data, "test.h5")
+    train_dir    = os.path.join(data_path, "train.h5")
+    validate_dir = os.path.join(data_path, "validate.h5")
+    test_dir     = os.path.join(data_path, "test.h5")
 
-    train_file = h5py.File(train_dir, "r")
+    train_file    = h5py.File(train_dir, "r")
     validate_file = h5py.File(validate_dir, "r")
-    test_file = h5py.File(test_dir, "r")
+    test_file     = h5py.File(test_dir, "r")
 
-    labels = load_labels(args.data)
+    labels = load_labels(data_path)
     train_labels, validate_labels, test_labels = labels["train"], labels["validate"], labels["test"]
 
-    train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, args.batch_size, debug=False, shuffle=False)
-    validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
-    test_loader = DataLoader(test_file, test_labels, DIMS, CHANNELS, args.batch_size, shuffle=False)
-    model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, args.learning_rate, args.workers, args.batch_size)
+    train_loader = DataLoader(train_file, train_labels, DIMS, CHANNELS, batch_size, debug=False, shuffle=False)
+    validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, batch_size, shuffle=False)
+    test_loader = DataLoader(test_file, test_labels, DIMS, CHANNELS, batch_size, shuffle=False)
     
-    if args.summary:
+    model = Classifier(DIMS, CHANNELS, epochs, learning_rate, batch_size, dropout_rate, workers, load_path)
+    if summary:
         model.summary()
 
-    model.train(train_loader, validate_loader, args.log)
-    model.test(test_loader, test_labels, save_path)
-    model.save(save_path)
+    if train:
+        model.train(train_loader, validate_loader)
+        
+    model.test(test_loader, test_labels)
+    
+    if save_path is not None:
+        model.save(save_path)
 
     train_file.close()
     validate_file.close()
@@ -208,34 +213,10 @@ def load_labels(path):
 
     return data
 
-def convert_to_float(dictionary):
-	""" For saving model output to json"""
-	jsoned_dict = {}
-	for key in dictionary.keys():
-		if type(dictionary[key]) == list:
-			jsoned_dict[key] = [float(i) for i in dictionary[key]]
-		else:
-			jsoned_dict[key] = float(dictionary[key])
-	return jsoned_dict
-
-def parse():
-    parser = argparse.ArgumentParser(description="Keras Classifier Training")
-    # Meta Parameters
-    parser.add_argument("data", metavar="PATH", help="path to data directory")
-    parser.add_argument("save", metavar="PATH", help="path to save directory")
-    parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
-    parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
-
-    # Model parameters
-    parser.add_argument("-e", "--epochs", default=2, type=int, metavar="N", help="number of epochs")
-    parser.add_argument("-b", "--batch_size", default=40, type=int, metavar="N", help="no. samples per batch (def:40)")
-    parser.add_argument("-j", "--workers", default=1, type=int, metavar="N", help="no. data loading workers (def:1)")
-    
-    # Learning parameters
-    parser.add_argument("-lr", "--learning_rate", default=0.0003, type=float, metavar="R", help="Nadam learning rate")
-    parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
-    return parser.parse_args()
-
 if __name__ == "__main__":
-    args = parse()
-    main(args)
+    data_path = "./models/investigate/classification/test/merge"
+    save_path = "./models/investigate/classification/test"
+    #load_path = "./models/investigate/classification/classifier/full_model.h5"
+    
+    classify(data_path, save_path, load_path=None, train=True, epochs=5)
+    

@@ -2,12 +2,15 @@ import h5py
 import os
 import numpy as np
 
+LAYERS_STR = {1: "one", 2: "two", 3: "three"}
+
 def merge(save_path, layers_paths):
-    save_path += "/merge"
+    save_path += "/merged"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     
     for split in ['train', 'validate', 'test']:
+        print(">>> Merging {}.h5 files".format(split))
         datasets = {dataset: [] for dataset in ('images', 'inputs', 'inputs_scaled', 'layers', 'targets', 'targets_scaled')}
         
         for layer_path in layers_paths:
@@ -26,9 +29,8 @@ def merge(save_path, layers_paths):
 
 
 if __name__ == "__main__":
-    layers_str = {1: "One", 2: "Two", 3: "Three"}
     layers = [1, 2, 3]
-    layers_paths = ["./models/investigate/classification/test/{}".format(layers_str[layer]) for layer in layers]
+    layers_paths = ["./models/investigate/classification/test/{}".format(LAYERS_STR[layer]) for layer in layers]
     save_path = "./models/investigate/classification/test"
     
     merge(save_path, layers_paths)
