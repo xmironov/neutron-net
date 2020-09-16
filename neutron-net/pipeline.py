@@ -44,7 +44,6 @@ class DataLoaderClassification(Sequence):
         indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
         indexes = [list(self.labels.keys())[k] for k in indexes]
         images, targets = self.__data_generation(indexes)
-
         return images, targets
 
     def __data_generation(self, indexes):
@@ -347,10 +346,10 @@ class Pipeline:
 
 if __name__ == "__main__":
     save_path = './models/investigate/test'
-    layers = [1, 2]
+    layers     = [1, 2]
     curve_num  = 5000
     chunk_size = 100
-    generate_data = True
+    generate_data    = True
     train_classifier = True
     train_regressor  = True
     

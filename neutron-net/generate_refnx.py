@@ -1,29 +1,37 @@
 import os, h5py, random
 import numpy as np
+import numpy.random
 import matplotlib.pyplot as plt
 from refnx.reflect import SLD, ReflectModel
 
 class CurveGenerator:
     @staticmethod
     def generate(generate_num, layers, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=None):
-        return [CurveGenerator.__random_structure(layers, sld_bounds, thick_bounds, substrate_SLD) for i in range(generate_num)]
+        # The following biases choices towards thinner layers
+        thick_range = np.arange(thick_bounds[0], thick_bounds[1], 10)
+        thick_probs = []
+        for i in range(len(thick_range)):
+            thick_probs.append(1.0 / (thick_range[i] + 100))
+        thick_probs /= sum(thick_probs)
+        
+        return [CurveGenerator.__random_structure(layers, sld_bounds, thick_range, thick_probs, substrate_SLD) for i in range(generate_num)]
 
     @staticmethod
-    def __random_structure(layers, sld_bounds, thick_bounds, substrate_SLD):
+    def __random_structure(layers, sld_bounds, thick_range, thick_probs, substrate_SLD):
         structure = SLD(0, name="Air")
         for i in range(layers):
-            component = CurveGenerator.__make_component(sld_bounds, thick_bounds, substrate=False)
+            component = CurveGenerator.__make_component(sld_bounds, thick_range, thick_probs, substrate=False)
             structure = structure | component
-        substrate = CurveGenerator.__make_component(sld_bounds, thick_bounds, True, substrate_SLD)
+        substrate = CurveGenerator.__make_component(sld_bounds, thick_range, thick_probs, True, substrate_SLD)
         structure = structure | substrate
         return structure
 
     @staticmethod
-    def __make_component(sld_bounds, thick_bounds, substrate=False, substrate_SLD=None):
+    def __make_component(sld_bounds, thick_range, thick_probs, substrate=False, substrate_SLD=None):
         if substrate:
             thickness = 0
         else:
-            thickness = random.uniform(thick_bounds[0], thick_bounds[1]) #Could try to bias these towards thinner thicknesses?
+            thickness = np.random.choice(thick_range, p=thick_probs)
 
         if not substrate or substrate_SLD is None:
             sld = random.uniform(sld_bounds[0], sld_bounds[1])
