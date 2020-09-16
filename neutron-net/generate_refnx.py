@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from refnx.reflect import SLD, ReflectModel
 
 class CurveGenerator:
+    roughness = 2
+    
     @staticmethod
     def generate(generate_num, layers, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=None):
         # The following biases choices towards thinner layers
@@ -38,7 +40,7 @@ class CurveGenerator:
         else:
             sld = substrate_SLD
 
-        return SLD(sld)(thick=thickness)
+        return SLD(sld)(thick=thickness, rough=CurveGenerator.roughness)
 
     @staticmethod
     def plot_SLD(structure):
@@ -56,7 +58,7 @@ class CurveGenerator:
         plt.yscale('log')
 
     @staticmethod
-    def save(save_path, name, structures, qMin=0.005, qMax=0.3, points=200, bkg=0, scale=1, dq=5):
+    def save(save_path, name, structures, qMin=0.005, qMax=0.3, points=200, bkg=0, scale=1, dq=2):
         save_path = save_path + "/" + name
         if not os.path.exists(save_path):
             os.makedirs(save_path)

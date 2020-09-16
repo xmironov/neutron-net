@@ -15,7 +15,7 @@ from refnx.reflect  import SLD, ReflectModel
 from refnx.analysis import Objective
 
 from generate_refnx import CurveGenerator
-from generate_data  import ImageGenerator, generate_images
+from generate_data  import ImageGenerator, generate_images, DEPTH_BOUNDS, SLD_BOUNDS
 from merge_data     import merge
 from classification import classify
 from regression     import regress
@@ -254,16 +254,6 @@ class Pipeline:
         sld_error   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), SLD_BOUNDS)
         
         return sld_predictions, depth_predictions
-
-    def rescale_predictions():
-        for split, data in concatenated.items():
-            scaled_targets = np.zeros(data['targets'].shape)
-            print(data['targets'])
-            for i in range(3):
-                scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   DEPTH_BOUNDS, (0, 1))
-                scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], SLD_BOUNDS,   (0, 1))
-            print(scaled_targets)
-            concatenated[split]['targets_scaled'] = scaled_targets
     
     @staticmethod
     def __dat_files_to_npy_images(dat_files, save_path):
@@ -323,6 +313,7 @@ class Pipeline:
             layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
             merge(save_path + "/data", layers_paths)
         
+        """
         print("\n-------------- Classification -------------")
         if train_classifier:
             print(">>> Training classifier")
@@ -343,12 +334,12 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False)
             print()
-
+        """
 if __name__ == "__main__":
     save_path = './models/investigate/test'
     layers     = [1, 2]
-    curve_num  = 5000
-    chunk_size = 100
+    curve_num  = 25000
+    chunk_size = 1000
     generate_data    = True
     train_classifier = True
     train_regressor  = True
