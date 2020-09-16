@@ -11,7 +11,7 @@ def merge(save_path, layers_paths):
     
     for split in ['train', 'validate', 'test']:
         print(">>> Merging {}.h5 files".format(split))
-        datasets = {dataset: [] for dataset in ('images', 'inputs', 'inputs_scaled', 'layers', 'targets', 'targets_scaled')}
+        datasets = {dataset: [] for dataset in ('images', 'inputs', 'layers', 'targets')}
         
         for layer_path in layers_paths:
             with h5py.File(layer_path + "/{}.h5".format(split), 'r') as old_file:

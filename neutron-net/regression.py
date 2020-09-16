@@ -44,7 +44,7 @@ class DataLoader(Sequence):
 
         for i, idx in enumerate(indexes):
             image = self.file['images'][idx]
-            values = self.file['targets_scaled'][idx]
+            values = self.file['targets'][idx]
 
             length = len(values)
             difference = length - self.layers * 2

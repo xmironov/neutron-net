@@ -4,12 +4,14 @@ import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
 from numpy.random import seed
 from skimage import color
+from sklearn.preprocessing import MinMaxScaler
 
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
 DEPTH_BOUNDS = (0, 3000)
 SLD_BOUNDS   = (-0.5, 10)
 
-class ImageGenerator:    
+class ImageGenerator: 
+    """
     @staticmethod
     def scale_targets(concatenated):
         for split, data in concatenated.items():
@@ -17,7 +19,21 @@ class ImageGenerator:
             mean = np.mean(targets, axis=0)
             std  = np.std(targets,  axis=0)
             concatenated[split]['targets_scaled'] = (targets - mean) / std
-        
+    """
+    
+    def scale_targets(concatenated):
+        for regime, data in concatenated.items():
+            scaled_target = ImageGenerator.__output_scale(data['targets'])
+            assert np.max(scaled_target) == 1.0
+            concatenated[regime]['targets_scaled'] = scaled_target
+    
+    def __output_scale(t, fit=True, scaler=None):
+        """Scale output values such that each has a min/max of 0/1. e.g. max: 1,1,1,1"""
+        scaler = MinMaxScaler()
+        scaler.fit(t)
+        trans_t = scaler.transform(t)
+        return trans_t
+    
     @staticmethod
     def get_shapes(concatenated, chunk_size=1000):
         shapes = {}
@@ -156,7 +172,7 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
     del split_data
    
     ImageGenerator.shuffle_data(concatenated)
-    ImageGenerator.scale_targets(concatenated)
+    #ImageGenerator.scale_targets(concatenated)
 
     shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size)
     for section, dictionary in concatenated.items():

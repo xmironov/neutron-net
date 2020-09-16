@@ -1,13 +1,18 @@
-import os, glob
+import os, glob, sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #Suppress TensorFlow warnings
 
 import numpy  as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils  import Sequence
+
+from refnx.dataset  import ReflectDataset
+from refnx.reflect  import SLD, ReflectModel
+from refnx.analysis import Objective
 
 from generate_refnx import CurveGenerator
 from generate_data  import ImageGenerator, generate_images
@@ -24,12 +29,10 @@ class DataLoaderClassification(Sequence):
     ''' Use Keras sequence to load image data from h5 file '''
     def __init__(self, labels, dim, channels, batch_size):
         'Initialisation'
-        self.labels      = labels                
-
+        self.labels     = labels                
         self.dim        = dim                     # Image dimensions
         self.channels   = channels                # Image channels                   
         self.batch_size = batch_size              # Batch size
-
         self.on_epoch_end()
 
     def __len__(self):
@@ -46,11 +49,11 @@ class DataLoaderClassification(Sequence):
 
     def __data_generation(self, indexes):
         # 'Generates data containing batch_size samples'
-        images = np.empty((self.batch_size, *self.dim, self.channels))
+        images  = np.empty((self.batch_size, *self.dim, self.channels))
         classes = np.empty((self.batch_size, 1), dtype=int)
 
         for i, np_image_filename in enumerate(indexes):
-            images[i,] = np.load(np_image_filename)
+            images[i,]  = np.load(np_image_filename)
             classes[i,] = self.labels[np_image_filename]
         
         return images, classes
@@ -65,8 +68,8 @@ class DataLoaderRegression(Sequence):
     def __init__(self, labels_dict, dim, channels):
         'Initialisation'
         self.labels_dict = labels_dict            
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
+        self.dim         = dim                     # Image dimensions
+        self.channels    = channels                # Image channels                   
         self.on_epoch_end()
 
     def __len__(self):
@@ -78,7 +81,7 @@ class DataLoaderRegression(Sequence):
         'Generates one batch of data'
         indexes = self.indexes[index: (index + 1)]
         indexes = [list(self.labels_dict.keys())[k] for k in indexes]
-        images = self.__data_generation(indexes)
+        images  = self.__data_generation(indexes)
         return images
 
     def __data_generation(self, indexes):
@@ -107,6 +110,10 @@ class KerasDropoutPredicter():
         # Two-layer model function
         self.f_2 = K.function([models[2].layers[0].input, K.learning_phase()],
                               [models[2].layers[-2].output, models[2].layers[-1].output])
+        
+        # Two-layer model function
+        self.f_3 = K.function([models[3].layers[0].input, K.learning_phase()],
+                              [models[3].layers[-2].output, models[3].layers[-1].output])
 
     def predict(self, sequence, n_iter=5):
         steps_done = 0
@@ -126,6 +133,9 @@ class KerasDropoutPredicter():
                 # else if two-layer
                 elif y[0][0] == 2:
                     result = self.f_2([x, 1])
+                # else if three-layer
+                elif y[0][0] == 3:
+                    result = self.f_3([x, 1])
                 results.append(result)
 
             results = np.array(results)
@@ -149,18 +159,65 @@ class KerasDropoutPredicter():
             for item in sequence:
                 yield item
 
+
+class Model():
+    si_sld = 2.047
+    dq     = 5
+    scale  = 1
+    
+    def __init__(self, file_path, layers, predicted_slds, predicted_depths):
+        self.structure = SLD(0, name='Air')
+        
+        for i in range(layers):
+            layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=0)
+            self.structure = self.structure | layer
+
+        si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=0)
+        self.structure = self.structure | si_substrate
+        
+        data = ReflectDataset(file_path)
+        self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq)
+        self.objective = Objective(self.model, data)    
+    
+    def plot_SLD(self):
+        plt.figure()
+        plt.plot(*self.structure.sld_profile())
+        plt.ylabel('SLD /$10^{-6} \AA^{-2}$')
+        plt.xlabel('distance / $\AA$')
+    
+    def plot_reflectivity(self, qMin=0.005, qMax=0.3, points=1000):
+        q = np.linspace(qMin, qMax, points)
+        plt.figure()
+        plt.plot(q, self.model(q))
+        plt.xlabel('Q')
+        plt.ylabel('Reflectivity')
+        plt.yscale('log')
+        
+    def plot_objective(self):
+        self.objective.plot()
+        plt.xlabel('Q')
+        plt.ylabel('Reflectivity')
+        plt.yscale('log')
+
+
 class Pipeline:
     @staticmethod
     def run(data_path, save_path, classifier_path, regressor_paths):
-        layer_predictions, npy_image_filenames = Pipeline.__classify(data_path, save_path, classifier_path)
+        dat_files = glob.glob(os.path.join(data_path, '*.dat'))
+        
+        layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path)
         print("Predicted number of layers: {}\n".format(layer_predictions))
         
         sld_predictions, depth_predictions = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames)
         for i in range(layer_predictions[0]):
-            print("Predicted layer {0} - SLD: {1} | Thickness: {2}".format(i+1, sld_predictions[i], depth_predictions[i]))
+            print("Predicted layer {0} - SLD: {1} | Depth: {2}".format(i+1, sld_predictions[0][i], depth_predictions[0][i]))
+        
+        model = Model(dat_files[0], layer_predictions[0], sld_predictions[0], depth_predictions[0])
+        model.plot_SLD()
+        model.plot_reflectivity()
+        model.plot_objective()
         
         return layer_predictions, sld_predictions, depth_predictions
-            
       
     @staticmethod
     def __classify(data_path, save_path, classifier_path):
@@ -185,22 +242,24 @@ class Pipeline:
         loader = DataLoaderRegression(values_labels, DIMS, CHANNELS)
         regressors = {layer: load_model(regressor_paths[layer]) for layer in regressor_paths.keys()}
         
-        # Use custom class to activate Dropout at test time in models
+        #Use custom class to activate Dropout at test time in models
         kdp = KerasDropoutPredicter(regressors)
         kdp_predictions = kdp.predict(loader, n_iter=1)
         
-        # Predictions given as [depth_1, depth_2], [sld_1, sld_2]
+        #Predictions given as [depth_1, depth_2], [sld_1, sld_2]
         depth_predictions, sld_predictions = kdp_predictions[0][0], kdp_predictions[0][1]
         
-        print(depth_predictions, sld_predictions)
-
-        # Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
+        #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
         depth_error, sld_error = kdp_predictions[1][0], kdp_predictions[1][1]
+        
+        return sld_predictions, depth_predictions
+
     
     @staticmethod
-    def __dat_files_to_npy_images(data_path, save_path):
+    def __dat_files_to_npy_images(dat_files, save_path):
         """Locate any .dat files in given data_path, create .npy images and save them in save_path"""
-        dat_files = glob.glob(os.path.join(data_path, '*.dat'))
+        if dat_files == []:
+            sys.exit("No .dat files found in save path")
         image_filenames = Pipeline.__create_images_from_directory(dat_files, save_path)
         return dat_files, image_filenames
     
@@ -222,7 +281,7 @@ class Pipeline:
             name = os.path.normpath(os.path.join(save_path, tail)).replace(".dat", ".npy")
             image_files.append(name)
             sample_momentum = data["X"]
-            sample_reflect = data["Y"]
+            sample_reflect  = data["Y"]
             sample = np.vstack((sample_momentum, sample_reflect)).T
             img = ImageGenerator.image_process(sample)
             np.save(name, img)
@@ -237,43 +296,43 @@ class Pipeline:
         sim = (df1.dtypes.values == df2.dtypes.values).mean()
         return 'infer' if sim < th else None
     
-
-def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, generate_data=True,
-          train_classifier=True, train_regressor=True, classifer_epochs=2, regressor_epochs=2):
-    if generate_data:
-        print("-------------- Generating Data ------------")
-        for layer in layers:
-            print(">>> Generating {}-layer curves".format(layer))
-            structures = CurveGenerator.generate(curve_num, layer, substrate_SLD=2.047)
-            CurveGenerator.save(save_path + "/data", LAYERS_STR[layer], structures)
+    @staticmethod
+    def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, generate_data=True,
+              train_classifier=True, train_regressor=True, classifer_epochs=2, regressor_epochs=2):
+        if generate_data:
+            print("-------------- Data Generation ------------")
+            for layer in layers:
+                print(">>> Generating {}-layer curves".format(layer))
+                structures = CurveGenerator.generate(curve_num, layer, substrate_SLD=2.047)
+                CurveGenerator.save(save_path + "/data", LAYERS_STR[layer], structures)
+                
+                print(">>> Creating images for {}-layer curves".format(layer))
+                save_path_layer = data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
+                generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=False)
             
-            print(">>> Creating images for {}-layer curves".format(layer))
-            save_path_layer = data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
-            generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=False)
+            layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
+            merge(save_path + "/data", layers_paths)
         
-        layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
-        merge(save_path + "/data", layers_paths)
-    
-    print("\n-------------- Classification -------------")
-    if train_classifier:
-        print(">>> Training classifier")
-        classify(save_path + "/data/merged", save_path, train=True, epochs=classifer_epochs)
-    else:
-        print(">>> Loading classifier")
-        load_path = save_path + "/classifier/full_model.h5"
-        classify(save_path + "/data/merged", load_path=load_path, train=False)
-    
-    print("\n---------------- Regression ---------------")
-    for layer in layers:
-        data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
-        if train_regressor:
-            print(">>> Training {}-layer regressor".format(LAYERS_STR[layer]))
-            regress(data_path_layer, layer, save_path, epochs=regressor_epochs)
+        print("\n-------------- Classification -------------")
+        if train_classifier:
+            print(">>> Training classifier")
+            classify(save_path + "/data/merged", save_path, train=True, epochs=classifer_epochs)
         else:
-            print(">>> Loading {}-layer regressor".format(LAYERS_STR[layer]))
-            load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
-            regress(data_path_layer, layer, load_path=load_path_layer, train=False)
-        print()
+            print(">>> Loading classifier")
+            load_path = save_path + "/classifier/full_model.h5"
+            classify(save_path + "/data/merged", load_path=load_path, train=False)
+        
+        print("\n---------------- Regression ---------------")
+        for layer in layers:
+            data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
+            if train_regressor:
+                print(">>> Training {}-layer regressor".format(LAYERS_STR[layer]))
+                regress(data_path_layer, layer, save_path, epochs=regressor_epochs)
+            else:
+                print(">>> Loading {}-layer regressor".format(LAYERS_STR[layer]))
+                load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
+                regress(data_path_layer, layer, load_path=load_path_layer, train=False)
+            print()
 
 if __name__ == "__main__":
     save_path = './models/investigate/test'
@@ -284,8 +343,8 @@ if __name__ == "__main__":
     train_classifier = True
     train_regressor  = True
     
-    #setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
+    #Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
 
 
     Pipeline.run(save_path, save_path, "./models/investigate/test/classifier/full_model.h5",
-                 {1: "./models/investigate/test/one-layer-regressor/full_model.h5", 2: "./models/investigate/test/two-layer-regressor/full_model.h5"})
+                {1: "./models/investigate/test/one-layer-regressor/full_model.h5", 2: "./models/investigate/test/two-layer-regressor/full_model.h5"})
