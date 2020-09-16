@@ -1,38 +1,28 @@
 import os, glob, h5py, random
 import matplotlib.pyplot as plt
 import numpy as np
-np.seterr(divide='ignore', invalid='ignore')
 from numpy.random import seed
 from skimage import color
-from sklearn.preprocessing import MinMaxScaler
 
-LAYERS_STR = {1: "one", 2: "two", 3: "three"}
-DEPTH_BOUNDS = (0, 3000)
+LAYERS_STR   = {1: "one", 2: "two", 3: "three"}
+DEPTH_BOUNDS = (20, 3000)
 SLD_BOUNDS   = (-0.5, 10)
 
 class ImageGenerator: 
-    """
     @staticmethod
     def scale_targets(concatenated):
         for split, data in concatenated.items():
-            targets = data['targets']
-            mean = np.mean(targets, axis=0)
-            std  = np.std(targets,  axis=0)
-            concatenated[split]['targets_scaled'] = (targets - mean) / std
-    """
+            scaled_targets = np.zeros(data['targets'].shape)
+            for i in range(3):
+                scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   DEPTH_BOUNDS, (0, 1))
+                scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], SLD_BOUNDS,   (0, 1))
+            concatenated[split]['targets_scaled'] = scaled_targets
     
-    def scale_targets(concatenated):
-        for regime, data in concatenated.items():
-            scaled_target = ImageGenerator.__output_scale(data['targets'])
-            assert np.max(scaled_target) == 1.0
-            concatenated[regime]['targets_scaled'] = scaled_target
-    
-    def __output_scale(t, fit=True, scaler=None):
-        """Scale output values such that each has a min/max of 0/1. e.g. max: 1,1,1,1"""
-        scaler = MinMaxScaler()
-        scaler.fit(t)
-        trans_t = scaler.transform(t)
-        return trans_t
+    @staticmethod
+    def scale_to_range(old_value, old_range, new_range):
+        old_min, old_max = old_range
+        new_min, new_max = new_range
+        return (((old_value - old_min) * (new_max - new_min)) / (old_max - old_min)) + new_min
     
     @staticmethod
     def get_shapes(concatenated, chunk_size=1000):
@@ -51,7 +41,6 @@ class ImageGenerator:
     
         for f in files:
             if f.find('.h5') != -1:
-                # print(f)
                 with h5py.File(f, 'r') as file:
                     x_i = np.squeeze(np.array(file.get('DATA')))
                     y_i = np.array(file.get('SLD_NUMS'))
@@ -62,8 +51,8 @@ class ImageGenerator:
                     else:
                         x = x_i 
                         y = y_i
-        c = np.full((len(y),1), no_layers)
-    
+                        
+        c = np.full((len(y), 1), no_layers)
         return {'inputs': x, 'targets': y, 'layers': c}
     
     @staticmethod
@@ -171,8 +160,8 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
             concatenated[split][key] = concat
     del split_data
    
-    ImageGenerator.shuffle_data(concatenated)
-    #ImageGenerator.scale_targets(concatenated)
+    ImageGenerator.shuffle_data(concatenated)  #Shuffle data
+    ImageGenerator.scale_targets(concatenated) #Scale targets
 
     shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size)
     for section, dictionary in concatenated.items():

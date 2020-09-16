@@ -246,14 +246,25 @@ class Pipeline:
         kdp = KerasDropoutPredicter(regressors)
         kdp_predictions = kdp.predict(loader, n_iter=1)
         
-        #Predictions given as [depth_1, depth_2], [sld_1, sld_2]
-        depth_predictions, sld_predictions = kdp_predictions[0][0], kdp_predictions[0][1]
-        
+        #Predictions given as [depth_1, depth_2, depth_3], [sld_1, sld_2, sld_3]
+        depth_predictions = ImageGenerator.scale_to_range(kdp_predictions[0][0], (0, 1), DEPTH_BOUNDS) #Does this work?
+        sld_predictions   = ImageGenerator.scale_to_range(kdp_predictions[0][1], (0, 1), SLD_BOUNDS)
+
         #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
-        depth_error, sld_error = kdp_predictions[1][0], kdp_predictions[1][1]
+        depth_error = ImageGenerator.scale_to_range(kdp_predictions[1][0], (0, 1), DEPTH_BOUNDS)
+        sld_error   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), SLD_BOUNDS)
         
         return sld_predictions, depth_predictions
 
+    def rescale_predictions():
+        for split, data in concatenated.items():
+            scaled_targets = np.zeros(data['targets'].shape)
+            print(data['targets'])
+            for i in range(3):
+                scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   DEPTH_BOUNDS, (0, 1))
+                scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], SLD_BOUNDS,   (0, 1))
+            print(scaled_targets)
+            concatenated[split]['targets_scaled'] = scaled_targets
     
     @staticmethod
     def __dat_files_to_npy_images(dat_files, save_path):
@@ -303,7 +314,7 @@ class Pipeline:
             print("-------------- Data Generation ------------")
             for layer in layers:
                 print(">>> Generating {}-layer curves".format(layer))
-                structures = CurveGenerator.generate(curve_num, layer, substrate_SLD=2.047)
+                structures = CurveGenerator.generate(curve_num, layer, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=2.047)
                 CurveGenerator.save(save_path + "/data", LAYERS_STR[layer], structures)
                 
                 print(">>> Creating images for {}-layer curves".format(layer))
@@ -337,14 +348,14 @@ class Pipeline:
 if __name__ == "__main__":
     save_path = './models/investigate/test'
     layers = [1, 2]
-    curve_num  = 500
-    chunk_size = 50 
+    curve_num  = 5000
+    chunk_size = 100
     generate_data = True
     train_classifier = True
     train_regressor  = True
     
-    #Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
+    Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=3, regressor_epochs=3)
 
 
-    Pipeline.run(save_path, save_path, "./models/investigate/test/classifier/full_model.h5",
-                {1: "./models/investigate/test/one-layer-regressor/full_model.h5", 2: "./models/investigate/test/two-layer-regressor/full_model.h5"})
+    #Pipeline.run(save_path, save_path, "./models/investigate/test/classifier/full_model.h5",
+    #           {1: "./models/investigate/test/one-layer-regressor/full_model.h5", 2: "./models/investigate/test/two-layer-regressor/full_model.h5"})

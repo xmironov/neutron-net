@@ -5,7 +5,7 @@ from refnx.reflect import SLD, ReflectModel
 
 class CurveGenerator:
     @staticmethod
-    def generate(generate_num, layers, sld_bounds=(-0.5,6), thick_bounds=(0,1000), substrate_SLD=None):
+    def generate(generate_num, layers, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=None):
         return [CurveGenerator.__random_structure(layers, sld_bounds, thick_bounds, substrate_SLD) for i in range(generate_num)]
 
     @staticmethod
