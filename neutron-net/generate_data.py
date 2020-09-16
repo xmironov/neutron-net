@@ -58,8 +58,6 @@ class ImageGenerator:
     @staticmethod
     def train_valid_test_split(layers_dict, split_ratios):
         split_layers_dict = {}
-        # layers_dict = {1: {'inputs':..,'targets':..,}, 2:{..}}
-    
         for split, split_value in split_ratios.items():
             random.seed(1)
             seed(1)
@@ -76,24 +74,6 @@ class ImageGenerator:
             
             split_layers_dict[split] = selected_dict
     
-        return split_layers_dict
-    
-    
-        for no_layers, data in layers_dict.items():
-            random.seed(1)
-            seed(1)
-            length = len(data['inputs'])
-            selected_dict = {}
-    
-            for division, ratio in split_ratios.items():
-                random_sample = random.sample(range(0, length), int(length * ratio))
-                selected_dict[division] = {}
-                
-                for name, values in data.items():
-                    selected_dict[division][name] = values[random_sample]
-                    values = np.delete(values, random_sample, 0)
-                 
-            split_layers_dict[no_layers] = selected_dict
         return split_layers_dict
     
     @staticmethod
