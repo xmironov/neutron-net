@@ -185,8 +185,8 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
 
 if __name__ == "__main__":
     layer     = 1
-    data_path = "./models/investigate/test/data/{}".format(LAYERS_STR[layer])
-    save_path = "./models/investigate/test"
-    #load_path = "./models/investigate/test/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
+    data_path = "./models/investigate/data/{}".format(LAYERS_STR[layer])
+    save_path = "./models/investigate"
+    load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
     
-    regress(data_path, layer, save_path, epochs=1)
+    regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10)

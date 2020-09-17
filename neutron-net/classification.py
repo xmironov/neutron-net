@@ -196,9 +196,8 @@ def load_labels(path):
     return data
 
 if __name__ == "__main__":
-    data_path = "./models/investigate/test/data/merged"
-    save_path = "./models/investigate/test"
-    #load_path = "./models/investigate/classification/classifier/full_model.h5"
+    data_path = "./models/investigate/data/merged"
+    save_path = "./models/investigate"
+    load_path = "./models/investigate/classifier/full_model.h5"
     
-    classify(data_path, save_path, load_path=None, train=True, epochs=2)
-    
+    classify(data_path, save_path, load_path=load_path, train=True, epochs=10)

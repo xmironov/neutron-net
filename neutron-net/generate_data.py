@@ -13,7 +13,7 @@ class ImageGenerator:
     def scale_targets(concatenated):
         for split, data in concatenated.items():
             scaled_targets = np.zeros(data['targets'].shape)
-            for i in range(3):
+            for i in range(2): #Change back to 3
                 scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   DEPTH_BOUNDS, (0, 1))
                 scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], SLD_BOUNDS,   (0, 1))
             concatenated[split]['targets_scaled'] = scaled_targets
@@ -162,7 +162,7 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
                 images[i] = img
 
 if __name__ == "__main__":
-    data_path = "./models/investigate/test/data/one"
-    save_path = "./models/investigate/test/data/one"
-    layers = [1]
-    generate_images(data_path, save_path, layers, chunk_size=50)
+    data_path = "./models/investigate/data/two"
+    save_path = "./models/investigate/data/two"
+    layers = [2]
+    generate_images(data_path, save_path, layers, chunk_size=500)

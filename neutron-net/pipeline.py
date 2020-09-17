@@ -12,7 +12,7 @@ from tensorflow.keras.utils  import Sequence
 
 from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, ReflectModel
-from refnx.analysis import Objective
+from refnx.analysis import Objective, CurveFitter
 
 from generate_refnx import CurveGenerator
 from generate_data  import ImageGenerator, generate_images, DEPTH_BOUNDS, SLD_BOUNDS
@@ -110,9 +110,10 @@ class KerasDropoutPredicter():
         self.f_2 = K.function([models[2].layers[0].input, K.learning_phase()],
                               [models[2].layers[-2].output, models[2].layers[-1].output])
         
-        # Two-layer model function
-        self.f_3 = K.function([models[3].layers[0].input, K.learning_phase()],
-                              [models[3].layers[-2].output, models[3].layers[-1].output])
+        if len(models) == 3:
+            # Three-layer model function
+            self.f_3 = K.function([models[3].layers[0].input, K.learning_phase()],
+                                  [models[3].layers[-2].output, models[3].layers[-1].output])
 
     def predict(self, sequence, n_iter=5):
         steps_done = 0
@@ -160,23 +161,30 @@ class KerasDropoutPredicter():
 
 
 class Model():
-    si_sld = 2.047
-    dq     = 5
-    scale  = 1
+    si_sld    = 2.047
+    roughness = 2
+    dq        = 2
+    scale     = 1
     
     def __init__(self, file_path, layers, predicted_slds, predicted_depths):
         self.structure = SLD(0, name='Air')
         
         for i in range(layers):
-            layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=0)
+            layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=Model.roughness)
+            layer.sld.real.setp(bounds=SLD_BOUNDS, vary=True)
+            layer.thick.setp(bounds=DEPTH_BOUNDS,  vary=True)
             self.structure = self.structure | layer
 
-        si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=0)
+        si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=Model.roughness)
         self.structure = self.structure | si_substrate
         
         data = ReflectDataset(file_path)
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq)
         self.objective = Objective(self.model, data)    
+    
+    def fit(self):
+        fitter = CurveFitter(self.objective)
+        fitter.fit()
     
     def plot_SLD(self):
         plt.figure()
@@ -212,8 +220,10 @@ class Pipeline:
             print("Predicted layer {0} - SLD: {1} | Depth: {2}".format(i+1, sld_predictions[0][i], depth_predictions[0][i]))
         
         model = Model(dat_files[0], layer_predictions[0], sld_predictions[0], depth_predictions[0])
-        model.plot_SLD()
-        model.plot_reflectivity()
+        #model.plot_SLD()
+        #model.plot_reflectivity()
+        
+        model.fit()
         model.plot_objective()
         
         return layer_predictions, sld_predictions, depth_predictions
@@ -246,7 +256,7 @@ class Pipeline:
         kdp_predictions = kdp.predict(loader, n_iter=1)
         
         #Predictions given as [depth_1, depth_2, depth_3], [sld_1, sld_2, sld_3]
-        depth_predictions = ImageGenerator.scale_to_range(kdp_predictions[0][0], (0, 1), DEPTH_BOUNDS) #Does this work?
+        depth_predictions = ImageGenerator.scale_to_range(kdp_predictions[0][0], (0, 1), DEPTH_BOUNDS)
         sld_predictions   = ImageGenerator.scale_to_range(kdp_predictions[0][1], (0, 1), SLD_BOUNDS)
 
         #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
@@ -313,7 +323,6 @@ class Pipeline:
             layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
             merge(save_path + "/data", layers_paths)
         
-        """
         print("\n-------------- Classification -------------")
         if train_classifier:
             print(">>> Training classifier")
@@ -334,18 +343,19 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False)
             print()
-        """
+
 if __name__ == "__main__":
-    save_path = './models/investigate/test'
+    save_path = './models/investigate'
     layers     = [1, 2]
     curve_num  = 25000
     chunk_size = 1000
     generate_data    = True
     train_classifier = True
     train_regressor  = True
+    #Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=15, regressor_epochs=10)
     
-    Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=3, regressor_epochs=3)
-
-
-    #Pipeline.run(save_path, save_path, "./models/investigate/test/classifier/full_model.h5",
-    #           {1: "./models/investigate/test/one-layer-regressor/full_model.h5", 2: "./models/investigate/test/two-layer-regressor/full_model.h5"})
+    load_path = "./models/investigate"
+    data_path = "./models/investigate"
+    classifier_path = load_path + "/classifier/full_model.h5"
+    regressor_paths = {1: load_path + "/one-layer-regressor/full_model.h5", 2: load_path + "/two-layer-regressor/full_model.h5"}
+    Pipeline.run(data_path_path, save_path, classifier_path, regressor_paths)

@@ -50,15 +50,15 @@ class CurveGenerator:
         plt.xlabel('distance / $\AA$')
 
     @staticmethod
-    def plot_reflectivity(q, r):
-        plt.figure(2)
+    def plot_reflectivity(q, r, figure=2):
+        plt.figure(figure)
         plt.plot(q, r)
         plt.xlabel('Q')
         plt.ylabel('Reflectivity')
         plt.yscale('log')
 
     @staticmethod
-    def save(save_path, name, structures, qMin=0.005, qMax=0.3, points=200, bkg=0, scale=1, dq=2):
+    def save(save_path, name, structures, noisy=False, qMin=0.005, qMax=0.3, points=200, bkg=0, scale=1, dq=2):
         save_path = save_path + "/" + name
         if not os.path.exists(save_path):
             os.makedirs(save_path)
@@ -71,9 +71,14 @@ class CurveGenerator:
             for i, structure in enumerate(structures):
                 model = ReflectModel(structure, bkg=bkg, scale=scale, dq=dq)
                 r = model(q)
+                
+                #CurveGenerator.plot_reflectivity(q, r, figure=2)
+                if noisy:
+                    r_noisy = CurveGenerator.__background_noise(r, bkg_rate=5e-7)
+                    r = CurveGenerator.__sample_noise(q, r_noisy, constant=1000)
+                    #CurveGenerator.plot_reflectivity(q, r, figure=3)
+                
                 data.append(list(zip(q, r)))
-
-                #CurveGenerator.plot_reflectivity(q, r)
 
                 temp = [0, 0, 0, 0, 0, 0]
                 for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate
@@ -84,12 +89,37 @@ class CurveGenerator:
             file.create_dataset("SLD_NUMS", data=parameters, chunks=True)
             file.create_dataset("DATA",     data=data,       chunks=True)
 
+    @staticmethod
+    def __sample_noise(q, r, file="./data/directbeam_noise.dat", constant=1000):
+        """Add noise using the direct beam sample"""
+        try:
+            direct_beam = np.loadtxt(file, delimiter=',')[:, 0:2]
+        except OSError:
+            print("directbeam_noise.dat file not found")
+            return
+        
+        flux_density = np.interp(q, direct_beam[:, 0], direct_beam[:, 1]) #this is done because not all Q values are the same
+        r_noisy = []
+        for i, r_point in zip(flux_density, r): #beam interp against simulated reflectance.
+            normal_width = r_point * constant / i
+            r_noisy.append(np.random.normal(loc=r_point, scale=normal_width)) #using beam interp
+    
+        return r_noisy
+    
+    @staticmethod
+    def __background_noise(r, bkg_rate=5e-7):
+        """Apply background noise"""
+        #Background signal always ADDs to the signal (r).
+        #Sometimes background could be 0. In which case it does not contribute to the signal
+        return [r_point + max(np.random.normal(1, 0.5) * bkg_rate, 0) for r_point in r]
+    
+
 if __name__ == "__main__":
-    save_path = './models/investigate/test/data'
+    save_path = './models/investigate/data'
     layers = ['one', 'two']
     
     for i, name in enumerate(layers):
         layers = i+1
         print(">>> Generating {}-layer curves".format(layers))
         structures = CurveGenerator.generate(500, layers, substrate_SLD=2.047)
-        CurveGenerator.save(save_path, name, structures)
+        CurveGenerator.save(save_path, name, structures, noisy=False)
