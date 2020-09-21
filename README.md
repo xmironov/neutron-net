@@ -1,22 +1,31 @@
 # neutron-net
 ![neutron-curve](/neutron-net/resources/real_sim.png) <br />
-A lightweight tool to analyse neutron reflectivity curves and generate initial GenX fits.
+A lightweight tool to analyse neutron reflectivity curves and generate initial refnx fits.
 
 ## About The Project
-A neural network based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to two layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC Neutron Reflectometer) is processed and passed through the neural networks to produce layer parameter predictions. These predictions are then fed into GenX, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is opening the fitting software and pressing the "fit", and "simulate" buttons.
+A neural network based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to three layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC Neutron Reflectometer) is processed and passed through the neural networks to produce layer parameter predictions. These predictions are then fed into refnx, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is running the `pipeline.py` file with their reflectivity data.
 
 The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>.
 
 ### Built With
 * TensorFlow Keras
 * Python
-* GenX
+* refnx
 
 ## Getting Started
-### Environment
+### Environment and Installation
 To replicate development environment with the Anaconda distribution, create an empty conda environment, and run: <br />
-```conda install --file requirements_dev.txt -c comet_ml```
-### Installation
+```conda install --file requirements_dev.txt```
+
+### Usage
+The system consists of 6 files. To operate the system as a whole, only `pipeline.py` needs to be run.
+
+#### Synthetic Data Generation
+Data can be generated with refnx using the `generate_refnx.py` file. Specifically, `CurveGenerator.generate` allows for generation of ``n`` refnx Structure objects with a specified number of layers, SLDs and thicknesses within given bounds. The code is currently setup to use a silicon substrate with 2.047 Å SLD. A default 2 Å roughness between layers is included to simulate real data. Thicknesses choices are biased towards tinner layers. 
+
+The `CurveGenerator.save` method can then be used to store these `n` strucutres as reflectivity curves in h5 format. The min, max and number of momentum transfer values can be specified along with background, scale and resolution parameters (defautlts are 0, 1 and 2 respecitivly). The option to add sample and background noise is also avaliable with the noisy flag. This requires the included directbeam_noise.dat sample.
+
+#### Creating Images
 
 
 ## Contributing
