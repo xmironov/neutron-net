@@ -1,7 +1,7 @@
 import h5py, os
 os.environ["KMP_AFFINITY"] = "none"
 
-import numpy as np 
+import numpy as np
 from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
@@ -16,49 +16,94 @@ CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
 class DataLoader(Sequence):
-    """ Use Keras Sequence class to load image data from h5 file"""
-    def __init__(self, file, labels, dim, channels, batch_size, debug=False, shuffle=False):
+    """DataLoader uses the Keras Sequence class to load image data from a h5 file."""
+
+    def __init__(self, file, labels, dim, channels, batch_size, shuffle=False):
+        """Initalises the DataLoader class with given parameters.
+
+        Args:
+            file (string): the path of the file to load data from.
+            labels (ndarray): the labels corresponding to the loaded data.
+            dim (tuple): dimensions of images loaded.
+            channels (int): number of channels of images loaded.
+            batch_size (int): size of each mini-batch to load.
+            shuffle (Boolean): whether to shuffle loaded data or not.
+
+        """
         self.file       = file
         self.labels     = labels
         self.dim        = dim
         self.channels   = channels
         self.batch_size = batch_size
-        self.debug      = debug
         self.shuffle    = shuffle
         self.on_epoch_end()
-    
+
     def __len__(self):
-        """ Denotes number of batches per epoch"""
+        """Calculates the number of batches per epoch.
+
+        Returns:
+            An integer number of batches per epoch.
+
+        """
         return int(np.floor(len(self.file["images"]) / self.batch_size))
 
     def __getitem__(self, idx):
-        """ Generates one batch of data"""
-        indexes = self.indexes[idx*self.batch_size:(idx+1) * self.batch_size]
-        inputs, targets = self.__data_generation(indexes)
+        """Generates one batch of data.
 
+        Args:
+            idx (int): position of batch.
+
+        Returns:
+            A `batch_size` sample of images (inputs) and classes (targets).
+
+        """
+        indices = self.indices[idx*self.batch_size:(idx+1) * self.batch_size] #Get range of indices.
+        inputs, targets = self.__data_generation(indices)
         return inputs, targets
 
-    def __data_generation(self, indexes):
-        """ Generates data containing batch_size samples"""
+    def __data_generation(self, indices):
+        """Generates data containing batch_size samples
+
+        Args:
+            indices (ndarray): an array of indices to retrieve data from.
+
+        Returns:
+            A `batch_size` sample of images (inputs) and classes (targets).
+
+        """
         images = np.empty((self.batch_size, *self.dim, self.channels))
         classes = np.empty((self.batch_size, 1), dtype=int)
 
-        for i, idx in enumerate(indexes):
-            image = self.file["images"][idx]
-            images[i,] = np.array(image)
-            classes[i,] = self.labels[idx]      
+        for i, idx in enumerate(indices): #Get images and classes for each index
+            images[i,] = np.array(self.file["images"][idx])
+            classes[i,] = self.labels[idx]
         return images, classes
-    
+
     def on_epoch_end(self):
-        """Updates indexes after each epoch"""
-        indexes = np.arange(len(self.file["images"]))
+        """Updates indices after each epoch."""
+        indices = np.arange(len(self.file["images"]))
         if self.shuffle:
-            np.random.shuffle(indexes)
-        self.indexes = indexes
+            np.random.shuffle(indices)
+        self.indices = indices
+
 
 class Classifier():
+    """The Classifier class represents the network used for layer classification"""
+
     def __init__(self, dims, channels, epochs, lr, batch_size, dropout, workers, load_path=None):
-        """ Initialisation"""
+        """Initialises the network with given hyperparameters.
+
+        Args:
+            dims (tuple): dimensions of the input images.
+            channels (int): number of channels of the input images.
+            epochs (int): number of epochs to train for.
+            lr (float): the value for the learning rate hyperparameter.
+            batch_size (int): the size of each mini-batch.
+            dropout (float): the value of the dropout rate hyperparameter.
+            workers (int): number of workers to use.
+            load_path (string): the path an existing model to load from.
+
+        """
         self.dims       = dims
         self.channels   = channels
         self.epochs     = epochs
@@ -66,14 +111,20 @@ class Classifier():
         self.batch_size = batch_size
         self.dropout    = dropout
         self.workers    = workers
-        
-        if load_path is None:
+
+        if load_path is None: #Create a new model if no load path is provided.
             self.model = self.create_model()
         else:
             self.model = load_model(load_path)
 
     def train(self, train_sequence, validate_sequence):
-        """ Train and validate network"""
+        """Trains the network using the training set and validates it.
+
+        Args:
+            train_sequence (DataLoader): the training set data.
+            validate_sequence (DataLoader): the validation set data.
+
+        """
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor="val_loss",
             patience=10,
@@ -81,7 +132,7 @@ class Classifier():
             factor=0.5,
             min_lr=0.000001,
         )
-        
+
         self.history = self.model.fit(
             train_sequence,
             validation_data=validate_sequence,
@@ -91,13 +142,19 @@ class Classifier():
             verbose=1,
             callbacks=[learning_rate_reduction_cbk],
         )
-        return self.history
 
     def test(self, test_sequence, test_labels):
+        """Evaluates the network against the test set.
+
+        Args:
+            test_sequence (DataLoader): the test set data to test against.
+            test_labels (ndarray): an array of the labels for the test set.
+
+        """
         print("Evaluating")
         loss, accuracy = self.model.evaluate(test_sequence)
         print("Test Loss: {0} | Test Accuracy: {1}".format(loss, accuracy))
-        
+
         predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
         predictions = np.argmax(predictions, axis=1)
         remainder = len(test_labels) % self.batch_size
@@ -106,17 +163,23 @@ class Classifier():
         # and so some trimming may be required
         if remainder:
             test_labels = test_labels[:-remainder]
-            
+
         cm = confusion_matrix(test_labels, predictions)
         print("Confusion Matrix\n", cm)
-        
-    def save(self, save_path):
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
 
+    def save(self, save_path):
+        """Saves the model under the given 'save_path'.
+
+        Args:
+            save_path (string): path to the directory to save the model to.
+
+        """
+        if not os.path.exists(save_path): #Make the required directory if not present.
+            os.makedirs(save_path)
         self.model.save(os.path.join(save_path, "full_model.h5"))
 
     def create_model(self):
+        """Creates the classifier model."""
         model = Sequential()
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu", input_shape=(*self.dims, self.channels)))
         model.add(MaxPooling2D(pool_size=(2,2)))
@@ -146,14 +209,30 @@ class Classifier():
             metrics=["sparse_categorical_accuracy"]
         )
         return model
-    
+
     def summary(self):
+        """Displays a summary of the model."""
         self.model.summary()
 
-def classify(data_path, save_path=None, load_path=None, train=True, summary=False, epochs=2, 
+def classify(data_path, save_path=None, load_path=None, train=True, summary=False, epochs=2,
          learning_rate=0.0003, batch_size=40, dropout_rate=0.1, workers=1):
-    
-    if save_path is not None:
+    """Either creates a classifier or loads an existing classifier, optionally
+       trains the model and then evaluates it.
+
+    Args:
+        data_path (string): path to the directory containing the data to train and test on.
+        save_path (string): path to the directory to save the trained model to.
+        load_path (string): path to the full_model.h5 file to load an existing model from.
+        train (Boolean): whether to train the model or not.
+        summary (Boolean): whether to display a summary of the model or not.
+        epochs (int): the number of epochs to train for.
+        learning_rate (float): the value of the learning rate hyperparameter.
+        batch_size (int): the size of each batch used when training.
+        dropout_rate (float): the value of the dropout rate hyperparameter.
+        workers (int): the number of workers to use.
+
+    """
+    if save_path is not None: #If a save path is provided, save under the classifier directory
         save_path = os.path.join(save_path, "classifier")
 
     train_dir    = os.path.join(data_path, "train.h5")
@@ -164,22 +243,22 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
     validate_file = h5py.File(validate_dir, "r")
     test_file     = h5py.File(test_dir, "r")
 
-    labels = load_labels(data_path)
+    labels = load_labels(data_path) #Get the labels for each split.
     train_labels, validate_labels, test_labels = labels["train"], labels["validate"], labels["test"]
 
     train_loader    = DataLoader(train_file,    train_labels,    DIMS, CHANNELS, batch_size, shuffle=False)
     validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, batch_size, shuffle=False)
     test_loader     = DataLoader(test_file,     test_labels,     DIMS, CHANNELS, batch_size, shuffle=False)
-    
+
     model = Classifier(DIMS, CHANNELS, epochs, learning_rate, batch_size, dropout_rate, workers, load_path)
     if summary:
         model.summary()
 
     if train:
         model.train(train_loader, validate_loader)
-        
+
     model.test(test_loader, test_labels)
-    
+
     if save_path is not None:
         model.save(save_path)
 
@@ -188,16 +267,24 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
     test_file.close()
 
 def load_labels(path):
+    """Loads the labels from train.h5, validate.h5 and test.h5 in the given directory.
+
+    Args:
+        path (string): path to the directory containing split data.
+
+    Returns:
+        Dictionary containing the labels for each split.
+
+    """
     data = {}
     for section in ["train", "validate", "test"]:
         with h5py.File(os.path.join(path, "{}.h5".format(section)), "r") as f:
-            data["{}".format(section)] = np.array(f["layers"])
-
+            data["{}".format(section)] = np.array(f["layers"]) #Get the number of layers for each file.
     return data
 
 if __name__ == "__main__":
     data_path = "./models/investigate/data/merged"
     save_path = "./models/investigate"
     load_path = "./models/investigate/classifier/full_model.h5"
-    
+
     classify(data_path, save_path, load_path=load_path, train=True, epochs=10)
