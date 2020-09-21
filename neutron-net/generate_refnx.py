@@ -29,7 +29,6 @@ class CurveGenerator:
             A list of `generate_num` refnx Struture objects.
 
         """
-
         #Discretise SLD and thickness ranges.
         sld_range   = np.arange(sld_bounds[0], sld_bounds[1], 0.1)
         thick_range = np.arange(thick_bounds[0], thick_bounds[1], 10)
@@ -44,7 +43,7 @@ class CurveGenerator:
 
     @staticmethod
     def __random_structure(layers, sld_range, thick_range, thick_probs, substrate_SLD):
-        """Generates a single random refnx Struture object with desired parameters.
+        """Generates a single random refnx Structure object with desired parameters.
 
         Args:
             layers (int): the number of layers for each curve to be generated with.
@@ -54,10 +53,9 @@ class CurveGenerator:
             substrate_SLD (float): the SLD of the substrate.
 
         Returns:
-            refnx Struture object.
+            refnx Structure object.
 
         """
-
         #The structure consists of air followed by each layer and then finally the substrate.
         structure = SLD(0, name="Air")
         for i in range(layers):
@@ -82,7 +80,6 @@ class CurveGenerator:
             refnx Component object.
 
         """
-
         if substrate:
             thickness = 0 #Substrate has 0 thickness.
         else:
@@ -100,7 +97,7 @@ class CurveGenerator:
         """Plots the SLD profile for a given Structure object.
 
         Args:
-            structure (Struture): the structure to plot the SLD profile for.
+            structure (Structure): the structure to plot the SLD profile for.
 
         """
         plt.figure(1)
@@ -141,7 +138,6 @@ class CurveGenerator:
             dq (int): the instrument resolution parameter.
 
         """
-
         save_path = save_path + "/" + name
         if not os.path.exists(save_path): #Create directories if not present.
             os.makedirs(save_path)
@@ -199,7 +195,7 @@ class CurveGenerator:
 
     @staticmethod
     def __background_noise(r, bkg_rate=5e-7):
-        """Applies background noise to gvien reflectance values.
+        """Applies background noise to given reflectance values.
 
         Args:
             r (ndarray): the range of reflectance values.
