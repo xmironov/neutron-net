@@ -15,7 +15,7 @@ CHANNELS = 1
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
 
 class DataLoader(Sequence):
-    """DataLoader uses the Keras Sequence class to load image data from a h5 file."""
+    """DataLoader uses a Keras Sequence to load image data from a h5 file."""
 
     def __init__(self, file, dim, channels, batch_size, layers):
         """Initalises the DataLoader class with given parameters.
@@ -48,7 +48,7 @@ class DataLoader(Sequence):
         """Generates one batch of data.
 
         Args:
-            idx (int): position of batch.
+            index (int): position of batch.
 
         Returns:
             A `batch_size` sample of images (inputs) and classes (targets).
@@ -78,7 +78,7 @@ class DataLoader(Sequence):
 
             length = len(values)
             difference = length - self.layers * 2
-            if difference: #Cut out the SLDs and depths of layers that are not present.
+            if difference: #Take out the SLDs and depths of layers that are not present.
                 values = values[:-difference]
 
             images[i,]        = image
@@ -90,10 +90,6 @@ class DataLoader(Sequence):
     def __on_epoch_end(self):
         """Updates indices after each epoch."""
         self.indexes = np.arange(len(self.file['images']))
-
-    def close_file(self):
-        """Closes the h5 file."""
-        self.file.close()
 
 
 class Regressor():
@@ -153,8 +149,6 @@ class Regressor():
             callbacks = [learning_rate_reduction_cbk]
         )
 
-        train_seq.close_file()
-        valid_seq.close_file()
 
     def test(self, test_seq):
         """Evaluates the network against the test set.
@@ -168,7 +162,12 @@ class Regressor():
         print("Depth Loss: {0} | SLD Loss: {1}\nDepth mae:  {2} | SLD mae:  {3}".format(results[1], results[2], results[3], results[4]))
 
     def create_model(self):
-        """Creates the regressor network."""
+        """Creates the regressor network.
+        
+        Returns:
+            A Keras model for the regressor network architecture.
+            
+        """
         # Convolutional Encoder
         input_img = Input(shape=(*self.dims, self.channels))
         conv_1 = Conv2D(32, (3,3), activation='relu')(input_img)
@@ -200,6 +199,7 @@ class Regressor():
                         loss_weights={'depth':1,'sld':1},
                         optimizer = Nadam(self.learning_rate),
                         metrics={'depth':'mae','sld':'mae'})
+        return model
 
     def save(self, save_path):
         """Saves a regressor model under the given directory.
@@ -261,6 +261,10 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     model.test(test_loader)
     if save_path is not None:
         model.save(save_path)
+        
+    train_h5.close()
+    val_h5.close()
+    test_h5.close()
 
 if __name__ == "__main__":
     layer     = 1

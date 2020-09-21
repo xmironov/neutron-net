@@ -16,7 +16,7 @@ CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
 
 class DataLoader(Sequence):
-    """DataLoader uses the Keras Sequence class to load image data from a h5 file."""
+    """DataLoader uses a Keras Sequence to load image data from a h5 file."""
 
     def __init__(self, file, labels, dim, channels, batch_size, shuffle=False):
         """Initalises the DataLoader class with given parameters.

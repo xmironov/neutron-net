@@ -1,7 +1,6 @@
 import os, glob, h5py, random
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.random import seed
 from skimage import color
 
 DEPTH_BOUNDS = (20, 3000) #Bounds on depth and SLD used for scaling targets.

@@ -7,7 +7,7 @@ from refnx.reflect import SLD, ReflectModel
 class CurveGenerator:
     """The CurveGenerator class contains all code relating to reflectivity curve generation with refnx.
 
-    Attributes:
+    Class Attributes:
         roughness (int): the default roughness between each layer in Angstrom.
 
     """
@@ -208,11 +208,11 @@ class CurveGenerator:
 
 
 if __name__ == "__main__":
-    save_path = './models/investigate/data'
+    save_path = './models/investigate/test'
     layers = ['one', 'two']
 
     for i, name in enumerate(layers):
         layers = i+1
         print(">>> Generating {}-layer curves".format(layers))
-        structures = CurveGenerator.generate(500, layers, substrate_SLD=2.047)
+        structures = CurveGenerator.generate(1, layers, substrate_SLD=2.047)
         CurveGenerator.save(save_path, name, structures, noisy=False)
