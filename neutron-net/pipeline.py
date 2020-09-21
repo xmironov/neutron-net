@@ -184,7 +184,7 @@ class Model():
     
     def fit(self):
         fitter = CurveFitter(self.objective)
-        fitter.fit()
+        fitter.fit('differential_evolution')
     
     def plot_SLD(self):
         plt.figure()
@@ -215,10 +215,11 @@ class Pipeline:
         layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path)
         print("Predicted number of layers: {}\n".format(layer_predictions))
         
-        sld_predictions, depth_predictions = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames)
+        #Currently hardcoded for 1 .dat file
+        sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames)
         for i in range(layer_predictions[0]):
-            print("Predicted layer {0} - SLD: {1} | Depth: {2}".format(i+1, sld_predictions[0][i], depth_predictions[0][i]))
-        
+            print("Predicted layer {0} - SLD: {1}| Depth: {2}".format(i+1, sld_predictions[0][i], depth_predictions[0][i]))
+
         model = Model(dat_files[0], layer_predictions[0], sld_predictions[0], depth_predictions[0])
         #model.plot_SLD()
         #model.plot_reflectivity()
@@ -260,10 +261,10 @@ class Pipeline:
         sld_predictions   = ImageGenerator.scale_to_range(kdp_predictions[0][1], (0, 1), SLD_BOUNDS)
 
         #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
-        depth_error = ImageGenerator.scale_to_range(kdp_predictions[1][0], (0, 1), DEPTH_BOUNDS)
-        sld_error   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), SLD_BOUNDS)
+        depth_errors = ImageGenerator.scale_to_range(kdp_predictions[1][0], (0, 1), DEPTH_BOUNDS)
+        sld_errors   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), SLD_BOUNDS)
         
-        return sld_predictions, depth_predictions
+        return sld_predictions, depth_predictions, sld_errors, depth_errors
     
     @staticmethod
     def __dat_files_to_npy_images(dat_files, save_path):
@@ -358,4 +359,4 @@ if __name__ == "__main__":
     data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {1: load_path + "/one-layer-regressor/full_model.h5", 2: load_path + "/two-layer-regressor/full_model.h5"}
-    Pipeline.run(data_path_path, save_path, classifier_path, regressor_paths)
+    Pipeline.run(data_path, save_path, classifier_path, regressor_paths)
