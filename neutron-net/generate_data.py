@@ -4,9 +4,9 @@ import numpy as np
 from numpy.random import seed
 from skimage import color
 
-LAYERS_STR   = {1: "one", 2: "two", 3: "three"}
 DEPTH_BOUNDS = (20, 3000) #Bounds on depth and SLD used for scaling targets.
 SLD_BOUNDS   = (-0.5, 10)
+LAYERS_STR   = {1: "one", 2: "two", 3: "three"}
 
 class ImageGenerator:
     """The ImageGenerator class generates images from reflectivity data."""

@@ -36,7 +36,7 @@ class DataLoader(Sequence):
         self.channels   = channels
         self.batch_size = batch_size
         self.shuffle    = shuffle
-        self.on_epoch_end()
+        self.__on_epoch_end()
 
     def __len__(self):
         """Calculates the number of batches per epoch.
@@ -47,22 +47,22 @@ class DataLoader(Sequence):
         """
         return int(np.floor(len(self.file["images"]) / self.batch_size))
 
-    def __getitem__(self, idx):
+    def __getitem__(self, index):
         """Generates one batch of data.
 
         Args:
-            idx (int): position of batch.
+            index (int): position of batch.
 
         Returns:
             A `batch_size` sample of images (inputs) and classes (targets).
 
         """
-        indices = self.indices[idx*self.batch_size:(idx+1) * self.batch_size] #Get range of indices.
+        indices = self.indices[index*self.batch_size: (index+1)*self.batch_size] #Get range of indices.
         inputs, targets = self.__data_generation(indices)
         return inputs, targets
 
     def __data_generation(self, indices):
-        """Generates data containing batch_size samples
+        """Generates data containing batch_size samples.
 
         Args:
             indices (ndarray): an array of indices to retrieve data from.
@@ -71,15 +71,15 @@ class DataLoader(Sequence):
             A `batch_size` sample of images (inputs) and classes (targets).
 
         """
-        images = np.empty((self.batch_size, *self.dim, self.channels))
+        images  = np.empty((self.batch_size, *self.dim, self.channels))
         classes = np.empty((self.batch_size, 1), dtype=int)
 
         for i, idx in enumerate(indices): #Get images and classes for each index
-            images[i,] = np.array(self.file["images"][idx])
+            images[i,]  = np.array(self.file["images"][idx])
             classes[i,] = self.labels[idx]
         return images, classes
 
-    def on_epoch_end(self):
+    def __on_epoch_end(self):
         """Updates indices after each epoch."""
         indices = np.arange(len(self.file["images"]))
         if self.shuffle:
@@ -217,7 +217,7 @@ class Classifier():
 def classify(data_path, save_path=None, load_path=None, train=True, summary=False, epochs=2,
          learning_rate=0.0003, batch_size=40, dropout_rate=0.1, workers=1):
     """Either creates a classifier or loads an existing classifier, optionally
-       trains the model and then evaluates it.
+       trains the network and then evaluates it.
 
     Args:
         data_path (string): path to the directory containing the data to train and test on.
