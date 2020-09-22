@@ -158,7 +158,7 @@ class DataLoaderRegression(Sequence):
 
 
 class KerasDropoutPredicter():
-    """KerasDropoutPredicter takes trained models and uses Dropout at test time to make Bayesian-like predictions"""
+    """KerasDropoutPredicter takes trained models and uses dropout at test time to make Bayesian-like predictions."""
 
     def __init__(self, models):
         """Initialises the dropout predictor with given models for each layer.
@@ -469,9 +469,9 @@ class Pipeline:
             None or 'infer' based on whether a header is present or not respectively.
 
         """
-        dataframe1 = pd.read_csv(path, header='infer', nrows=n)
-        dataframe2 = pd.read_csv(path, header=None,    nrows=n)
-        similarity = (df1.dtypes.values == df2.dtypes.values).mean()
+        dataframe1 = pd.read_csv(path, header='infer', nrows=5)
+        dataframe2 = pd.read_csv(path, header=None,    nrows=5)
+        similarity = (dataframe1.dtypes.values == dataframe2.dtypes.values).mean()
         return 'infer' if similarity < threshold else None
 
     @staticmethod
@@ -535,7 +535,7 @@ if __name__ == "__main__":
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    #Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
+    Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"
