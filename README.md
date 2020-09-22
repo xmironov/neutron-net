@@ -16,7 +16,7 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 ### Installation
 1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br /> ```conda create --name neutron-net```
 
-2. To activate the environment, run: ```conda activate neutron-net```. To later deactivate the environment, run: ```conda deactivate```
+2. To activate the environment, run: ```conda activate neutron-net```.
 
 3. Install pip by running: <br /> ```conda install pip```
 
