@@ -529,7 +529,7 @@ class Pipeline:
 
 if __name__ == "__main__":
     save_path = './models/investigate'
-    layers     = [1, 2]
+    layers     = [1, 2, 3]
     curve_num  = 500
     chunk_size = 10
     generate_data    = True

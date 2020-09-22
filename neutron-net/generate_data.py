@@ -165,7 +165,7 @@ class ImageGenerator:
         """
         fig = plt.figure(figsize=(3,3)) #Create matplotlib figure and setup axes.
         plt.plot(q, r)
-        plt.yscale("log", basey=10)
+        plt.yscale("log", base=10)
         plt.xlim(0, 0.3)
         plt.ylim(10e-8, 1.5)
         plt.axis("off")

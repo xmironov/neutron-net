@@ -1,9 +1,9 @@
-python==3.7.6
-pip==20.0.2
 h5py==2.10.0
-numpy==1.18.1
-matplotlib==3.2.0
-scikit-learn==0.22.2.post1
-scikit-image==0.16.2
-pandas==1.0.2
-tensorflow-gpu==2.1.0
+matplotlib==3.3.2
+numpy==1.18.5
+pandas==1.1.2
+pip==20.2.2
+refnx==0.1.16
+scikit-image==0.17.1
+sklearn==0.0
+tensorflow==2.3.0
