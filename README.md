@@ -18,7 +18,7 @@ To replicate development environment with the Anaconda distribution, create an e
 ```conda install --file requirements.txt```
 
 ### Usage
-Please read ![usage](/resources/usage.md) <br/> instructions on how to use the system.
+Please read [usage](/resources/usage.md) for instructions on how to use the system.
 
 ## Contributing
 Contributions are gladly accepted and would be very much appreciated.
