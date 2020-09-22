@@ -14,22 +14,17 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 
 ## Getting Started
 ### Installation
-To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br/>
-```conda create --name neutron-net```
+1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br /> ```conda create --name neutron-net```
 
-To activate the environment, run 
-```conda activate neutron-net```
-To deactivate the environment, run
-```conda deactivate```
+2. To activate the environment, run: ```conda activate neutron-net```. To later deactivate the environment, run: ```conda deactivate```
 
-Next, install pip by running: <br/>
-```conda install pip```
+3. Install pip by running: <br /> ```conda install pip```
 
-Now, move to the main neutron-net directory. To install the required packages from the requirements.txt file you can run: <br/>
-```pip install -r requirements.txt```
+4. Navigate to the main neutron-net directory. Run the following to install the required packages from the requirements.txt file: <br />
+   ```pip install -r requirements.txt```
 
-Navigate to the code for the system and you should be able to run it. Try:
-```python pipeline.py```
+5. You should be able to run the code. Try: <br />
+    ```python pipeline.py```
 
 ### Usage
 Please read [usage](/resources/usage.md) for instructions on how to use the system.
