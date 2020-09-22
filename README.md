@@ -13,9 +13,23 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 * refnx
 
 ## Getting Started
-### Environment and Installation
-To replicate development environment with the Anaconda distribution, create an empty conda environment, and run: <br />
-```conda install --file requirements.txt```
+### Installation
+To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br/>
+```conda create --name neutron-net```
+
+To activate the environment, run 
+```conda activate neutron-net```
+To deactivate the environment, run
+```conda deactivate```
+
+Next, install pip by running: <br/>
+```conda install pip```
+
+Now, move to the main neutron-net directory. To install the required packages from the requirements.txt file you can run: <br/>
+```pip install -r requirements.txt```
+
+Navigate to the code for the system and you should be able to run it. Try:
+```python pipeline.py```
 
 ### Usage
 Please read [usage](/resources/usage.md) for instructions on how to use the system.
