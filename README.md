@@ -39,7 +39,7 @@ Contributions are gladly accepted and would be very much appreciated.
   5. Open a pull request
 
 ## License
-Distributed under the GNU AGPLv3 license. See ```LICENSE``` for more information.
+Distributed under the GNU AGPLv3 license. See [license](/LICENSE) for more information.
 
 ## Contact
 Daniil Mironov - daniil.mironov@stfc.ac.uk\
