@@ -1,6 +1,7 @@
 import os, h5py
 os.environ["KMP_AFFINITY"] = "none"
 import numpy as np
+import matplotlib.pyplot as plt
 
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
@@ -9,6 +10,8 @@ from tensorflow.keras.layers     import Dense, Flatten, Conv2D, MaxPooling2D, Dr
 from tensorflow.keras.utils      import Sequence
 from tensorflow.keras.callbacks  import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
+
+from generate_data  import ImageGenerator, DEPTH_BOUNDS, SLD_BOUNDS
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -149,7 +152,6 @@ class Regressor():
             callbacks = [learning_rate_reduction_cbk]
         )
 
-
     def test(self, test_seq):
         """Evaluates the network against the test set.
 
@@ -163,10 +165,10 @@ class Regressor():
 
     def create_model(self):
         """Creates the regressor network.
-        
+
         Returns:
             A Keras model for the regressor network architecture.
-            
+
         """
         # Convolutional Encoder
         input_img = Input(shape=(*self.dims, self.channels))
@@ -211,6 +213,63 @@ class Regressor():
         if not os.path.exists(save_path): #Create the necessary directories if not present.
             os.makedirs(save_path)
         self.model.save(os.path.join(save_path, 'full_model.h5'))
+
+    def plot(self, labels, test_seq):
+        """Plots ground truth depths and SLDs against predcitions for each layer.
+
+        Args:
+            labels (ndarray): an array of ground truth labels.
+            test_seq (DataLoader): the test set to predict on.
+
+        """
+        #Make predictions on test set and descale.
+        scaled_preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
+        depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), DEPTH_BOUNDS)
+        slds   = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), SLD_BOUNDS)
+
+        preds = np.zeros((len(depths[:,0]), 2*self.outputs)) #Format predictions into a single array
+        for i in range(self.outputs):
+            preds[:, 2*i]   = depths[:, i]
+            preds[:, 2*i+1] = slds[:, i]
+
+        remainder = len(labels) % self.batch_size
+        if remainder:
+            labels = labels[:-remainder]
+
+        total_plots = 2 * self.outputs
+        columns = 2 # depth & sld
+        rows = total_plots // columns
+        position = range(1, total_plots+1)
+
+        column_headers = ["Depth", "SLD"]
+        row_headers = ["Layer {}".format(row+1) for row in range(rows)]
+        pad = 5
+        fig = plt.figure(figsize=(15,10))
+
+        for k in range(total_plots):
+            ax = fig.add_subplot(rows, columns, position[k])
+            ax.scatter(labels[:,k], preds[:,k], alpha=0.2)
+
+            if k == 0:
+                ax.set_title(column_headers[k])
+            elif k == 1:
+                ax.set_title(column_headers[k])
+
+            if k % 2 == 0:
+                ax.set_xlabel("Ground truth: depth")
+                ax.set_ylabel("Prediction: depth")
+                ax.set_xlim(-100, 3000)
+                ax.set_ylim(-100, 3000)
+                ax.annotate(row_headers[k//2], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+                            xycoords=ax.yaxis.label, textcoords="offset points",
+                            size="large", ha="right", va="center")
+            else:
+                ax.set_xlabel("Ground truth: SLD")
+                ax.set_ylabel("Prediction: SLD")
+                ax.set_xlim(-1, 11)
+                ax.set_ylim(-1, 11)
+
+        plt.show()
 
     def summary(self):
         """Displays a summary of the regressor network."""
@@ -261,7 +320,10 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     model.test(test_loader)
     if save_path is not None:
         model.save(save_path)
-        
+
+    test_labels = np.array(test_h5['targets'])
+    model.plot(test_labels, test_loader)
+
     train_h5.close()
     val_h5.close()
     test_h5.close()
@@ -272,4 +334,4 @@ if __name__ == "__main__":
     save_path = "./models/investigate"
     load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
 
-    regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10)
+    regress(data_path, layer, save_path, load_path=load_path, train=False, epochs=10)
