@@ -495,7 +495,7 @@ class Pipeline:
             print("-------------- Data Generation ------------")
             for layer in layers: #Generate curves for each layer specified.
                 print(">>> Generating {}-layer curves".format(layer))
-                structures = CurveGenerator.generate(curve_num, layer, sld_bounds=(-0.5,6), thick_bounds=(20,1000), substrate_SLD=2.047)
+                structures = CurveGenerator.generate(curve_num, layer, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=2.047)
                 CurveGenerator.save(save_path + "/data", LAYERS_STR[layer], structures) #Save the generated curves.
 
                 print(">>> Creating images for {}-layer curves".format(layer))
