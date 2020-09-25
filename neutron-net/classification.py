@@ -22,7 +22,7 @@ class DataLoader(Sequence):
     """DataLoader uses a Keras Sequence to load image data from a h5 file."""
 
     def __init__(self, file, labels, dim, channels, batch_size, shuffle=False):
-        """Initalises the DataLoader class with given parameters.
+        """Initialises the DataLoader class with given parameters.
 
         Args:
             file (string): the path of the file to load data from.
@@ -147,7 +147,7 @@ class Classifier():
         )
 
     def test(self, test_sequence, test_labels, show_plots):
-        """Evaluates the network against the test set.
+        """Evaluates the network against the test set and optionally, plots the confusion matrix.
 
         Args:
             test_sequence (DataLoader): the test set data to test against.
@@ -160,14 +160,15 @@ class Classifier():
 
         if show_plots:
             predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
-            predictions = np.argmax(predictions, axis=1)
+            predictions = np.argmax(predictions, axis=1) #Get layer predictions
             remainder = len(test_labels) % self.batch_size
     
             # Sometimes batch_size may not divide evenly into number of samples
-            # and so some trimming may be required
+            # and so, some trimming may be required
             if remainder:
                 test_labels = test_labels[:-remainder]
-                
+            
+            #Determine whether the classifier is classifying up to 2 or 3 layers
             layers = np.max(predictions)
             if layers == 2:
                 labels = [i for i in "12"]
@@ -176,7 +177,7 @@ class Classifier():
     
             cm = confusion_matrix(test_labels, predictions)
             df_cm = pd.DataFrame(cm, index=labels, columns=labels)
-            ConfusionMatrixPrinter.pretty_plot(df_cm)
+            ConfusionMatrixPrinter.pretty_plot(df_cm) #Plot the confusion matrix
 
     def save(self, save_path):
         """Saves the model under the given 'save_path'.
@@ -241,6 +242,7 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
         batch_size (int): the size of each batch used when training.
         dropout_rate (float): the value of the dropout rate hyperparameter.
         workers (int): the number of workers to use.
+        show_plots (Boolean): whether to display classification confusion matrix and regression plots or not.
 
     """
     if save_path is not None: #If a save path is provided, save under the classifier directory

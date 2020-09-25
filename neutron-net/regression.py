@@ -212,7 +212,7 @@ class Regressor():
         self.model.save(os.path.join(save_path, 'full_model.h5'))
 
     def plot(self, labels, test_seq):
-        """Plots ground truth depths and SLDs against predcitions for each layer.
+        """Plots ground truth depths and SLDs against predictions for each layer.
 
         Args:
             labels (ndarray): an array of ground truth labels.
@@ -238,33 +238,39 @@ class Regressor():
         rows = total_plots // columns
         position = range(1, total_plots+1)
 
-        column_headers = ["Depth", "SLD"]
         row_headers = ["Layer {}".format(row+1) for row in range(rows)]
         pad = 5
-        fig = plt.figure(figsize=(15,10))
+        if self.outputs == 1:
+            fig_size = (10,5)
+        elif self.outputs == 2:
+            fig_size = (9,9)
+        elif self.outputs == 3:
+            fig_size = (7,9)
+            
+        fig = plt.figure(figsize=fig_size)
+        fig.subplots_adjust(wspace=0.3, hspace=0.15, top=0.92)
+        fig.suptitle("{}-Layer Predictions Against Ground Truths".format(self.outputs), size=16)
 
         for k in range(total_plots):
             ax = fig.add_subplot(rows, columns, position[k])
             ax.scatter(labels[:,k], preds[:,k], alpha=0.2)
 
-            if k == 0:
-                ax.set_title(column_headers[k])
-            elif k == 1:
-                ax.set_title(column_headers[k])
-
             if k % 2 == 0:
-                ax.set_xlabel("Ground truth: depth")
-                ax.set_ylabel("Prediction: depth")
+                if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
+                    ax.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
+                ax.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
                 ax.set_xlim(-100, 3000)
                 ax.set_ylim(-100, 3000)
                 ax.annotate(row_headers[k//2], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
                             xycoords=ax.yaxis.label, textcoords="offset points",
                             size="large", ha="right", va="center")
             else:
-                ax.set_xlabel("Ground truth: SLD")
-                ax.set_ylabel("Prediction: SLD")
+                if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
+                    ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
+                ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
                 ax.set_xlim(-1, 11)
                 ax.set_ylim(-1, 11)
+            
 
         plt.show()
 
@@ -290,6 +296,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
         batch_size (int): the size of each batch used when training.
         dropout_rate (float): the value of the dropout rate hyperparameter.
         workers (int): the number of workers to use.
+        show_plots (Boolean): whether to display classification confusion matrix and regression plots or not.
 
     """
     if save_path is not None: #If a save path is provided, save the regressor under a directory
@@ -327,7 +334,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     test_h5.close()
 
 if __name__ == "__main__":
-    layer     = 1
+    layer     = 3
     data_path = "./models/investigate/data/{}".format(LAYERS_STR[layer])
     save_path = "./models/investigate"
     load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])

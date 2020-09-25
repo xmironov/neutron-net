@@ -26,7 +26,7 @@ class CurveGenerator:
             substrate_SLD (float): the SLD of the substrate. Default is None.
 
         Returns:
-            A list of `generate_num` refnx Struture objects.
+            A list of `generate_num` refnx Structure objects.
 
         """
         #Discretise SLD and thickness ranges.

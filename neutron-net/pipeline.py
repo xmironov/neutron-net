@@ -480,6 +480,7 @@ class Pipeline:
             layers (list): a list of layers to generate and train for.
             curve_num (int): the number of curves to generate per layer.
             chunk_size (int): the size of chunks to use in the h5 storage of images for curves.
+            show_plots (Boolean): whether to display classification confusion matrix and regression plots or not.
             generate_data (Boolean): whether to generate data or use existing data.
             train_classifier (Boolean): whether to train the classifier or not.
             train_regressor (Boolean): whether to train the regressors or not.

@@ -10,7 +10,7 @@ class ConfusionMatrixPrinter:
     
     @staticmethod
     def __get_new_fig(figure_num, fig_size=(9,9)):
-        """Initalises graphics for confusion matrix plot.
+        """Initialises graphics for confusion matrix plot.
 
         Args:
             figure_num (int): identifier for the figure.
@@ -27,7 +27,7 @@ class ConfusionMatrixPrinter:
 
     @staticmethod
     def __configcell_text_and_colors(array_df, row, column, text, face_colors, position, font_size, fmt, show_null_values=0):
-        """Configures cell text and colors for the confusion matrix plot.
+        """Configures cell text and colours for the confusion matrix plot.
 
         Args:
             array_df (DataFrame): Pandas dataframe object to configure.
@@ -148,7 +148,7 @@ class ConfusionMatrixPrinter:
         """Prints confusion matrix with default layout.
 
         Args:
-            cm_dataframe (DataFrame): a Pandas dataframe without totals.
+            cm_dataframe (DataFrame): Pandas dataframe without totals.
             annotate (Boolean): whether to print text in each cell.
             cmap (string): Oranges, Oranges_r, YlGnBu, Blues, RdBu,etc
             fmt (string): format of font text.

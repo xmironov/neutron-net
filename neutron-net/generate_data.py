@@ -9,8 +9,8 @@ class ImageGenerator:
     """The ImageGenerator class generates images from reflectivity data.
     
     Class Attributes:
-        depth_bounds (tuple): bounds on depth used for scaling targets.
-        sld_bounds (tuple): bounds on sld used for scaling targets.
+        depth_bounds (tuple): bounds on depths used for scaling targets.
+        sld_bounds (tuple): bounds on SLDs used for scaling targets.
         
     """
     depth_bounds = (20, 3000)
@@ -26,7 +26,7 @@ class ImageGenerator:
         """
         for split, data in concatenated.items(): #Iterate over each split.
             scaled_targets = np.zeros(data['targets'].shape) #Blank array of zeros to fill in.
-            for i in range(3): #Apply scaling to the depth and sld values for each layer.
+            for i in range(3): #Apply scaling to the depth and SLD values for each layer.
                 scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   ImageGenerator.depth_bounds, (0, 1))
                 scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_bounds,   (0, 1))
             concatenated[split]['targets_scaled'] = scaled_targets
