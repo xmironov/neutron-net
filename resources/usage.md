@@ -1,5 +1,5 @@
 # Usage
-The system consists of 6 files. To operate the system as a whole, only `pipeline.py` needs to be run. If you wish to use the other files independently of one another this is also possible; please read the individual sections for each component if this is the case.
+The system consists of 8 files. To operate the system as a whole, only `pipeline.py` needs to be run. If you wish to use the other files independently of one another this is also possible; please read the individual sections for each component if this is the case.
 
 ## The Pipeline
 If you have not trained any models, you can set up the pipeline by calling `Pipeline.setup` which will, by default, generate reflectivity data, convert to images, train a classifier and train regressors using the data. You will need to provide the layers for which you wish to set the pipeline up for, e.g. [1,2,3] for up to 3-layer structures. You can also modify the number of curves generated (which will significantly impact runtime), chunk size for h5 storage, and the number of epochs to train the classifier and regressors for. If you have already generated data and converted it to images, you can set the generate_data flag to false to train on your own data. Likewise, if you already have trained a classifier, this can be loaded by setting the train_classifier flag to false. Finally, if you have already trained the regressors for each layer, you can load these instead of training from scratch by setting the train_regressor flag to false.
@@ -24,5 +24,13 @@ To merge train.h5, validate.h5 and test.h5 files, you can call the `merge` funct
 ## Classification
 To perform classification, call the `classify` function in `classification.py`. You will need to provide a file path to the data (train.h5, validate.h5 and test.h5) to test and/or train on. Optionally, a save path can be provided to save a newly trained model to. A load path could also be provided to load an existing classifier for further training and evaluation; the train flag indicates whether to perform training or not. Hyperparameters that can be adjusted include the number of epochs to train for, the learning rate, batch size and dropout rate. The classifier will work with up to 3-layer classification.
 
+The `show_plots` option for the `classify` function can be set to True to generate a confusion matrix when evaluating against a test set. This calls the `ConfusionMatrixPrinter.pretty_plot` method in `confusion_matrix_pretty_print.py`. The confusion matrix is the result of predicting on the given test set and then displaying how each individual example was classified, against the ground truth label.
+
 ## Regression
 To perform regression, call the `regress` function in `regression.py`. You will need to provide a file path to the data containing data for a specific layer (train.h5, validate.h5 and test.h5) to test and/or train on. You must also provide the layer for which the regressor is being used for. Optionally, a save path can be provided to save a newly trained model to. A load path could also be provided to load an existing regressor for further training and evaluation; the train flag indicates whether to perform training or not. Hyperparameters that can be adjusted include the number of epochs to train for, the learning rate, batch size and dropout rate. 
+
+The `show_plots` option for the `regress` function can be set to True to generate a prediction plot when evaluating against a test set. The plot is of the predicted depths and SLDs against ground truth values for each layer.
+
+## Plotting with Error Bars
+To generate the plots used in the paper of predictions against ground truths with error bars, you will need to run the code in `plotting.py`. The `Plotter.kpd_plot` method creates the plot using the `KerasDropoutPredicter` (KDP) class. The KDP takes trained models and uses dropout at test time to make Bayesian-like predictions. The `n_iter` parameter controls the number of predictions that are made for each example. The results are "unscaled", and then mean and standard deviation are taken; these form the predictions and associated errors repetitively. 
+
