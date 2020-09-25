@@ -9,21 +9,17 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils  import Sequence
+tf.compat.v1.disable_eager_execution()
 
 from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, ReflectModel
 from refnx.analysis import Objective, CurveFitter
 
 from generate_refnx import CurveGenerator
-from generate_data  import ImageGenerator, generate_images, DEPTH_BOUNDS, SLD_BOUNDS
+from generate_data  import *
 from merge_data     import merge
-from classification import classify
+from classification import classify, DIMS, CHANNELS
 from regression     import regress
-
-DIMS = (300, 300)
-CHANNELS = 1
-LAYERS_STR = {1: "one", 2: "two", 3: "three"}
-tf.compat.v1.disable_eager_execution()
 
 class DataLoaderClassification(Sequence):
     """DataLoaderClassification a Keras Sequence to load image data from a h5 file."""

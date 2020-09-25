@@ -1,8 +1,7 @@
 import h5py
 import os
 import numpy as np
-
-LAYERS_STR = {1: "one", 2: "two", 3: "three"} #String representations of each layer.
+from generate_data import LAYERS_STR #String representations of each layer.
 
 def merge(save_path, layers_paths):
     """Merges train, validate and test .h5 files for curves of different layers.

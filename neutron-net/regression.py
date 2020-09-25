@@ -11,11 +11,8 @@ from tensorflow.keras.utils      import Sequence
 from tensorflow.keras.callbacks  import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
-from generate_data  import ImageGenerator, DEPTH_BOUNDS, SLD_BOUNDS
-
-DIMS = (300, 300)
-CHANNELS = 1
-LAYERS_STR = {1: "one", 2: "two", 3: "three"}
+from generate_data  import *
+from classification import DIMS, CHANNELS
 
 class DataLoader(Sequence):
     """DataLoader uses a Keras Sequence to load image data from a h5 file."""
@@ -172,31 +169,31 @@ class Regressor():
         """
         # Convolutional Encoder
         input_img = Input(shape=(*self.dims, self.channels))
-        conv_1 = Conv2D(32, (3,3), activation='relu')(input_img)
-        pool_1 = MaxPooling2D((2,2))(conv_1)
-        conv_2 = Conv2D(64, (3,3), activation='relu')(pool_1)
-        pool_2 = MaxPooling2D((2,2), strides=(2,2))(conv_2)
-        conv_3 = Conv2D(32, (3,3), activation='relu')(pool_2)
-        pool_3 = MaxPooling2D((2,2))(conv_3)
-        conv_4 = Conv2D(16, (3,3), activation='relu')(pool_3)
-        pool_4 = MaxPooling2D((2,2))(conv_4)
-        flatten = Flatten()(pool_4)
+        conv_1    = Conv2D(32, (3,3), activation='relu')(input_img)
+        pool_1    = MaxPooling2D((2,2))(conv_1)
+        conv_2    = Conv2D(64, (3,3), activation='relu')(pool_1)
+        pool_2    = MaxPooling2D((2,2), strides=(2,2))(conv_2)
+        conv_3    = Conv2D(32, (3,3), activation='relu')(pool_2)
+        pool_3    = MaxPooling2D((2,2))(conv_3)
+        conv_4    = Conv2D(16, (3,3), activation='relu')(pool_3)
+        pool_4    = MaxPooling2D((2,2))(conv_4)
+        flatten   = Flatten()(pool_4)
 
         # Deep feed-forward network
-        dense_1_d = Dense(units=300, activation='relu', kernel_initializer='he_normal')(flatten)
+        dense_1_d   = Dense(units=300, activation='relu', kernel_initializer='he_normal')(flatten)
         dropout_1_d = Dropout(self.dropout)(dense_1_d)
-        dense_2_d = Dense(units=192, activation='relu', kernel_initializer='he_normal')(dropout_1_d)
+        dense_2_d   = Dense(units=192, activation='relu', kernel_initializer='he_normal')(dropout_1_d)
         dropout_2_d = Dropout(self.dropout)(dense_2_d)
-        dense_3_d = Dense(units=123, activation='relu', kernel_initializer='he_normal')(dropout_2_d)
+        dense_3_d   = Dense(units=123, activation='relu', kernel_initializer='he_normal')(dropout_2_d)
         dropout_3_d = Dropout(self.dropout)(dense_3_d)
-        dense_4_d = Dense(units=79, activation='relu', kernel_initializer='he_normal')(dropout_3_d)
+        dense_4_d   = Dense(units=79, activation='relu', kernel_initializer='he_normal')(dropout_3_d)
         dropout_4_d = Dropout(self.dropout)(dense_4_d)
-        dense_5_d = Dense(units=50, activation='relu', kernel_initializer='he_normal')(dropout_4_d)
+        dense_5_d   = Dense(units=50, activation='relu', kernel_initializer='he_normal')(dropout_4_d)
         dropout_5_d = Dropout(self.dropout)(dense_5_d)
-        depth_linear = Dense(units=self.outputs, activation='linear', name='depth')(dropout_5_d)
-        sld_linear = Dense(units=self.outputs, activation='linear', name='sld')(dropout_5_d)
+        depth_sigmoid = Dense(units=self.outputs, activation='sigmoid', name='depth')(dropout_5_d)
+        sld_sigmoid   = Dense(units=self.outputs, activation='sigmoid', name='sld')(dropout_5_d)
 
-        model = Model(inputs=input_img, outputs=[depth_linear, sld_linear])
+        model = Model(inputs=input_img, outputs=[depth_sigmoid, sld_sigmoid])
         model.compile(loss={'depth':'mse','sld':'mse'},
                         loss_weights={'depth':1,'sld':1},
                         optimizer = Nadam(self.learning_rate),
