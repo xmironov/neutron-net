@@ -7,5 +7,5 @@ matplotlib==3.2.0
 scikit-learn==0.22.2.post1
 scikit-image==0.16.2
 pandas==1.0.2
-tensorflow-gpu==2.1.0
+tensorflow-gpu==2.1.2
 comet_ml==3.1.2
