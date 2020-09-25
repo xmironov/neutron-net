@@ -49,9 +49,9 @@ class KerasDropoutPredicter():
             for i in range(n_iter):
                 [depths, slds] = self.f([images, 1]) # Set Dropout to True: 1
                 #De-scale predictions
-                depth_scaled = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
-                sld_scaled   = ImageGenerator.scale_to_range(slds,   (0, 1), ImageGenerator.sld_bounds)
-                results.append([depth_scaled, sld_scaled])
+                depth_unscaled = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
+                sld_unscaled   = ImageGenerator.scale_to_range(slds,   (0, 1), ImageGenerator.sld_bounds)
+                results.append([depth_unscaled, sld_unscaled])
 
             results = np.array(results)
             prediction, uncertainty = results.mean(axis=0), results.std(axis=0)

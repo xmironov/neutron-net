@@ -85,7 +85,7 @@ class DataLoaderClassification(Sequence):
 
     def __on_epoch_end(self):
         """Updates indices after each epoch."""
-        self.indexes = np.arange(len(self.labels.keys()))
+        self.indices = np.arange(len(self.labels.keys()))
 
 
 class DataLoaderRegression(Sequence):
@@ -124,7 +124,7 @@ class DataLoaderRegression(Sequence):
             A sample of images (inputs).
 
         """
-        indices = self.indexes[index: (index + 1)]
+        indices = self.indices[index: (index + 1)]
         indices = [list(self.labels_dict.keys())[k] for k in indices]
         images  = self.__data_generation(indices)
         return images
@@ -198,16 +198,16 @@ class KerasDropoutPredicter():
             results = []
 
             for i in range(n_iter):
-                # If one-layer
-                if y[0][0] == 1:
-                    result = self.f_1([x, 1])
-                # else if two-layer
-                elif y[0][0] == 2:
-                    result = self.f_2([x, 1])
-                # else if three-layer
-                elif y[0][0] == 3:
-                    result = self.f_3([x, 1])
-                results.append(result)
+                if y[0][0] == 1: # If one-layer
+                    [depths, slds] = self.f_1([x, 1])
+                elif y[0][0] == 2: #Else if two-layer
+                    [depths, slds] = self.f_2([x, 1])
+                elif y[0][0] == 3: #Else if three-layer
+                    [depths, slds] = self.f_3([x, 1])
+                    
+                depth_scaled = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
+                sld_scaled   = ImageGenerator.scale_to_range(slds,   (0, 1), ImageGenerator.sld_bounds)
+                results.append([depth_scaled, sld_scaled])
 
             results = np.array(results)
             prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
@@ -307,9 +307,11 @@ class Model():
     def plot_objective(self):
         """Plots the current objective against the loaded reflectivity data"""
         self.objective.plot()
+        plt.legend()
         plt.xlabel('Q')
         plt.ylabel('Reflectivity')
         plt.yscale('log')
+        plt.legend()
 
 
 class Pipeline:
@@ -326,25 +328,36 @@ class Pipeline:
             regressor_paths (dict): dictionary of paths to regressors for each layer.
 
         Returns:
-            List of predictions for the number of layers, SLDs and depths for each .dat file.
+            A list of models initialized with predicited values for each .dat file.
 
         """
-        dat_files = glob.glob(os.path.join(data_path, '*.dat')) #Search for the .dat files.
+        dat_files = glob.glob(os.path.join(data_path, '*.dat')) #Search for .dat files.
 
         #Classify the number of layers for each .dat file.
         layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path)
-        print("Predicted number of layers: {}\n".format(layer_predictions))
+        for curve in range(len(dat_files)):
+            filename = os.path.basename(dat_files[curve])
+            print("Results for '{}'".format(filename))
+            print(">>> Predicted number of layers: {}\n".format(layer_predictions[curve]))
 
         #Use regression to predict the SLDs and depths for each file.
-        #Currently hardcoded a single .dat file.
         sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames)
-        for i in range(layer_predictions[0]):
-            print("Predicted layer {0} - SLD: {1} | Depth: {2}".format(i+1, sld_predictions[0][i], depth_predictions[0][i]))
+        
+        models = [] #Print the predictions and errors for the depths and SLDs for each layer for each file.
+        for curve in range(len(dat_files)): #Iterate over each file.
+            filename = os.path.basename(dat_files[curve])
+            print("Results for '{}'".format(filename))
+            for i in range(layer_predictions[curve]): #Iterate over each layer
+                print(">>> Predicted layer {0} - SLD:   {1:10.4f} | Error: {2:10.6f}".format(i+1, sld_predictions[curve][i], sld_errors[curve][i]))
+                print(">>> Predicted layer {0} - Depth: {1:10.4f} | Error: {2:10.6f}".format(i+1, depth_predictions[curve][i], depth_errors[curve][i]))
 
-        #Create a refnx model with the predicted number of layers, SLDs and depths.
-        model = Model(dat_files[0], layer_predictions[0], sld_predictions[0], depth_predictions[0])
-        model.plot_objective()
-        return layer_predictions, sld_predictions, depth_predictions
+            #Create a refnx model with the predicted number of layers, SLDs and depths.
+            model = Model(dat_files[curve], layer_predictions[curve], sld_predictions[curve], depth_predictions[curve])
+            model.plot_objective()
+            models.append(model)
+            print()
+            
+        return models
 
     @staticmethod
     def __classify(dat_files, save_path, classifier_path):
@@ -408,12 +421,12 @@ class Pipeline:
         kdp_predictions = kdp.predict(loader, n_iter=1)
 
         #Predictions given as [depth_1, depth_2, depth_3], [sld_1, sld_2, sld_3]
-        depth_predictions = ImageGenerator.scale_to_range(kdp_predictions[0][0], (0, 1), ImageGenerator.depth_bounds)
-        sld_predictions   = ImageGenerator.scale_to_range(kdp_predictions[0][1], (0, 1), ImageGenerator.sld_bounds)
+        depth_predictions = kdp_predictions[0][0]
+        sld_predictions   = kdp_predictions[0][1]
 
         #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
-        depth_errors = ImageGenerator.scale_to_range(kdp_predictions[1][0], (0, 1), ImageGenerator.depth_bounds)
-        sld_errors   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), ImageGenerator.sld_bounds)
+        depth_errors = kdp_predictions[1][0]
+        sld_errors   = kdp_predictions[1][1]
 
         return sld_predictions, depth_predictions, sld_errors, depth_errors
 
@@ -527,17 +540,20 @@ class Pipeline:
 if __name__ == "__main__":
     save_path = './models/investigate'
     layers     = [1, 2, 3]
-    curve_num  = 500
-    chunk_size = 10
+    curve_num  = 25000
+    chunk_size = 1000
     show_plots       = True
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
-                   train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
+    #Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
+    #               train_classifier, train_regressor, classifer_epochs=20, regressor_epochs=15)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {1: load_path + "/one-layer-regressor/full_model.h5", 2: load_path + "/two-layer-regressor/full_model.h5"}
-    #Pipeline.run(data_path, save_path, classifier_path, regressor_paths)
+    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths)
+
+    #for model in models:
+    #    model.fit()
