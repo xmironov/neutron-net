@@ -12,7 +12,7 @@ from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
-from confusion_matrix_pretty_print import pretty_plot_confusion_matrix
+from confusion_matrix_pretty_print import ConfusionMatrixPrinter
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -146,7 +146,7 @@ class Classifier():
             callbacks=[learning_rate_reduction_cbk],
         )
 
-    def test(self, test_sequence, test_labels):
+    def test(self, test_sequence, test_labels, show_plots):
         """Evaluates the network against the test set.
 
         Args:
@@ -158,24 +158,25 @@ class Classifier():
         loss, accuracy = self.model.evaluate(test_sequence)
         print("Test Loss: {0} | Test Accuracy: {1}".format(loss, accuracy))
 
-        predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
-        predictions = np.argmax(predictions, axis=1)
-        remainder = len(test_labels) % self.batch_size
-
-        # Sometimes batch_size may not divide evenly into number of samples
-        # and so some trimming may be required
-        if remainder:
-            test_labels = test_labels[:-remainder]
-            
-        layers = np.max(predictions)
-        if layers == 2:
-            labels = [i for i in "12"]
-        else:
-            labels = [i for i in "123"]
-
-        cm = confusion_matrix(test_labels, predictions)
-        df_cm = pd.DataFrame(cm, index=labels, columns=labels)
-        pretty_plot_confusion_matrix(df_cm, save_path)
+        if show_plots:
+            predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
+            predictions = np.argmax(predictions, axis=1)
+            remainder = len(test_labels) % self.batch_size
+    
+            # Sometimes batch_size may not divide evenly into number of samples
+            # and so some trimming may be required
+            if remainder:
+                test_labels = test_labels[:-remainder]
+                
+            layers = np.max(predictions)
+            if layers == 2:
+                labels = [i for i in "12"]
+            else:
+                labels = [i for i in "123"]
+    
+            cm = confusion_matrix(test_labels, predictions)
+            df_cm = pd.DataFrame(cm, index=labels, columns=labels)
+            ConfusionMatrixPrinter.pretty_plot(df_cm)
 
     def save(self, save_path):
         """Saves the model under the given 'save_path'.
@@ -225,7 +226,7 @@ class Classifier():
         self.model.summary()
 
 def classify(data_path, save_path=None, load_path=None, train=True, summary=False, epochs=2,
-         learning_rate=0.0003, batch_size=40, dropout_rate=0.1, workers=1):
+         learning_rate=0.0003, batch_size=40, dropout_rate=0.1, workers=1, show_plots=True):
     """Either creates a classifier or loads an existing classifier, optionally
        trains the network and then evaluates it.
 
@@ -267,7 +268,7 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
     if train:
         model.train(train_loader, validate_loader)
 
-    model.test(test_loader, test_labels)
+    model.test(test_loader, test_labels, show_plots)
 
     if save_path is not None:
         model.save(save_path)

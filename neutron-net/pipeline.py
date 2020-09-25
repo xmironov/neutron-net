@@ -16,7 +16,7 @@ from refnx.reflect  import SLD, ReflectModel
 from refnx.analysis import Objective, CurveFitter
 
 from generate_refnx import CurveGenerator
-from generate_data  import *
+from generate_data  import generate_images, ImageGenerator, LAYERS_STR
 from merge_data     import merge
 from classification import classify, DIMS, CHANNELS
 from regression     import regress
@@ -265,8 +265,8 @@ class Model():
 
         for i in range(layers):
             layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=Model.roughness)
-            layer.sld.real.setp(bounds=SLD_BOUNDS, vary=True)
-            layer.thick.setp(bounds=DEPTH_BOUNDS,  vary=True)
+            layer.sld.real.setp(bounds=ImageGenerator.sld_bounds, vary=True)
+            layer.thick.setp(bounds=ImageGenerator.depth_bounds,  vary=True)
             self.structure = self.structure | layer  #Next comes each layer.
 
         si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=Model.roughness) #Then substrate
@@ -408,12 +408,12 @@ class Pipeline:
         kdp_predictions = kdp.predict(loader, n_iter=1)
 
         #Predictions given as [depth_1, depth_2, depth_3], [sld_1, sld_2, sld_3]
-        depth_predictions = ImageGenerator.scale_to_range(kdp_predictions[0][0], (0, 1), DEPTH_BOUNDS)
-        sld_predictions   = ImageGenerator.scale_to_range(kdp_predictions[0][1], (0, 1), SLD_BOUNDS)
+        depth_predictions = ImageGenerator.scale_to_range(kdp_predictions[0][0], (0, 1), ImageGenerator.depth_bounds)
+        sld_predictions   = ImageGenerator.scale_to_range(kdp_predictions[0][1], (0, 1), ImageGenerator.sld_bounds)
 
         #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
-        depth_errors = ImageGenerator.scale_to_range(kdp_predictions[1][0], (0, 1), DEPTH_BOUNDS)
-        sld_errors   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), SLD_BOUNDS)
+        depth_errors = ImageGenerator.scale_to_range(kdp_predictions[1][0], (0, 1), ImageGenerator.depth_bounds)
+        sld_errors   = ImageGenerator.scale_to_range(kdp_predictions[1][1], (0, 1), ImageGenerator.sld_bounds)
 
         return sld_predictions, depth_predictions, sld_errors, depth_errors
 
@@ -471,7 +471,7 @@ class Pipeline:
         return 'infer' if similarity < threshold else None
 
     @staticmethod
-    def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, generate_data=True,
+    def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, show_plots=True, generate_data=True,
               train_classifier=True, train_regressor=True, classifer_epochs=2, regressor_epochs=2):
         """Sets up the pipeline for predictions on .dat files by generating data and training.
 
@@ -505,22 +505,22 @@ class Pipeline:
         print("\n-------------- Classification -------------")
         if train_classifier:
             print(">>> Training classifier")
-            classify(save_path + "/data/merged", save_path, train=True, epochs=classifer_epochs) #Train the classifier.
+            classify(save_path + "/data/merged", save_path, train=True, epochs=classifer_epochs, show_plots=show_plots) #Train the classifier.
         else:
             print(">>> Loading classifier")
             load_path = save_path + "/classifier/full_model.h5" #Load a classifier.
-            classify(save_path + "/data/merged", load_path=load_path, train=False)
+            classify(save_path + "/data/merged", load_path=load_path, train=False, show_plots=show_plots)
 
         print("\n---------------- Regression ---------------")
         for layer in layers: #Train or load regressors for each layer that we are setting up for.
             data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
             if train_regressor:
                 print(">>> Training {}-layer regressor".format(LAYERS_STR[layer]))
-                regress(data_path_layer, layer, save_path, epochs=regressor_epochs) #Train the regressor.
+                regress(data_path_layer, layer, save_path, epochs=regressor_epochs, show_plots=show_plots) #Train the regressor.
             else:
                 print(">>> Loading {}-layer regressor".format(LAYERS_STR[layer]))
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
-                regress(data_path_layer, layer, load_path=load_path_layer, train=False)
+                regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots)
             print()
 
 if __name__ == "__main__":
@@ -528,13 +528,15 @@ if __name__ == "__main__":
     layers     = [1, 2, 3]
     curve_num  = 500
     chunk_size = 10
+    show_plots       = True
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    Pipeline.setup(save_path, layers, curve_num, chunk_size, generate_data, train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
+    Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
+                   train_classifier, train_regressor, classifer_epochs=1, regressor_epochs=1)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {1: load_path + "/one-layer-regressor/full_model.h5", 2: load_path + "/two-layer-regressor/full_model.h5"}
-    Pipeline.run(data_path, save_path, classifier_path, regressor_paths)
+    #Pipeline.run(data_path, save_path, classifier_path, regressor_paths)

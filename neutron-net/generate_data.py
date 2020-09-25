@@ -3,12 +3,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import color
 
-DEPTH_BOUNDS = (20, 3000) #Bounds on depth and SLD used for scaling targets.
-SLD_BOUNDS   = (-0.5, 10)
 LAYERS_STR   = {1: "one", 2: "two", 3: "three"}
 
 class ImageGenerator:
-    """The ImageGenerator class generates images from reflectivity data."""
+    """The ImageGenerator class generates images from reflectivity data.
+    
+    Class Attributes:
+        depth_bounds (tuple): bounds on depth used for scaling targets.
+        sld_bounds (tuple): bounds on sld used for scaling targets.
+        
+    """
+    depth_bounds = (20, 3000)
+    sld_bounds   = (-0.5, 10)
 
     @staticmethod
     def scale_targets(concatenated):
@@ -21,8 +27,8 @@ class ImageGenerator:
         for split, data in concatenated.items(): #Iterate over each split.
             scaled_targets = np.zeros(data['targets'].shape) #Blank array of zeros to fill in.
             for i in range(3): #Apply scaling to the depth and sld values for each layer.
-                scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   DEPTH_BOUNDS, (0, 1))
-                scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], SLD_BOUNDS,   (0, 1))
+                scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   ImageGenerator.depth_bounds, (0, 1))
+                scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_bounds,   (0, 1))
             concatenated[split]['targets_scaled'] = scaled_targets
 
     @staticmethod
@@ -165,7 +171,7 @@ class ImageGenerator:
         """
         fig = plt.figure(figsize=(3,3)) #Create matplotlib figure and setup axes.
         plt.plot(q, r)
-        plt.yscale("log", base=10)
+        plt.yscale("log")
         plt.xlim(0, 0.3)
         plt.ylim(10e-8, 1.5)
         plt.axis("off")

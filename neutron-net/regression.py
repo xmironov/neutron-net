@@ -11,7 +11,7 @@ from tensorflow.keras.utils      import Sequence
 from tensorflow.keras.callbacks  import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
-from generate_data  import *
+from generate_data  import ImageGenerator, LAYERS_STR
 from classification import DIMS, CHANNELS
 
 class DataLoader(Sequence):
@@ -221,8 +221,8 @@ class Regressor():
         """
         #Make predictions on test set and descale.
         scaled_preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
-        depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), DEPTH_BOUNDS)
-        slds   = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), SLD_BOUNDS)
+        depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), ImageGenerator.depth_bounds)
+        slds   = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_bounds)
 
         preds = np.zeros((len(depths[:,0]), 2*self.outputs)) #Format predictions into a single array
         for i in range(self.outputs):
@@ -274,7 +274,7 @@ class Regressor():
 
 
 def regress(data_path, layer, save_path=None, load_path=None, train=True, summary=False, epochs=2,
-         learning_rate=0.0004, batch_size=20, dropout_rate=0.1, workers=1):
+         learning_rate=0.0004, batch_size=20, dropout_rate=0.1, workers=1, show_plots=True):
     """Either creates a regressor or loads an existing regressor, optionally
        trains the network and then evaluates it.
 
@@ -318,8 +318,9 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     if save_path is not None:
         model.save(save_path)
 
-    test_labels = np.array(test_h5['targets'])
-    model.plot(test_labels, test_loader)
+    if show_plots:
+        test_labels = np.array(test_h5['targets'])
+        model.plot(test_labels, test_loader)
 
     train_h5.close()
     val_h5.close()
