@@ -2,6 +2,7 @@ import h5py, os
 os.environ["KMP_AFFINITY"] = "none"
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
@@ -10,6 +11,8 @@ from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropou
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
+
+from confusion_matrix_pretty_print import pretty_plot_confusion_matrix
 
 DIMS = (300, 300)
 CHANNELS = 1
@@ -163,9 +166,16 @@ class Classifier():
         # and so some trimming may be required
         if remainder:
             test_labels = test_labels[:-remainder]
+            
+        layers = np.max(predictions)
+        if layers == 2:
+            labels = [i for i in "12"]
+        else:
+            labels = [i for i in "123"]
 
         cm = confusion_matrix(test_labels, predictions)
-        print("Confusion Matrix\n", cm)
+        df_cm = pd.DataFrame(cm, index=labels, columns=labels)
+        pretty_plot_confusion_matrix(df_cm, save_path)
 
     def save(self, save_path):
         """Saves the model under the given 'save_path'.
@@ -287,4 +297,4 @@ if __name__ == "__main__":
     save_path = "./models/investigate"
     load_path = "./models/investigate/classifier/full_model.h5"
 
-    classify(data_path, save_path, load_path=load_path, train=True, epochs=10)
+    classify(data_path, save_path, load_path=load_path, train=False, epochs=10)
