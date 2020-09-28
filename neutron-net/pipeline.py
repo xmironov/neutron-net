@@ -6,10 +6,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils  import Sequence
-tf.compat.v1.disable_eager_execution()
 
 from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, ReflectModel
@@ -280,6 +280,7 @@ class Model():
         """Fits the model to the data using differential evolution"""
         fitter = CurveFitter(self.objective)
         fitter.fit('differential_evolution')
+        self.plot_objective(title='Reflectivity Plot using Fitted Values')
 
     def plot_SLD(self):
         """Plots the SLD profile for the model."""
@@ -304,21 +305,31 @@ class Model():
         plt.ylabel('Reflectivity')
         plt.yscale('log')
 
-    def plot_objective(self):
+    def plot_objective(self, title=None):
         """Plots the current objective against the loaded reflectivity data"""
-        self.objective.plot()
-        plt.legend()
-        plt.xlabel('Q')
-        plt.ylabel('Reflectivity')
+        fig = plt.figure(figsize=[9,7], dpi=200)
+        ax = fig.add_subplot(111)
+        
+        y, y_err, model = self.objective._data_transform(model=self.objective.generative())
+        # Add the data in a transformed fashion.
+        ax.errorbar(self.objective.data.x, y, y_err, label=self.objective.data.name,
+                    color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
+        #Add the fit
+        ax.plot(self.objective.data.x, model, color="red", label="Predicted", zorder=20)
+        
+        plt.xlabel('Q', fontsize=11, weight='bold')
+        plt.ylabel('Reflectivity', fontsize=11, weight='bold')
         plt.yscale('log')
         plt.legend()
+        if title:
+            plt.title(title, fontsize=15, pad=15)
 
 
 class Pipeline:
     """The Pipeline class can perform data generation, training and predictions."""
 
     @staticmethod
-    def run(data_path, save_path, classifier_path, regressor_paths):
+    def run(data_path, save_path, classifier_path, regressor_paths, n_iter=5):
         """Performs classification and regression to create a refnx model for given .dat files.
 
         Args:
@@ -326,6 +337,7 @@ class Pipeline:
             save_path (string): path to the directory where temporary files are to be stored.
             classifier_path (string): path to a pre-trained classifier.
             regressor_paths (dict): dictionary of paths to regressors for each layer.
+            n_iter (int): number of times to predict using the KDP.
 
         Returns:
             A list of models initialized with predicited values for each .dat file.
@@ -341,7 +353,7 @@ class Pipeline:
             print(">>> Predicted number of layers: {}\n".format(layer_predictions[curve]))
 
         #Use regression to predict the SLDs and depths for each file.
-        sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames)
+        sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter)
         
         models = [] #Print the predictions and errors for the depths and SLDs for each layer for each file.
         for curve in range(len(dat_files)): #Iterate over each file.
@@ -353,7 +365,7 @@ class Pipeline:
 
             #Create a refnx model with the predicted number of layers, SLDs and depths.
             model = Model(dat_files[curve], layer_predictions[curve], sld_predictions[curve], depth_predictions[curve])
-            model.plot_objective()
+            model.plot_objective(title='Reflectivity Plot using Predicted Values')
             models.append(model)
             print()
             
@@ -382,7 +394,7 @@ class Pipeline:
         return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
 
     @staticmethod
-    def __regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames):
+    def __regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter):
         """Performs SLD and depth regression for specified .dat files.
 
         Args:
@@ -392,6 +404,8 @@ class Pipeline:
             layer_predictions (ndarray): an array of layer predictions for each file.
             npy_image_filenames (ndarray): an array of filenames of files containing images
                                            corresponding to the input .dat files.
+            n_iter (int): number of times to predict using the KDP.
+                              
         Returns:
             SLD and depth predictions along with the errors for each.
 
@@ -418,7 +432,7 @@ class Pipeline:
 
         #Use custom class to activate Dropout at test time in models
         kdp = KerasDropoutPredicter(regressors)
-        kdp_predictions = kdp.predict(loader, n_iter=1)
+        kdp_predictions = kdp.predict(loader, n_iter=n_iter)
 
         #Predictions given as [depth_1, depth_2, depth_3], [sld_1, sld_2, sld_3]
         depth_predictions = kdp_predictions[0][0]
@@ -553,7 +567,7 @@ if __name__ == "__main__":
     data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {1: load_path + "/one-layer-regressor/full_model.h5", 2: load_path + "/two-layer-regressor/full_model.h5"}
-    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths)
+    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, n_iter=5)
 
-    #for model in models:
-    #    model.fit()
+    for model in models:
+        model.fit()
