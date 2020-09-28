@@ -259,8 +259,8 @@ class Regressor():
                 if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
                     ax.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
                 ax.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
-                ax.set_xlim(-100, 3000)
-                ax.set_ylim(-100, 3000)
+                ax.set_xlim(-100, 3100)
+                ax.set_ylim(-100, 3100)
                 ax.annotate(row_headers[k//2], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
                             xycoords=ax.yaxis.label, textcoords="offset points",
                             size="large", ha="right", va="center")
@@ -268,8 +268,8 @@ class Regressor():
                 if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
                     ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
                 ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
-                ax.set_xlim(-1, 11)
-                ax.set_ylim(-1, 11)
+                ax.set_xlim(-1, 10.5)
+                ax.set_ylim(-1, 10.5)
             
 
         plt.show()
@@ -307,8 +307,8 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     test_dir  = os.path.join(data_path, 'test.h5')
 
     train_h5 = h5py.File(train_dir, 'r')
-    val_h5   = h5py.File(val_dir, 'r')
-    test_h5  = h5py.File(test_dir, 'r')
+    val_h5   = h5py.File(val_dir,   'r')
+    test_h5  = h5py.File(test_dir,  'r')
 
     train_loader = DataLoader(train_h5, DIMS, CHANNELS, batch_size, layer)
     valid_loader = DataLoader(val_h5,   DIMS, CHANNELS, batch_size, layer)
