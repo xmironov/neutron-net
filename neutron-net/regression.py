@@ -190,10 +190,10 @@ class Regressor():
         dropout_4_d = Dropout(self.dropout)(dense_4_d)
         dense_5_d   = Dense(units=50, activation='relu', kernel_initializer='he_normal')(dropout_4_d)
         dropout_5_d = Dropout(self.dropout)(dense_5_d)
-        depth_sigmoid = Dense(units=self.outputs, activation='sigmoid', name='depth')(dropout_5_d)
-        sld_sigmoid   = Dense(units=self.outputs, activation='sigmoid', name='sld')(dropout_5_d)
+        depth_linear = Dense(units=self.outputs, activation='linear', name='depth')(dropout_5_d)
+        sld_linear   = Dense(units=self.outputs, activation='linear', name='sld')(dropout_5_d)
 
-        model = Model(inputs=input_img, outputs=[depth_sigmoid, sld_sigmoid])
+        model = Model(inputs=input_img, outputs=[depth_linear, sld_linear])
         model.compile(loss={'depth':'mse','sld':'mse'},
                         loss_weights={'depth':1,'sld':1},
                         optimizer = Nadam(self.learning_rate),
