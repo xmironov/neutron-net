@@ -258,6 +258,7 @@ class Plotter:
         """
         layers = len(load_paths.values()) #Get the number of layers (either 2 or 3).
         for layer in range(1, layers+1): #Iterate over each layer to make separate plots for each.
+            print(">>> Creating regression plot for {}-layer samples".format(LAYERS_STR[layer]))
             model  = load_model(load_paths[layer])
             file   = h5py.File(data_path+"/{}/test.h5".format(LAYERS_STR[layer]), "r")
             loader = DataLoader(file, DIMS, CHANNELS, batch_size, layer)

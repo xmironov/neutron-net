@@ -25,7 +25,7 @@ class DataLoaderClassification(Sequence):
     """DataLoaderClassification a Keras Sequence to load image data from a h5 file."""
 
     def __init__(self, labels, dim, channels, batch_size):
-        """Initalises the DataLoaderClassification class with given parameters.
+        """Initialises the DataLoaderClassification class with given parameters.
 
         Args:
             labels (ndarray): the labels corresponding to the loaded data.
@@ -279,8 +279,8 @@ class Model():
     def fit(self):
         """Fits the model to the data using differential evolution"""
         fitter = CurveFitter(self.objective)
-        fitter.fit('differential_evolution')
-        self.plot_objective(title='Reflectivity Plot using Fitted Values')
+        fitter.fit('differential_evolution', verbose=False)
+        self.plot_objective(prediction=False)
 
     def plot_SLD(self):
         """Plots the SLD profile for the model."""
@@ -305,8 +305,19 @@ class Model():
         plt.ylabel('Reflectivity')
         plt.yscale('log')
 
-    def plot_objective(self, title=None):
-        """Plots the current objective against the loaded reflectivity data"""
+    def plot_objective(self, prediction=True):
+        """Plots the current objective for the model against given dataset.
+
+        Args:
+            prediction (Boolean): whether the plot is a prediction or fit.
+
+        """
+        if prediction:
+            title='Reflectivity Plot using Predicted Values'
+            label="Predicted"
+        else:
+            title='Reflectivity Plot using Fitted Values'
+            label="Fitted"
         fig = plt.figure(figsize=[9,7], dpi=200)
         ax = fig.add_subplot(111)
         
@@ -315,7 +326,7 @@ class Model():
         ax.errorbar(self.objective.data.x, y, y_err, label=self.objective.data.name,
                     color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
         #Add the fit
-        ax.plot(self.objective.data.x, model, color="red", label="Predicted", zorder=20)
+        ax.plot(self.objective.data.x, model, color="red", label=label, zorder=20)
         
         plt.xlabel('Q', fontsize=11, weight='bold')
         plt.ylabel('Reflectivity', fontsize=11, weight='bold')
@@ -329,7 +340,7 @@ class Pipeline:
     """The Pipeline class can perform data generation, training and predictions."""
 
     @staticmethod
-    def run(data_path, save_path, classifier_path, regressor_paths, n_iter=5):
+    def run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=5):
         """Performs classification and regression to create a refnx model for given .dat files.
 
         Args:
@@ -337,10 +348,11 @@ class Pipeline:
             save_path (string): path to the directory where temporary files are to be stored.
             classifier_path (string): path to a pre-trained classifier.
             regressor_paths (dict): dictionary of paths to regressors for each layer.
+            fit (Boolean): whether to fit the newly generated models.
             n_iter (int): number of times to predict using the KDP.
 
         Returns:
-            A list of models initialized with predicited values for each .dat file.
+            A dictionary of models, index by filename, initialized with predicted values for each .dat file.
 
         """
         dat_files = glob.glob(os.path.join(data_path, '*.dat')) #Search for .dat files.
@@ -355,7 +367,8 @@ class Pipeline:
         #Use regression to predict the SLDs and depths for each file.
         sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter)
         
-        models = [] #Print the predictions and errors for the depths and SLDs for each layer for each file.
+        models = {} 
+        #Print the predictions and errors for the depths and SLDs for each layer for each file.
         for curve in range(len(dat_files)): #Iterate over each file.
             filename = os.path.basename(dat_files[curve])
             print("Results for '{}'".format(filename))
@@ -365,9 +378,12 @@ class Pipeline:
 
             #Create a refnx model with the predicted number of layers, SLDs and depths.
             model = Model(dat_files[curve], layer_predictions[curve], sld_predictions[curve], depth_predictions[curve])
-            model.plot_objective(title='Reflectivity Plot using Predicted Values')
-            models.append(model)
+            model.plot_objective(prediction=True)
+            models[filename] = model
             print()
+            
+        if fit: #Fit each model if requested.
+            Pipeline.__fit(models)
             
         return models
 
@@ -421,15 +437,6 @@ class Pipeline:
         loader = DataLoaderRegression(values_labels, DIMS, CHANNELS)
         regressors = {layer: load_model(regressor_paths[layer]) for layer in regressor_paths.keys()}
 
-        """
-        model = regressors[layer_predictions[0]]
-        preds = model.predict(loader, use_multiprocessing=False, verbose=1)
-        depth, sld = preds[0], preds[1]
-        depth = ImageGenerator.scale_to_range(depth, (0, 1), DEPTH_BOUNDS)
-        sld   = ImageGenerator.scale_to_range(sld,   (0, 1), SLD_BOUNDS)
-        return sld, depth, 0, 0
-        """
-
         #Use custom class to activate Dropout at test time in models
         kdp = KerasDropoutPredicter(regressors)
         kdp_predictions = kdp.predict(loader, n_iter=n_iter)
@@ -443,6 +450,24 @@ class Pipeline:
         sld_errors   = kdp_predictions[1][1]
 
         return sld_predictions, depth_predictions, sld_errors, depth_errors
+
+    @staticmethod
+    def __fit(models):
+        """Performs fitting on the given models.
+
+        Args:
+            models (dict): a dictionary of refnx models, index by filename.
+
+        """
+        print("----------------- Fitting -----------------")
+        for filename in models.keys(): #Iterate over each model and fit.
+            print("Results for '{}'".format(filename))
+            model = models[filename]
+            model.fit()
+            for i, component in enumerate(model.structure.components[1:-1]): #Iterate over each layer
+                print(">>> Fitted layer {0} - SLD:   {1:10.4f}".format(i+1, component.sld.real.value))
+                print(">>> Fitted layer {0} - Depth: {1:10.4f}".format(i+1, component.thick.value))
+            print()
 
     @staticmethod
     def __dat_files_to_npy_images(dat_files, save_path):
@@ -552,7 +577,7 @@ class Pipeline:
             print()
 
 if __name__ == "__main__":
-    save_path = './models/investigate'
+    save_path = './models/deploy'
     layers     = [1, 2, 3]
     curve_num  = 25000
     chunk_size = 1000
@@ -563,11 +588,9 @@ if __name__ == "__main__":
     #Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
     #               train_classifier, train_regressor, classifer_epochs=20, regressor_epochs=15)
 
-    load_path = "./models/investigate"
-    data_path = "./models/investigate"
+    load_path = "./models/deploy"
+    data_path = "./models/deploy"
     classifier_path = load_path + "/classifier/full_model.h5"
-    regressor_paths = {1: load_path + "/one-layer-regressor/full_model.h5", 2: load_path + "/two-layer-regressor/full_model.h5"}
-    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, n_iter=5)
-
-    for model in models:
-        model.fit()
+    layers = 2
+    regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
+    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=100)
