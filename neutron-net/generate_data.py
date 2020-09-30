@@ -239,10 +239,7 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
             if display_status:
                 print("\n>>> Generating images for {}.h5".format(section))
 
-            to_store = []
-            for i, sample in enumerate(base_file['inputs']): #Create images for each sample.
-                to_store.append(ImageGenerator.image_process(sample))
-                
+            to_store = [ImageGenerator.image_process(sample) for sample in base_file['inputs']] #Create images for each sample.
             base_file.create_dataset('images', (len(base_file['inputs']),300,300,1), data=to_store, chunks=(chunk_size,300,300,1)) 
 
 
