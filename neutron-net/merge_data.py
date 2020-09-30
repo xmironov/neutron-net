@@ -36,7 +36,7 @@ def merge(save_path, layers_paths):
 
 
 if __name__ == "__main__":
-    layers = [1, 2]
+    layers = [1, 2, 3]
     layers_paths = ["./models/investigate/data/{}".format(LAYERS_STR[layer]) for layer in layers]
     save_path = "./models/investigate/data"
 

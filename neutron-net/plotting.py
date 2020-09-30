@@ -296,4 +296,4 @@ if __name__ == "__main__":
     layers = 3
     data_path  = "./models/investigate/data"
     load_paths = {i: "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    Plotter.kdp_plot(data_path, load_paths)
+    Plotter.kdp_plot(data_path, load_paths, n_iter=100)

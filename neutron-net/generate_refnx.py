@@ -208,11 +208,12 @@ class CurveGenerator:
 
 
 if __name__ == "__main__":
-    save_path = './models/investigate/test'
-    layers = ['one', 'two']
+    save_path = './models/investigate/data'
+    layers = ['one', 'two', 'three']
+    num_curves = 1000
 
     for i, name in enumerate(layers):
         layers = i+1
         print(">>> Generating {}-layer curves".format(layers))
-        structures = CurveGenerator.generate(1, layers, substrate_SLD=2.047)
+        structures = CurveGenerator.generate(num_curves, layers, substrate_SLD=2.047)
         CurveGenerator.save(save_path, name, structures, noisy=False)

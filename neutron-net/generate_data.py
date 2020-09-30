@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import color
 
-LAYERS_STR   = {1: "one", 2: "two", 3: "three"}
+LAYERS_STR = {1: "one", 2: "two", 3: "three"}
 
 class ImageGenerator:
     """The ImageGenerator class generates images from reflectivity data.
@@ -45,6 +45,7 @@ class ImageGenerator:
 
         """
         old_min, old_max = old_range
+        old_value = np.maximum(old_min, np.minimum(old_max, old_value)) #Make sure the old value is within the old range.
         new_min, new_max = new_range
         return (((old_value - old_min) * (new_max - new_min)) / (old_max - old_min)) + new_min
 
@@ -235,18 +236,18 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
             for type_of_data, data in dictionary.items():
                 base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
 
-        if display_status:
-            print("\n>>> Generating images for {}.h5".format(section))
+            if display_status:
+                print("\n>>> Generating images for {}.h5".format(section))
 
-        with h5py.File(file, 'a') as modified_file:
-            images = modified_file.create_dataset('images', (len(modified_file['inputs']),300,300,1), chunks=(chunk_size,300,300,1))
+            to_store = []
+            for i, sample in enumerate(base_file['inputs']): #Create images for each sample.
+                to_store.append(ImageGenerator.image_process(sample))
+                
+            base_file.create_dataset('images', (len(base_file['inputs']),300,300,1), data=to_store, chunks=(chunk_size,300,300,1)) 
 
-            for i, sample in enumerate(modified_file['inputs']): #Create images for each sample.
-                img = ImageGenerator.image_process(sample)
-                images[i] = img
 
 if __name__ == "__main__":
-    data_path = "./models/investigate/data/two"
-    save_path = "./models/investigate/data/two"
-    layers = [2]
-    generate_images(data_path, save_path, layers, chunk_size=500)
+    data_path = "./models/investigate/data/three"
+    save_path = "./models/investigate/data/three"
+    layers = [3]
+    generate_images(data_path, save_path, layers, chunk_size=100)

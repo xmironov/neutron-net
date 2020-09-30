@@ -54,8 +54,8 @@ class DataLoader(Sequence):
             A `batch_size` sample of images (inputs) and classes (targets).
 
         """
-        indexes = self.indexes[index*self.batch_size: (index + 1)*self.batch_size]
-        images, targets = self.__data_generation(indexes)
+        indices = self.indices[index*self.batch_size: (index + 1)*self.batch_size]
+        images, targets = self.__data_generation(indices)
         return images, targets
 
     def __data_generation(self, indices):
@@ -89,7 +89,7 @@ class DataLoader(Sequence):
 
     def __on_epoch_end(self):
         """Updates indices after each epoch."""
-        self.indexes = np.arange(len(self.file['images']))
+        self.indices = np.arange(len(self.file['images']))
 
 
 class Regressor():
@@ -334,9 +334,10 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     test_h5.close()
 
 if __name__ == "__main__":
-    layer     = 3
+    layer     = 1
     data_path = "./models/investigate/data/{}".format(LAYERS_STR[layer])
     save_path = "./models/investigate"
     load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
-
-    regress(data_path, layer, save_path, load_path=load_path, train=False, epochs=10)
+    
+    regress(data_path, layer, save_path, train=True, epochs=10) #Train from new
+    #regress(data_path, layer, save_path, load_path=load_path, train=False, epochs=10) #Load existing

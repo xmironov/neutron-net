@@ -89,7 +89,7 @@ class DataLoaderClassification(Sequence):
 
 
 class DataLoaderRegression(Sequence):
-    """DataLoaderRegression uses a Keras Sequence to load image data from a h5 file."""
+    """DataLoaderRegression uses a Keras Sequence to load image data from a Numpy image file."""
 
     def __init__(self, labels_dict, dim, channels):
         """Initialises the DataLoaderRegression class with given parameters.
@@ -112,7 +112,7 @@ class DataLoaderRegression(Sequence):
             An integer number of batches per epoch.
 
         """
-        return int(np.floor(len(self.labels_dict.keys()))) #batch_size is set as 1
+        return len(self.labels_dict.keys()) #batch_size is set as 1
 
     def __getitem__(self, index):
         """Generates one batch of data.
@@ -163,16 +163,15 @@ class KerasDropoutPredicter():
             models (list): a list of Keras models.
 
         """
-        # One-layer model function
+        #One-layer model function
         self.f_1 = K.function([models[1].layers[0].input, K.learning_phase()],
                               [models[1].layers[-2].output, models[1].layers[-1].output])
 
-        # Two-layer model function
+        #Two-layer model function
         self.f_2 = K.function([models[2].layers[0].input, K.learning_phase()],
                               [models[2].layers[-2].output, models[2].layers[-1].output])
 
-        if len(models) == 3:
-            # Three-layer model function
+        if len(models) == 3: #Three-layer model function
             self.f_3 = K.function([models[3].layers[0].input, K.learning_phase()],
                                   [models[3].layers[-2].output, models[3].layers[-1].output])
 
@@ -441,11 +440,9 @@ class Pipeline:
         kdp = KerasDropoutPredicter(regressors)
         kdp_predictions = kdp.predict(loader, n_iter=n_iter)
 
-        #Predictions given as [depth_1, depth_2, depth_3], [sld_1, sld_2, sld_3]
         depth_predictions = kdp_predictions[0][0]
         sld_predictions   = kdp_predictions[0][1]
 
-        #Errors given as [depth_std_1, depth_std_2], [sld_std_1, sld_std_2]
         depth_errors = kdp_predictions[1][0]
         sld_errors   = kdp_predictions[1][1]
 
@@ -577,20 +574,20 @@ class Pipeline:
             print()
 
 if __name__ == "__main__":
-    save_path = './models/deploy'
+    save_path = './models/investigate'
     layers     = [1, 2, 3]
-    curve_num  = 25000
+    curve_num  = 10000
     chunk_size = 1000
     show_plots       = True
     generate_data    = True
     train_classifier = True
     train_regressor  = True
     #Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
-    #               train_classifier, train_regressor, classifer_epochs=20, regressor_epochs=15)
+    #               train_classifier, train_regressor, classifer_epochs=25, regressor_epochs=20)
 
-    load_path = "./models/deploy"
-    data_path = "./models/deploy"
+    load_path = "./models/investigate"
+    data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
-    layers = 2
+    layers = 3
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
     models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=100)
