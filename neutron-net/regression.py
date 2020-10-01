@@ -157,7 +157,7 @@ class Regressor():
         """
         print("Evaluating")
         results = self.model.evaluate(test_seq)
-        print("Depth Loss: {0} | SLD Loss: {1}\nDepth mae:  {2} | SLD mae:  {3}".format(results[1], results[2], results[3], results[4]))
+        print("Depth Loss: {0:10.8f} | Depth mae: {1:10.8f}\nSLD Loss:   {2:10.8f} | SLD mae:   {3:10.8f}".format(results[1], results[3], results[2], results[4]))
 
     def create_model(self):
         """Creates the regressor network.
@@ -338,4 +338,4 @@ if __name__ == "__main__":
     load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
     
     regress(data_path, layer, save_path, train=True, epochs=10) #Train from new
-    #regress(data_path, layer, save_path, load_path=load_path, train=False, epochs=10) #Load existing
+    #regress(data_path, layer, save_path, load_path=load_path, train=False) #Load existing

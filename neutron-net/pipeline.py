@@ -545,11 +545,10 @@ class Pipeline:
                 print(">>> Creating images for {}-layer curves".format(layer))
                 save_path_layer = data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
                 #Create images for the generated curves, ready for input to the classifier and regressors.
-                generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=False)
-
+                generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=True)
             layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
             merge(save_path + "/data", layers_paths) #Merge the curves for each layer for classification.
-        
+
         print("\n-------------- Classification -------------")
         if train_classifier:
             print(">>> Training classifier")
@@ -570,23 +569,23 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots)
             print()
-            
+    
         
 if __name__ == "__main__":
     save_path = './models/investigate'
     layers     = [1, 2, 3]
-    curve_num  = 10000
+    curve_num  = 25000
     chunk_size = 1000
     show_plots       = True
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    #Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
-    #               train_classifier, train_regressor, classifer_epochs=25, regressor_epochs=20)
+    Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
+                   train_classifier, train_regressor, classifer_epochs=25, regressor_epochs=20)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
-    layers = 2
+    layers = 3
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=10)
+    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=100)
