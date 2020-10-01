@@ -11,8 +11,7 @@ from tensorflow.keras.utils      import Sequence
 from tensorflow.keras.callbacks  import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
 
-from generate_data  import ImageGenerator, LAYERS_STR
-from classification import DIMS, CHANNELS
+from generate_data import ImageGenerator, LAYERS_STR, DIMS, CHANNELS, IMAGE_BITS
 
 class DataLoader(Sequence):
     """DataLoader uses a Keras Sequence to load image data from a h5 file."""
@@ -73,7 +72,7 @@ class DataLoader(Sequence):
         targets_sld   = np.empty((self.batch_size, self.layers), dtype=float)
 
         for i, idx in enumerate(indices): #Get images and targets for each index
-            image  = self.file['images'][idx]
+            image  = self.file['images'][idx] / (2**IMAGE_BITS)
             values = self.file['targets_scaled'][idx]
 
             length = len(values)
@@ -268,10 +267,9 @@ class Regressor():
                 if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
                     ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
                 ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
-                ax.set_xlim(-1, 10.5)
-                ax.set_ylim(-1, 10.5)
+                ax.set_xlim(-1.5, 10.5)
+                ax.set_ylim(-1.5, 10.5)
             
-
         plt.show()
 
     def summary(self):

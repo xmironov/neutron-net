@@ -11,12 +11,11 @@ from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropou
 from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.optimizers import Nadam
+tf.compat.v1.disable_eager_execution()
 
+from generate_data import DIMS, CHANNELS, IMAGE_BITS
 from confusion_matrix_pretty_print import ConfusionMatrixPrinter
 
-DIMS = (300, 300)
-CHANNELS = 1
-tf.compat.v1.disable_eager_execution()
 
 class DataLoader(Sequence):
     """DataLoader uses a Keras Sequence to load image data from a h5 file."""
@@ -78,7 +77,7 @@ class DataLoader(Sequence):
         classes = np.empty((self.batch_size, 1), dtype=int)
 
         for i, idx in enumerate(indices): #Get images and classes for each index
-            images[i,]  = np.array(self.file["images"][idx])
+            images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS)
             classes[i,] = self.labels[idx]
         return images, classes
 

@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 
-from generate_data  import ImageGenerator, LAYERS_STR
+from generate_data  import ImageGenerator, LAYERS_STR, DIMS, CHANNELS
 from regression     import DataLoader
-from classification import DIMS, CHANNELS
 
 class KerasDropoutPredicter():
     """KerasDropoutPredicter takes trained models and uses dropout at test time to make Bayesian-like predictions."""
@@ -98,7 +97,7 @@ class Plotter:
 
     """
     depth_axis  = (-250, 3250)
-    sld_axis    = (-1, 11)
+    sld_axis    = (-1.5, 10.5)
     depth_ticks = (0, 1000, 2000, 3000)
     sld_ticks   = (0, 2.5, 5, 7.5, 10)
     pad   = 55
@@ -168,7 +167,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the single layer
         Plotter.__depth_subplot(ax_depth, labels[:,0], preds[:,0], errors[:,0], x_axis_label=True)
-        Plotter.__sld_subplot(ax_sld, labels[:,1], preds[:,1], errors[:,1], x_axis_label=True)
+        Plotter.__sld_subplot(ax_sld,     labels[:,1], preds[:,1], errors[:,1], x_axis_label=True)
         ax_depth.annotate("Layer 1", xy=(0, 0.5),
                           xytext=(-ax_depth.yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                           xycoords="axes points", textcoords="offset points",
@@ -191,7 +190,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the first layer
         Plotter.__depth_subplot(axes[0][0], labels[:,0], preds[:,0], errors[:,0])
-        Plotter.__sld_subplot(axes[0][1], labels[:,1], preds[:,1], errors[:,1])
+        Plotter.__sld_subplot(axes[0][1],   labels[:,1], preds[:,1], errors[:,1])
         axes[0][0].annotate("Layer 1",
                             xy=(0, 0.5), xytext=(-axes[0][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -199,7 +198,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the second layer
         Plotter.__depth_subplot(axes[1][0], labels[:,2], preds[:,2], errors[:,2], x_axis_label=True)
-        Plotter.__sld_subplot(axes[1][1], labels[:,3], preds[:,3], errors[:,3], x_axis_label=True)
+        Plotter.__sld_subplot(axes[1][1],   labels[:,3], preds[:,3], errors[:,3], x_axis_label=True)
         axes[1][0].annotate("Layer 2", xy=(0, 0.5),
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -222,7 +221,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the first layer
         Plotter.__depth_subplot(axes[0][0], labels[:,0], preds[:,0], errors[:,0])
-        Plotter.__sld_subplot(axes[0][1], labels[:,1], preds[:,1], errors[:,1])
+        Plotter.__sld_subplot(axes[0][1],   labels[:,1], preds[:,1], errors[:,1])
         axes[0][0].annotate("Layer 1", xy=(0, 0.5),
                             xytext=(-axes[0][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -230,7 +229,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the second layer
         Plotter.__depth_subplot(axes[1][0], labels[:,2], preds[:,2], errors[:,2])
-        Plotter.__sld_subplot(axes[1][1], labels[:,3], preds[:,3], errors[:,3])
+        Plotter.__sld_subplot(axes[1][1],   labels[:,3], preds[:,3], errors[:,3])
         axes[1][0].annotate("Layer 2", xy=(0, 0.5),
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -238,7 +237,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the third layer
         Plotter.__depth_subplot(axes[2][0], labels[:,4], preds[:,4], errors[:,4], x_axis_label=True)
-        Plotter.__sld_subplot(axes[2][1], labels[:,5], preds[:,5], errors[:,5], x_axis_label=True)
+        Plotter.__sld_subplot(axes[2][1],   labels[:,5], preds[:,5], errors[:,5], x_axis_label=True)
         axes[2][0].annotate("Layer 3", xy=(0, 0.5),
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -285,9 +284,9 @@ class Plotter:
 
             #Call the relevant method for each layer.
             if layer == 1:
-                Plotter.__one_layer_plot(preds_padded, labels_padded, errors_padded)
+                Plotter.__one_layer_plot(preds_padded,   labels_padded, errors_padded)
             elif layer == 2:
-                Plotter.__two_layer_plot(preds_padded, labels_padded, errors_padded)
+                Plotter.__two_layer_plot(preds_padded,   labels_padded, errors_padded)
             elif layer == 3:
                 Plotter.__three_layer_plot(preds_padded, labels_padded, errors_padded)
 
@@ -296,4 +295,4 @@ if __name__ == "__main__":
     layers = 3
     data_path  = "./models/investigate/data"
     load_paths = {i: "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    Plotter.kdp_plot(data_path, load_paths, n_iter=100)
+    Plotter.kdp_plot(data_path, load_paths, n_iter=10)

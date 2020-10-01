@@ -14,7 +14,7 @@ class CurveGenerator:
     roughness = 2
 
     @staticmethod
-    def generate(generate_num, layers, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=None):
+    def generate(generate_num, layers, sld_bounds=(-1,10), thick_bounds=(20,3000), substrate_SLD=None):
         """Generates `generate_num` curves with given number of layers, bounds on SLD and thickness,
            and substrate SLD. Bias is placed on thickness towards thinner layers.
 

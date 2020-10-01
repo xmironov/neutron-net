@@ -1,9 +1,9 @@
 import h5py
 import os
 import numpy as np
-from generate_data import LAYERS_STR #String representations of each layer.
+from generate_data import LAYERS_STR, DTYPES #String representations of each layer.
 
-def merge(save_path, layers_paths):
+def merge(save_path, layers_paths, display_status=True):
     """Merges train, validate and test .h5 files for curves of different layers.
        This is used in training the classifier.
 
@@ -16,28 +16,54 @@ def merge(save_path, layers_paths):
     if not os.path.exists(save_path): #Make the directory if not already present.
         os.makedirs(save_path)
 
-    for split in ['train', 'validate', 'test']: #Iterate over each split.
-        print(">>> Merging {}.h5 files".format(split))
-        datasets = {dataset: [] for dataset in ('images', 'inputs', 'layers', 'targets', 'targets_scaled')}
+    for split in ('train', 'validate', 'test'): #Iterate over each split.
+        if display_status:
+            print("\n>>> Merging {}.h5 files".format(split))
 
-        for layer_path in layers_paths: #Iterate over each directory for each of the layers' data to merge.
-            with h5py.File(layer_path + "/{}.h5".format(split), 'r') as old_file:
-                for dataset in datasets.keys():
-                    datasets[dataset].append(np.array(old_file[dataset])) #Add the previous datasets to the new file.
-
+        old_files = [h5py.File(layer_path + "/{}.h5".format(split), 'r') for layer_path in layers_paths]
+        
+        shapes = {dataset: old_files[0][dataset].shape[1:] for dataset in DTYPES.keys()}
+        
+        old_num_curves = old_files[0]['layers'].shape[0]
+        new_num_curves = old_num_curves*len(old_files)
+        
         with h5py.File(save_path + "/{}.h5".format(split), 'w') as new_file:
-            total_curves = len(datasets["layers"][1]) * len(layers_paths) # Number of curves per layer multiplied by the number of layers
-            indices = np.arange(total_curves)
-            np.random.shuffle(indices)
+            old_chunk_size = 100
+            new_chunk_size = old_chunk_size*len(old_files)
+            
+            for dataset in shapes.keys():
+                new_file.create_dataset(dataset, shape=(new_num_curves, *shapes[dataset]), 
+                                                 chunks=(new_chunk_size, *shapes[dataset]),
+                                                 dtype=DTYPES[dataset])
+            
+            steps = int(new_num_curves / new_chunk_size) # Handle case where this is not an int
+            for i in range(0, steps):
+                new_start = i*new_chunk_size
+                new_end   = (i+1)*new_chunk_size
+                
+                old_start = i*old_chunk_size
+                old_end   = (i+1)*old_chunk_size
 
-            for dataset in datasets.keys():
-                concatenated = np.concatenate(datasets[dataset]) #Concatenate the list of separate datasets.
-                new_file[dataset] = concatenated[indices] #Randomly shuffle the new datasets
-
+                indices = np.arange(new_chunk_size)
+                np.random.shuffle(indices)
+    
+                datasets = {dataset: [] for dataset in DTYPES.keys()}
+                for dataset in datasets.keys():
+                    for old_file in old_files:
+                        datasets[dataset].append(np.array(old_file[dataset][old_start:old_end])) #Add the previous datasets to the new file.
+    
+                    concatenated = np.concatenate(datasets[dataset]) #Concatenate the list of separate datasets.
+                    new_file[dataset][new_start:new_end] = concatenated[indices] #Randomly shuffle the new datasets
+                    
+                if display_status and i % int(steps/10) == 0:
+                    print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps))
+        
+        for old_file in old_files:
+            old_file.close()
 
 if __name__ == "__main__":
     layers = [1, 2, 3]
     layers_paths = ["./models/investigate/data/{}".format(LAYERS_STR[layer]) for layer in layers]
     save_path = "./models/investigate/data"
 
-    merge(save_path, layers_paths)
+    merge(save_path, layers_paths, display_status=True)

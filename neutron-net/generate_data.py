@@ -4,6 +4,14 @@ import numpy as np
 from skimage import color
 
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
+DIMS       = (300, 300)
+CHANNELS   = 1
+IMAGE_BITS = 16
+DTYPES = {'images': np.dtype(np.uint16),
+          'inputs': np.dtype(np.float32),
+          'layers': np.dtype(np.uint8),
+          'targets': np.dtype(np.float32),
+          'targets_scaled': np.dtype(np.float32)}
 
 class ImageGenerator:
     """The ImageGenerator class generates images from reflectivity data.
@@ -14,7 +22,7 @@ class ImageGenerator:
         
     """
     depth_bounds = (20, 3000)
-    sld_bounds   = (-0.5, 10)
+    sld_bounds   = (-1, 10)
 
     @staticmethod
     def scale_targets(concatenated):
@@ -143,7 +151,7 @@ class ImageGenerator:
                 split[type_of_data] = split[type_of_data][indices]
 
     @staticmethod
-    def image_process(sample):
+    def image_process(sample, save_format=False):
         """Processes a sample by generating an image for it and resizing it.
 
         Args:
@@ -156,7 +164,9 @@ class ImageGenerator:
         q = sample[:,0]
         r = sample[:,1]
         image = ImageGenerator.__get_image(q, r)
-        return(np.resize(image, (300, 300, 1)))
+        if save_format:
+             image = image * (2**IMAGE_BITS)
+        return np.resize(image, (*DIMS, CHANNELS))
 
     @staticmethod
     def __get_image(q, r):
@@ -170,15 +180,18 @@ class ImageGenerator:
             np array corresponding to an image of the original reflectivity data.
 
         """
-        fig = plt.figure(figsize=(3,3)) #Create matplotlib figure and setup axes.
+        fig = plt.figure(figsize=(4,4)) #Create matplotlib figure and setup axes.
         plt.plot(q, r)
         plt.yscale("log")
         plt.xlim(0, 0.3)
-        plt.ylim(10e-8, 1.5)
+        plt.ylim(1e-8, 1.5)
         plt.axis("off")
+        
+        dpi = fig.get_dpi()
+        fig.set_size_inches(DIMS[0]/float(dpi), DIMS[1]/float(dpi))
         fig.canvas.draw()
-        width, height = fig.get_size_inches() * fig.get_dpi() #Resize
-        mplimage = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
+        
+        mplimage = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(*DIMS, 3)
         gray_image = color.rgb2gray(mplimage) #Convert to grey scale.
         plt.close()
         return gray_image
@@ -229,22 +242,38 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
     ImageGenerator.scale_targets(concatenated) #Scale the targets to be between 0 and 1.
 
     shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size)
+    
     for section, dictionary in concatenated.items():
         file = os.path.normpath(os.path.join(save_path, '{}.h5'.format(section)))
 
-        with h5py.File(file, 'w') as base_file: #Create the file for the current split.
+        with h5py.File(file, 'w') as file: #Create the file for the current split.
             for type_of_data, data in dictionary.items():
-                base_file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data])
+                file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data], dtype=DTYPES[type_of_data])
 
             if display_status:
                 print("\n>>> Generating images for {}.h5".format(section))
 
-            to_store = [ImageGenerator.image_process(sample) for sample in base_file['inputs']] #Create images for each sample.
-            base_file.create_dataset('images', (len(base_file['inputs']),300,300,1), data=to_store, chunks=(chunk_size,300,300,1)) 
-
+            num_curves = len(file['inputs'])
+            file.create_dataset('images', (num_curves, *DIMS, CHANNELS), chunks=(chunk_size, *DIMS, CHANNELS), dtype=DTYPES['images']) 
+            
+            steps = int(num_curves / chunk_size)
+            for i in range(steps):
+                start = i*chunk_size
+                end = (i+1)*chunk_size
+                #Create images for each sample in the chunk
+                file['images'][start:end] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][start:end]] 
+                if display_status and i % int(steps/10) == 0:
+                    print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps))
+                
+            remainder = steps*chunk_size
+            if len(file['inputs'][remainder:]) != 0:
+                if display_status:
+                    print("   Writing remainder...")
+                file['images'][remainder:] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][remainder:]]   
+            
 
 if __name__ == "__main__":
     data_path = "./models/investigate/data/three"
     save_path = "./models/investigate/data/three"
     layers = [3]
-    generate_images(data_path, save_path, layers, chunk_size=100)
+    generate_images(data_path, save_path, layers, chunk_size=100, display_status=True)

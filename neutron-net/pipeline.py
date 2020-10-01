@@ -16,28 +16,26 @@ from refnx.reflect  import SLD, ReflectModel
 from refnx.analysis import Objective, CurveFitter
 
 from generate_refnx import CurveGenerator
-from generate_data  import generate_images, ImageGenerator, LAYERS_STR
+from generate_data  import generate_images, ImageGenerator, LAYERS_STR, DIMS, CHANNELS
 from merge_data     import merge
-from classification import classify, DIMS, CHANNELS
+from classification import classify
 from regression     import regress
 
 class DataLoaderClassification(Sequence):
     """DataLoaderClassification a Keras Sequence to load image data from a h5 file."""
 
-    def __init__(self, labels, dim, channels, batch_size):
+    def __init__(self, labels, dim, channels):
         """Initialises the DataLoaderClassification class with given parameters.
 
         Args:
             labels (ndarray): the labels corresponding to the loaded data.
             dim (tuple): dimensions of images loaded.
             channels (int): number of channels of images loaded.
-            batch_size (int): size of each mini-batch to load.
 
         """
         self.labels     = labels
         self.dim        = dim
         self.channels   = channels
-        self.batch_size = batch_size
         self.__on_epoch_end()
 
     def __len__(self):
@@ -47,7 +45,7 @@ class DataLoaderClassification(Sequence):
             An integer number of batches per epoch.
 
         """
-        return int(np.floor(len(self.labels.keys()) / self.batch_size))
+        return len(self.labels.keys())
 
     def __getitem__(self, index):
         """Generates one batch of data.
@@ -59,7 +57,7 @@ class DataLoaderClassification(Sequence):
             A `batch_size` sample of images (inputs) and classes (targets).
 
         """
-        indices = self.indices[index * self.batch_size: (index + 1) * self.batch_size]
+        indices = self.indices[index: (index + 1)]
         indices = [list(self.labels.keys())[k] for k in indices]
         images, targets = self.__data_generation(indices)
         return images, targets
@@ -71,11 +69,11 @@ class DataLoaderClassification(Sequence):
             indices (ndarray): an array of indices to retrieve data from.
 
         Returns:
-            A `batch_size` sample of images (inputs) and classes (targets).
+            An image (input) and its class (target).
 
         """
-        images  = np.empty((self.batch_size, *self.dim, self.channels))
-        classes = np.empty((self.batch_size, 1), dtype=int)
+        images  = np.empty((1, *self.dim, self.channels))
+        classes = np.empty((1, 1), dtype=int)
 
         for i, np_image_filename in enumerate(indices): #Get images and classes for each index
             images[i,]  = np.load(np_image_filename)
@@ -404,7 +402,7 @@ class Pipeline:
         npy_image_filenames = Pipeline.__dat_files_to_npy_images(dat_files, save_path)
         class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
-        classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS, 1)
+        classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
         return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
 
@@ -497,7 +495,7 @@ class Pipeline:
             sample_momentum = data["X"]
             sample_reflect  = data["Y"]
             sample = np.vstack((sample_momentum, sample_reflect)).T
-            img = ImageGenerator.image_process(sample) #Convert the reflectivity data to an image.
+            img = ImageGenerator.image_process(sample, save_format=False) #Convert the reflectivity data to an image.
             np.save(name, img)
 
         return image_files
@@ -541,7 +539,7 @@ class Pipeline:
             print("-------------- Data Generation ------------")
             for layer in layers: #Generate curves for each layer specified.
                 print(">>> Generating {}-layer curves".format(layer))
-                structures = CurveGenerator.generate(curve_num, layer, sld_bounds=(-0.5,10), thick_bounds=(20,3000), substrate_SLD=2.047)
+                structures = CurveGenerator.generate(curve_num, layer, sld_bounds=(-1,10), thick_bounds=(20,3000), substrate_SLD=2.047)
                 CurveGenerator.save(save_path + "/data", LAYERS_STR[layer], structures) #Save the generated curves.
 
                 print(">>> Creating images for {}-layer curves".format(layer))
@@ -551,7 +549,7 @@ class Pipeline:
 
             layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
             merge(save_path + "/data", layers_paths) #Merge the curves for each layer for classification.
-
+        
         print("\n-------------- Classification -------------")
         if train_classifier:
             print(">>> Training classifier")
@@ -572,7 +570,8 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots)
             print()
-
+            
+        
 if __name__ == "__main__":
     save_path = './models/investigate'
     layers     = [1, 2, 3]
@@ -588,6 +587,6 @@ if __name__ == "__main__":
     load_path = "./models/investigate"
     data_path = "./models/investigate"
     classifier_path = load_path + "/classifier/full_model.h5"
-    layers = 3
+    layers = 2
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=100)
+    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=10)
