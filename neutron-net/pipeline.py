@@ -15,7 +15,7 @@ from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, ReflectModel
 from refnx.analysis import Objective, CurveFitter
 
-from generate_refnx import CurveGenerator
+from generate_refnx import CurveGenerator, NeutronGenerator, XRayGenerator
 from generate_data  import generate_images, ImageGenerator, LAYERS_STR, DIMS, CHANNELS
 from merge_data     import merge
 from classification import classify
@@ -518,8 +518,9 @@ class Pipeline:
         return 'infer' if similarity < threshold else None
 
     @staticmethod
-    def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, show_plots=True, generate_data=True,
-              train_classifier=True, train_regressor=True, classifer_epochs=2, regressor_epochs=2):
+    def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, noisy=False, xray=False,
+              show_plots=True, generate_data=True, train_classifier=True, train_regressor=True, 
+              classifer_epochs=2, regressor_epochs=2):
         """Sets up the pipeline for predictions on .dat files by generating data and training.
 
         Args:
@@ -539,15 +540,20 @@ class Pipeline:
             print("-------------- Data Generation ------------")
             for layer in layers: #Generate curves for each layer specified.
                 print(">>> Generating {}-layer curves".format(layer))
-                structures = CurveGenerator.generate(curve_num, layer, sld_bounds=(-1,10), thick_bounds=(20,3000), substrate_SLD=2.047)
-                CurveGenerator.save(save_path + "/data", LAYERS_STR[layer], structures) #Save the generated curves.
+                if xray:
+                    structures = XRayGenerator.generate(curve_num, layer)
+                    XRayGenerator.save(save_path + "/data", LAYERS_STR[layer], structures, noisy=noisy)
+                else:
+                    structures = NeutronGenerator.generate(curve_num, layer)
+                    NeutronGenerator.save(save_path + "/data", LAYERS_STR[layer], structures, noisy=noisy)
 
                 print(">>> Creating images for {}-layer curves".format(layer))
                 save_path_layer = data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
                 #Create images for the generated curves, ready for input to the classifier and regressors.
-                generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=True)
+                generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=False)
+
             layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
-            merge(save_path + "/data", layers_paths) #Merge the curves for each layer for classification.
+            merge(save_path + "/data", layers_paths, display_status=False) #Merge the curves for each layer for classification.
 
         print("\n-------------- Classification -------------")
         if train_classifier:
@@ -569,19 +575,20 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots)
             print()
-    
         
 if __name__ == "__main__":
     save_path = './models/investigate'
     layers     = [1, 2, 3]
     curve_num  = 25000
-    chunk_size = 1000
+    chunk_size = 100
+    noisy            = False
+    xray             = False
     show_plots       = True
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    Pipeline.setup(save_path, layers, curve_num, chunk_size, show_plots, generate_data, 
-                   train_classifier, train_regressor, classifer_epochs=25, regressor_epochs=20)
+    Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
+                   train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"

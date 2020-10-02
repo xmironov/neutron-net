@@ -337,5 +337,5 @@ if __name__ == "__main__":
     save_path = "./models/investigate"
     load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
     
-    regress(data_path, layer, save_path, train=True, epochs=10) #Train from new
+    regress(data_path, layer, save_path, train=True, epochs=15) #Train from new
     #regress(data_path, layer, save_path, load_path=load_path, train=False) #Load existing

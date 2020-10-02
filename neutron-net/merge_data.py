@@ -1,5 +1,5 @@
 import h5py
-import os
+import os, sys
 import numpy as np
 from generate_data import LAYERS_STR, DTYPES #String representations of each layer.
 
@@ -21,6 +21,9 @@ def merge(save_path, layers_paths, display_status=True):
             print("\n>>> Merging {}.h5 files".format(split))
 
         old_files = [h5py.File(layer_path + "/{}.h5".format(split), 'r') for layer_path in layers_paths]
+        for file in old_files[1:]:
+            if len(file['inputs']) != len(old_files[0]['inputs']):
+                sys.exit('All files must contain the same number of curves.')
         
         shapes = {dataset: old_files[0][dataset].shape[1:] for dataset in DTYPES.keys()}
         
@@ -55,7 +58,7 @@ def merge(save_path, layers_paths, display_status=True):
                     concatenated = np.concatenate(datasets[dataset]) #Concatenate the list of separate datasets.
                     new_file[dataset][new_start:new_end] = concatenated[indices] #Randomly shuffle the new datasets
                     
-                if display_status and i % int(steps/10) == 0:
+                if display_status and i % max(1, int(steps/10)) == 0:
                     print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps))
         
         for old_file in old_files:

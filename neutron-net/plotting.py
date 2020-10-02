@@ -24,11 +24,11 @@ class KerasDropoutPredicter():
             [model.layers[0].input, K.learning_phase()],
             [model.layers[-2].output, model.layers[-1].output])
 
-    def predict(self, sequencer, n_iter=5):
+    def predict(self, sequencer, steps=None, n_iter=5):
         """Makes Bayesian-like predictions using give model.
 
         Args:
-            sequence (DataLoader): the sequence providing data to predict on.
+            sequencer (DataLoader): the sequence providing data to predict on.
             n_iter (int): the number of iterations per step.
 
         Returns:
@@ -37,7 +37,8 @@ class KerasDropoutPredicter():
         """
         steps_done = 0
         all_out = []
-        steps = len(sequencer)
+        if steps is None:
+            steps = len(sequencer)
         output_generator = KerasDropoutPredicter.__iter_sequence_infinite(sequencer)
 
         while steps_done < steps:
@@ -97,7 +98,7 @@ class Plotter:
 
     """
     depth_axis  = (-250, 3250)
-    sld_axis    = (-1.5, 10.5)
+    sld_axis    = (-1.5, 11)
     depth_ticks = (0, 1000, 2000, 3000)
     sld_ticks   = (0, 2.5, 5, 7.5, 10)
     pad   = 55
@@ -245,7 +246,7 @@ class Plotter:
         plt.show()
 
     @staticmethod
-    def kdp_plot(data_path, load_paths, batch_size=20, n_iter=2):
+    def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=2):
         """Performs dropout at test time to make Bayesian-like predictions and plots the results.
 
         Args:
@@ -263,7 +264,7 @@ class Plotter:
             loader = DataLoader(file, DIMS, CHANNELS, batch_size, layer)
             kdp    = KerasDropoutPredicter(model, loader)
 
-            preds = kdp.predict(loader, n_iter=n_iter) #Perform KDP predictions and format results.
+            preds = kdp.predict(loader, steps=steps, n_iter=n_iter) #Perform KDP predictions and format results.
             depth, sld,              = preds[0][0], preds[0][1]
             depth_ground, sld_ground = preds[2][0], preds[2][1]
             depth_std, sld_std       = preds[1][0], preds[1][1]
@@ -292,7 +293,7 @@ class Plotter:
 
 
 if __name__ == "__main__":
-    layers = 3
+    layers = 1
     data_path  = "./models/investigate/data"
     load_paths = {i: "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    Plotter.kdp_plot(data_path, load_paths, n_iter=10)
+    Plotter.kdp_plot(data_path, load_paths, steps=5, n_iter=10)

@@ -225,6 +225,9 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
              print("\n   {0} {1}-layer .h5 file(s) selected".format(len(layers_files[layer]), LAYERS_STR[layer]))
         layers_dict[i] = ImageGenerator.load_simulated_files(layers_files[layer], layer) #Load the found file.
         i += 1
+    
+    if display_status:
+        print()
 
     split_ratios = {'train': 0.8, 'validate': 0.1, 'test': 0.1} #Split data into train, validate and test.
     split_data = ImageGenerator.train_valid_test_split(layers_dict, split_ratios)
@@ -251,7 +254,7 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
                 file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data], dtype=DTYPES[type_of_data])
 
             if display_status:
-                print("\n>>> Generating images for {}.h5".format(section))
+                print(">>> Generating images for {}.h5".format(section))
 
             num_curves = len(file['inputs'])
             file.create_dataset('images', (num_curves, *DIMS, CHANNELS), chunks=(chunk_size, *DIMS, CHANNELS), dtype=DTYPES['images']) 
@@ -262,7 +265,7 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
                 end = (i+1)*chunk_size
                 #Create images for each sample in the chunk
                 file['images'][start:end] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][start:end]] 
-                if display_status and i % int(steps/10) == 0:
+                if display_status and i % max(1, int(steps/10)) == 0:
                     print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps))
                 
             remainder = steps*chunk_size
@@ -270,10 +273,13 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
                 if display_status:
                     print("   Writing remainder...")
                 file['images'][remainder:] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][remainder:]]   
+                
+            if display_status: 
+                print()
             
 
 if __name__ == "__main__":
-    data_path = "./models/investigate/data/three"
-    save_path = "./models/investigate/data/three"
-    layers = [3]
+    data_path = "./models/investigate/data/one"
+    save_path = "./models/investigate/data/one"
+    layers = [1]
     generate_images(data_path, save_path, layers, chunk_size=100, display_status=True)

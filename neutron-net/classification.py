@@ -167,13 +167,7 @@ class Classifier():
             if remainder:
                 test_labels = test_labels[:-remainder]
             
-            #Determine whether the classifier is classifying up to 2 or 3 layers
-            layers = np.max(predictions)
-            if layers == 2:
-                labels = [i for i in "12"]
-            else:
-                labels = [i for i in "123"]
-    
+            labels = [i for i in "123"]
             cm = confusion_matrix(test_labels, predictions)
             df_cm = pd.DataFrame(cm, index=labels, columns=labels)
             ConfusionMatrixPrinter.pretty_plot(df_cm) #Plot the confusion matrix
