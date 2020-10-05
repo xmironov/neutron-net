@@ -5,36 +5,51 @@ import matplotlib.pyplot as plt
 from refnx.reflect import SLD, MaterialSLD, ReflectModel
 
 class CurveGenerator:
-    """The CurveGenerator class contains all code relating to reflectivity curve generation with refnx.
+    """The CurveGenerator class contains all code relating to general reflectivity curve generation with refnx.
 
     Class Attributes:
         roughness (int): the default roughness between each layer in Angstrom.
+        qMin (float): the minimum Q value to use when generating data.
+        scale (int): the value for the scale instrument parameter.
+        dq (int): the instrument resolution parameter.
+        points (int): the number of data points to generate for each sample.
+        bkg_rate (float): the background rate used for adding background noise.
+        noise_constant (int): a value to control the level of sample noise applied.
+        thick_bounds (tuple): the range of values layer thicknesses can take.
 
     """
-    roughness = 2
-    qMin = 0.005
-    scale = 1
-    dq  = 2
-    points = 200
-    bkg_rate = 5e-7
+    roughness      = 2
+    qMin           = 0.005
+    scale          = 1
+    dq             = 2
+    points         = 200
+    bkg_rate       = 5e-7
     noise_constant = 100
-    thick_bounds = (20,3000)
+    thick_bounds   = (20,3000)
 
     @staticmethod
     def bias_thickness(thick_bounds):
-        thick_range = np.arange(*thick_bounds, 10)
+        """Biases thickness choices towards thinner layers.
 
-        # The following biases choices towards thinner layers
+        Args:
+            thick_bounds (tuple): the range of values layer thicknesses can take.
+            
+        Returns:
+            A discretised thickness range along with the probability of choosing each value.
+
+        """
+        thick_range = np.arange(*thick_bounds, 10) #Discretise thicknesses.
+
         thick_probs = []
         for i in range(len(thick_range)):
-            thick_probs.append(1.0 / (thick_range[i] + 100))
+            thick_probs.append(1.0 / (thick_range[i] + 100)) #Biases choices towards thinner layers
         thick_probs /= sum(thick_probs)
         
         return thick_range, thick_probs
 
     @staticmethod
     def plot_SLD(structure):
-        """Plots the SLD profile for a given Structure object.
+        """Plots the SLD profile for a given refnx Structure object.
 
         Args:
             structure (Structure): the structure to plot the SLD profile for.
@@ -103,15 +118,23 @@ class CurveGenerator:
 
 
 class NeutronGenerator(CurveGenerator):
-    qMax = 0.3 
-    bkg = 0
+    """The NeutronGenerator class contains all code relating to neutron reflectivity curve generation.
+
+    Class Attributes:
+        qMax (int): the maximum Q value to use when generating data.
+        bkg (float): the value of the background to apply when generating.
+        substrate_sld (float): the scattering length density of the substrate.
+        sld_bounds (tuple): the range of values layer SLDs can take.
+
+    """
+    qMax          = 0.3 
+    bkg           = 0
     substrate_sld = 2.047
-    sld_bounds = (-1,10)
+    sld_bounds    = (-1,10)
     
     @staticmethod
     def generate(generate_num, layers):
-        """Generates `generate_num` curves with given number of layers, bounds on SLD and thickness,
-           and substrate SLD. Bias is placed on thickness towards thinner layers.
+        """Generates `generate_num` curves with given number of layers.
 
         Args:
             generate_num (int): the number of curves to generate.
@@ -121,10 +144,8 @@ class NeutronGenerator(CurveGenerator):
             A list of `generate_num` refnx Structure objects.
 
         """
-        
-        #Discretise SLD and thickness ranges.
-        sld_range = np.arange(*NeutronGenerator.sld_bounds, 0.1)
-        thick_range, thick_probs = CurveGenerator.bias_thickness(CurveGenerator.thick_bounds)
+        sld_range = np.arange(*NeutronGenerator.sld_bounds, 0.1) #Discretise SLD range.
+        thick_range, thick_probs = CurveGenerator.bias_thickness(CurveGenerator.thick_bounds) #Apply thickness bias.
         return [NeutronGenerator.__random_structure(layers, sld_range, thick_range, thick_probs) for i in range(generate_num)]
 
     @staticmethod
@@ -136,10 +157,9 @@ class NeutronGenerator(CurveGenerator):
             sld_range (ndarray): the discrete range of valid SLD values for generation.
             thick_range (ndarray): the range of valid thickness (depth) values for generation.
             thick_probs (list): the probabilities for each discrete thickness value.
-            substrate_SLD (float): the SLD of the substrate.
 
         Returns:
-            refnx Structure object.
+            A refnx Structure object.
 
         """
         #The structure consists of air followed by each layer and then finally the substrate.
@@ -162,15 +182,15 @@ class NeutronGenerator(CurveGenerator):
             substrate (Boolean): whether the component is the substrate or not.
 
         Returns:
-            refnx Component object.
+            A refnx Component object.
 
         """
         if substrate:
-            thickness = 0 #Substrate has 0 thickness.
-            sld = NeutronGenerator.substrate_sld
+            thickness = 0 #Substrate has 0 thickness in refnx.
+            sld       = NeutronGenerator.substrate_sld 
         else:
-            thickness = np.random.choice(thick_range, p=thick_probs)
-            sld = np.random.choice(sld_range)
+            thickness = np.random.choice(thick_range, p=thick_probs) #Select a random thickness and SLD.
+            sld       = np.random.choice(sld_range)
 
         return SLD(sld)(thick=thickness, rough=CurveGenerator.roughness)
     
@@ -217,23 +237,56 @@ class NeutronGenerator(CurveGenerator):
 
 
 class XRayGenerator(CurveGenerator):
-    wavelength = 1.54
-    material   = 'H20'
-    density_constant = 9.4691e-6
-    qMax = 1
-    bkg = 1e-9
-    density_bounds = (0.5, 16)
-    Si_density = 2.1 #Density to set water at to get SLD of Si
+    """The XRayGenerator class contains all code relating to x-ray reflectivity curve generation.
+
+    Class Attributes:
+        qMax (int): the maximum Q value to use when generating data.
+        bkg (float): the value of the background to apply when generating.
+        substrate_density (float): the mass density of the substrate in g / cm**3
+        density_constant (float): constant used for converting densities to SLDs.
+        density_bounds (tuple): the range of mass densities each layer can take.
+        wavelength (float): wavelength of radiation (Angstrom)
+        material (string): chemical formula of the substrate.
+
+    """
+    qMax              = 1
+    bkg               = 1e-9
+    substrate_density = 2.1 #The density to set water at in order to get the SLD of Si
+    density_constant  = 9.4691e-6
+    density_bounds    = (0.5, 16)
+    wavelength        = 1.54
+    material          = 'H20' #H20 is just used to generate a range of SLD values
 
     @staticmethod
     def generate(generate_num, layers):
-        #Discretise SLD and thickness ranges.
-        density_range = np.arange(*XRayGenerator.density_bounds, 0.1)
-        thick_range, thick_probs = CurveGenerator.bias_thickness(CurveGenerator.thick_bounds)
+        """Generates `generate_num` curves with given number of layers.
+
+        Args:
+            generate_num (int): the number of curves to generate.
+            layers (int): the number of layers for each curve to be generated with.
+
+        Returns:
+            A list of `generate_num` refnx Structure objects.
+
+        """
+        density_range = np.arange(*XRayGenerator.density_bounds, 0.1) #Discretise density range.
+        thick_range, thick_probs = CurveGenerator.bias_thickness(CurveGenerator.thick_bounds) #Bias thicknesses.
         return [XRayGenerator.__random_structure(layers, density_range, thick_range, thick_probs) for i in range(generate_num)]
 
     @staticmethod
     def __random_structure(layers, density_range, thick_range, thick_probs):
+        """Generates a single random refnx Structure object with desired parameters.
+
+        Args:
+            layers (int): the number of layers for each curve to be generated with.
+            density_range (ndarray): the discrete range of valid density values for generation.
+            thick_range (ndarray): the range of valid thickness (depth) values for generation.
+            thick_probs (list): the probabilities for each discrete thickness value.
+
+        Returns:
+            A refnx Structure object.
+
+        """
         #The structure consists of air followed by each layer and then finally the substrate.
         structure = SLD(0, name="Air")
         for i in range(layers):
@@ -245,9 +298,21 @@ class XRayGenerator(CurveGenerator):
 
     @staticmethod
     def __make_component(density_range, thick_range, thick_probs, substrate):
+        """Generates a single refnx component object representing a layer of the structure.
+
+        Args:
+            density_range (ndarray): the discrete range of valid density values for generation.
+            thick_range (ndarray): the range of valid thickness (depth) values for generation.
+            thick_probs (list): the probabilities for each discrete thickness value.
+            substrate (Boolean): whether the component is the substrate or not.
+
+        Returns:
+            A refnx Component object.
+
+        """
         if substrate:
-            thickness = 0 #Substrate has 0 thickness.
-            density = XRayGenerator.Si_density
+            thickness = 0 #Substrate has 0 thickness in refnx.
+            density = XRayGenerator.substrate_density
         else:
             thickness = np.random.choice(thick_range, p=thick_probs)
             density = np.random.choice(density_range)

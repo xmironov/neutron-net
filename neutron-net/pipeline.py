@@ -587,8 +587,8 @@ if __name__ == "__main__":
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
-                   train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
+    #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
+    #               train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"
