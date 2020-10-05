@@ -315,7 +315,7 @@ class Model():
         else:
             title='Reflectivity Plot using Fitted Values'
             label="Fitted"
-        fig = plt.figure(figsize=[9,7], dpi=200)
+        fig = plt.figure(figsize=[9,7], dpi=600)
         ax = fig.add_subplot(111)
         
         y, y_err, model = self.objective._data_transform(model=self.objective.generative())
