@@ -29,6 +29,7 @@ class KerasDropoutPredicter():
 
         Args:
             sequencer (DataLoader): the sequence providing data to predict on.
+            steps (int): the number of batches of data to plot.
             n_iter (int): the number of iterations per step.
 
         Returns:
@@ -37,13 +38,13 @@ class KerasDropoutPredicter():
         """
         steps_done = 0
         all_out = []
-        if steps is None:
+        if steps is None: #If the number of steps is not provided, plot the whole dataset.
             steps = len(sequencer)
         output_generator = KerasDropoutPredicter.__iter_sequence_infinite(sequencer)
 
         while steps_done < steps:
             generator_output = next(output_generator)
-            images, targets = generator_output
+            images, targets = generator_output #Get a batch of images and targets.
 
             results = []
             for i in range(n_iter):
@@ -218,7 +219,7 @@ class Plotter:
             errors (ndarray): errors in depth and SLD KDP predictions.
 
         """
-        fig, axes = plt.subplots(3, 2, figsize=(8,9)) #Make the suplot structure for three layers.
+        fig, axes = plt.subplots(3, 2, figsize=(8,9)) #Make the subplot structure for three layers.
         fig.subplots_adjust(wspace=0.30, hspace=0.2, top=0.94)
         fig.suptitle("Three Layer - Predictions Against Ground Truths", size=16)
 
@@ -250,12 +251,13 @@ class Plotter:
         
 
     @staticmethod
-    def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=2):
+    def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=100):
         """Performs dropout at test time to make Bayesian-like predictions and plots the results.
 
         Args:
             data_path (string): path to the directory containing 'test.h5' files to test with.
             load_paths (dict): a dictionary containing file paths to trained models for each layer.
+            steps (int): the number of batches of data to plot.
             batch_size (int): the batch_size for loading data to test with.
             n_iter (int): the number of times to perform a prediction on a single curve (mean is taken of these).
 

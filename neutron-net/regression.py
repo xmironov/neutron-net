@@ -14,10 +14,10 @@ from tensorflow.keras.optimizers import Nadam
 from generate_data import ImageGenerator, LAYERS_STR, DIMS, CHANNELS, IMAGE_BITS
 
 class DataLoader(Sequence):
-    """DataLoader uses a Keras Sequence to load image data from a h5 file."""
+    """DataLoader uses a Keras Sequence to load image and target data from a h5 file."""
 
     def __init__(self, file, dim, channels, batch_size, layers):
-        """Initalises the DataLoader class with given parameters.
+        """Initialises the DataLoader class with given parameters.
 
         Args:
             file (string): the path of the file to load data from.
@@ -72,7 +72,7 @@ class DataLoader(Sequence):
         targets_sld   = np.empty((self.batch_size, self.layers), dtype=float)
 
         for i, idx in enumerate(indices): #Get images and targets for each index
-            image  = self.file['images'][idx] / (2**IMAGE_BITS)
+            image  = self.file['images'][idx] / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
             values = self.file['targets_scaled'][idx]
 
             length = len(values)
@@ -228,17 +228,18 @@ class Regressor():
             preds[:, 2*i]   = depths[:, i]
             preds[:, 2*i+1] = slds[:, i]
 
-        remainder = len(labels) % self.batch_size
+        remainder = len(labels) % self.batch_size #Handle the remainder section.
         if remainder:
             labels = labels[:-remainder]
 
         total_plots = 2 * self.outputs
-        columns = 2 # depth & sld
+        columns = 2 # Depth and SLD
         rows = total_plots // columns
         position = range(1, total_plots+1)
 
         row_headers = ["Layer {}".format(row+1) for row in range(rows)]
         pad = 5
+        #Define the figure size for each number of layers.
         if self.outputs == 1:
             fig_size = (10,5)
         elif self.outputs == 2:
@@ -294,7 +295,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
         batch_size (int): the size of each batch used when training.
         dropout_rate (float): the value of the dropout rate hyperparameter.
         workers (int): the number of workers to use.
-        show_plots (Boolean): whether to display classification confusion matrix and regression plots or not.
+        show_plots (Boolean): whether to display regression plots.
 
     """
     if save_path is not None: #If a save path is provided, save the regressor under a directory
@@ -308,7 +309,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     val_h5   = h5py.File(val_dir,   'r')
     test_h5  = h5py.File(test_dir,  'r')
 
-    train_loader = DataLoader(train_h5, DIMS, CHANNELS, batch_size, layer)
+    train_loader = DataLoader(train_h5, DIMS, CHANNELS, batch_size, layer) #Load the train.h5, validate.h5 and test.h5 files.
     valid_loader = DataLoader(val_h5,   DIMS, CHANNELS, batch_size, layer)
     test_loader  = DataLoader(test_h5,  DIMS, CHANNELS, batch_size, layer)
 
@@ -330,6 +331,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
     train_h5.close()
     val_h5.close()
     test_h5.close()
+
 
 if __name__ == "__main__":
     layer     = 1

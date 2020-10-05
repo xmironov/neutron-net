@@ -77,7 +77,7 @@ class DataLoader(Sequence):
         classes = np.empty((self.batch_size, 1), dtype=int)
 
         for i, idx in enumerate(indices): #Get images and classes for each index
-            images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS)
+            images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
             classes[i,] = self.labels[idx]
         return images, classes
 
@@ -90,7 +90,7 @@ class DataLoader(Sequence):
 
 
 class Classifier():
-    """The Classifier class represents the network used for layer classification"""
+    """The Classifier class represents the network used for layer classification."""
 
     def __init__(self, dims, channels, epochs, lr, batch_size, dropout, workers, load_path=None):
         """Initialises the network with given hyperparameters.
@@ -151,6 +151,7 @@ class Classifier():
         Args:
             test_sequence (DataLoader): the test set data to test against.
             test_labels (ndarray): an array of the labels for the test set.
+            show_plots (Boolean): whether to show the confusion matrix plot.
 
         """
         print("Evaluating")
@@ -184,7 +185,12 @@ class Classifier():
         self.model.save(os.path.join(save_path, "full_model.h5"))
 
     def create_model(self):
-        """Creates the classifier model."""
+        """Creates the classifier model.
+        
+        Returns:
+            A Keras Model object.
+            
+        """
         model = Sequential()
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu", input_shape=(*self.dims, self.channels)))
         model.add(MaxPooling2D(pool_size=(2,2)))
@@ -235,7 +241,7 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
         batch_size (int): the size of each batch used when training.
         dropout_rate (float): the value of the dropout rate hyperparameter.
         workers (int): the number of workers to use.
-        show_plots (Boolean): whether to display classification confusion matrix and regression plots or not.
+        show_plots (Boolean): whether to display the classification confusion matrix after evaluation.
 
     """
     if save_path is not None: #If a save path is provided, save under the classifier directory
@@ -287,6 +293,7 @@ def load_labels(path):
         with h5py.File(os.path.join(path, "{}.h5".format(section)), "r") as f:
             data["{}".format(section)] = np.array(f["layers"]) #Get the number of layers for each file.
     return data
+
 
 if __name__ == "__main__":
     data_path = "./models/investigate/data/merged"

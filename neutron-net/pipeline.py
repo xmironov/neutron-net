@@ -15,7 +15,7 @@ from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, ReflectModel
 from refnx.analysis import Objective, CurveFitter
 
-from generate_refnx import CurveGenerator, NeutronGenerator, XRayGenerator
+from generate_refnx import NeutronGenerator, XRayGenerator
 from generate_data  import generate_images, ImageGenerator, LAYERS_STR, DIMS, CHANNELS
 from merge_data     import merge
 from classification import classify
@@ -39,10 +39,10 @@ class DataLoaderClassification(Sequence):
         self.__on_epoch_end()
 
     def __len__(self):
-        """Calculates the number of batches per epoch.
+        """Calculates the number of batches.
 
         Returns:
-            An integer number of batches per epoch.
+            An integer number of batches.
 
         """
         return len(self.labels.keys())
@@ -54,7 +54,7 @@ class DataLoaderClassification(Sequence):
             index (int): position of batch.
 
         Returns:
-            A `batch_size` sample of images (inputs) and classes (targets).
+            A single sample of images (inputs) and classes (targets).
 
         """
         indices = self.indices[index: (index + 1)]
@@ -63,7 +63,7 @@ class DataLoaderClassification(Sequence):
         return images, targets
 
     def __data_generation(self, indices):
-        """Generates data containing batch_size samples.
+        """Generates data containing 1 sample.
 
         Args:
             indices (ndarray): an array of indices to retrieve data from.
@@ -104,10 +104,10 @@ class DataLoaderRegression(Sequence):
         self.__on_epoch_end()
 
     def __len__(self):
-        """Calculates the number of batches per epoch.
+        """Calculates the number of batches.
 
         Returns:
-            An integer number of batches per epoch.
+            An integer number of batches.
 
         """
         return len(self.labels_dict.keys()) #batch_size is set as 1
@@ -128,13 +128,13 @@ class DataLoaderRegression(Sequence):
         return images
 
     def __data_generation(self, indices):
-        """Generates data containing batch_size samples.
+        """Generates data containing 1 sample.
 
         Args:
             indices (ndarray): an array of indices to retrieve data from.
 
         Returns:
-            A `batch_size` sample of images (inputs) and targets.
+            A sample of images (inputs) and its corresponding layer.
 
         """
         images = np.empty((1, *self.dim, self.channels))
@@ -147,7 +147,7 @@ class DataLoaderRegression(Sequence):
         return images, layers
 
     def __on_epoch_end(self):
-        """Updates indices after each epoch."""
+        """Updates indices."""
         self.indices = np.arange(len(self.labels_dict.keys()))
 
 
@@ -249,7 +249,7 @@ class Model():
     scale     = 1
 
     def __init__(self, file_path, layers, predicted_slds, predicted_depths):
-        """Initalises the Model class by creating a refnx model with given predicted values.
+        """Initialises the Model class by creating a refnx model with given predicted values.
 
         Args:
             file_path (string): a path to the file with the data to construct the model for.
@@ -286,13 +286,13 @@ class Model():
         plt.ylabel('SLD /$10^{-6} \AA^{-2}$')
         plt.xlabel('distance / $\AA$')
 
-    def plot_reflectivity(self, qMin=0.005, qMax=0.3, points=1000):
+    def plot_reflectivity(self, qMin=0.005, qMax=0.3, points=300):
         """Plots the reflectivity profile for the model.
 
         Args:
-            qMin (int): the minimum q value to use when generating r values.
-            qMax (int): the maximum q value to use when generating r values.
-            points (int): the number of q values to use.
+            qMin (int): the minimum Q value to use when generating R values.
+            qMax (int): the maximum Q value to use when generating R values.
+            points (int): the number of Q values to use.
 
         """
         q = np.linspace(qMin, qMax, points)
@@ -528,6 +528,8 @@ class Pipeline:
             layers (list): a list of layers to generate and train for.
             curve_num (int): the number of curves to generate per layer.
             chunk_size (int): the size of chunks to use in the h5 storage of images for curves.
+            noisy (Boolean): whether to add noise to generated data.
+            xray (Boolean): whether to use an x-ray probe or not.
             show_plots (Boolean): whether to display classification confusion matrix and regression plots or not.
             generate_data (Boolean): whether to generate data or use existing data.
             train_classifier (Boolean): whether to train the classifier or not.
@@ -540,10 +542,10 @@ class Pipeline:
             print("-------------- Data Generation ------------")
             for layer in layers: #Generate curves for each layer specified.
                 print(">>> Generating {}-layer curves".format(layer))
-                if xray:
+                if xray: #Generate data using x-ray probe.
                     structures = XRayGenerator.generate(curve_num, layer)
                     XRayGenerator.save(save_path + "/data", LAYERS_STR[layer], structures, noisy=noisy)
-                else:
+                else: #Generate data using neutron probe.
                     structures = NeutronGenerator.generate(curve_num, layer)
                     NeutronGenerator.save(save_path + "/data", LAYERS_STR[layer], structures, noisy=noisy)
 
