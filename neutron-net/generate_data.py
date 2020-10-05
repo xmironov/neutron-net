@@ -66,7 +66,7 @@ class ImageGenerator:
             chunk_size (type): the size of chunks to create the final h5 file with.
 
         Returns:
-            A dictionary shapes in the form of tuples corresponding to each data type.
+            A dictionary of shapes in the form of tuples corresponding to each data type.
 
         """
         shapes = {}
@@ -156,6 +156,7 @@ class ImageGenerator:
 
         Args:
             sample (ndarray): the sample to convert to an image.
+            save_format (Boolean): whether to convert data to the save format.
 
         Returns:
             np array (image) of size (300,300,1).
@@ -163,9 +164,9 @@ class ImageGenerator:
         """
         q = sample[:,0]
         r = sample[:,1]
-        image = ImageGenerator.__get_image(q, r)
+        image = ImageGenerator.__get_image(q, r) #Generate the image.
         if save_format:
-             image = image * (2**IMAGE_BITS)
+             image = image * (2**IMAGE_BITS) #Multiply up values between 0 and 1 to become integer values.
         return np.resize(image, (*DIMS, CHANNELS))
 
     @staticmethod
@@ -188,7 +189,7 @@ class ImageGenerator:
         plt.axis("off")
         
         dpi = fig.get_dpi()
-        fig.set_size_inches(DIMS[0]/float(dpi), DIMS[1]/float(dpi))
+        fig.set_size_inches(DIMS[0]/float(dpi), DIMS[1]/float(dpi)) #Resize to DIMS
         fig.canvas.draw()
         
         mplimage = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(*DIMS, 3)
@@ -200,11 +201,11 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
     """Generates images for reflectivity data of varying layers in a given `data_path`.
 
     Args:
-        data_path (type): the directory containing data to convert to images.
-        save_path (type): the directory to store the newly generated images to.
-        layers (type): the layers for which the corresponding files are to be converted.
-        chunk_size (type): the size of chunks used when storing images in a .h5 file.
-        display_status (type): whether to display the image generation progress.
+        data_path (string): the directory containing data to convert to images.
+        save_path (string): the directory to store the newly generated images to.
+        layers (list): the layers for which the corresponding files are to be converted.
+        chunk_size (int): the size of chunks used when storing images in a .h5 file.
+        display_status (Boolean): whether to display the image generation progress.
 
     """
     if any([layer <= 0 or layer > 3 for layer in layers]): #Check layers are valid
@@ -244,31 +245,33 @@ def generate_images(data_path, save_path, layers, chunk_size=1000, display_statu
     ImageGenerator.shuffle_data(concatenated)  #Shuffle concatenated data
     ImageGenerator.scale_targets(concatenated) #Scale the targets to be between 0 and 1.
 
-    shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size)
+    shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size) #Get dataset shapes for use in defining chunk sizes.
     
     for section, dictionary in concatenated.items():
         file = os.path.normpath(os.path.join(save_path, '{}.h5'.format(section)))
 
         with h5py.File(file, 'w') as file: #Create the file for the current split.
             for type_of_data, data in dictionary.items():
+                #Create each dataset (except images) with the correct chunk size and datatype.
                 file.create_dataset(type_of_data, data=data, chunks=shapes[type_of_data], dtype=DTYPES[type_of_data])
 
             if display_status:
                 print(">>> Generating images for {}.h5".format(section))
 
-            num_curves = len(file['inputs'])
+            num_curves = len(file['inputs']) #Create the image dataset.
             file.create_dataset('images', (num_curves, *DIMS, CHANNELS), chunks=(chunk_size, *DIMS, CHANNELS), dtype=DTYPES['images']) 
             
-            steps = int(num_curves / chunk_size)
+            steps = int(num_curves / chunk_size) #Each step corresponds to writing a chunk.
             for i in range(steps):
                 start = i*chunk_size
-                end = (i+1)*chunk_size
-                #Create images for each sample in the chunk
+                end = (i+1)*chunk_size #Get the start and end points of the chunk.
+                
+                #Create and store images for each sample in the chunk.
                 file['images'][start:end] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][start:end]] 
                 if display_status and i % max(1, int(steps/10)) == 0:
-                    print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps))
+                    print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps)) #Display how many chunks have been written so far.
                 
-            remainder = steps*chunk_size
+            remainder = steps*chunk_size #Write any leftover samples.
             if len(file['inputs'][remainder:]) != 0:
                 if display_status:
                     print("   Writing remainder...")
