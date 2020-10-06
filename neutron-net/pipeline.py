@@ -552,7 +552,7 @@ class Pipeline:
                 print(">>> Creating images for {}-layer curves".format(layer))
                 save_path_layer = data_path_layer = save_path + "/data/{}".format(LAYERS_STR[layer])
                 #Create images for the generated curves, ready for input to the classifier and regressors.
-                generate_images(data_path_layer, save_path_layer, [layer], chunk_size=chunk_size, display_status=False)
+                generate_images(data_path_layer, save_path_layer, [layer], xray=xray, chunk_size=chunk_size, display_status=False)
 
             layers_paths = [save_path + "/data/{}".format(LAYERS_STR[layer]) for layer in layers]
             merge(save_path + "/data", layers_paths, display_status=False) #Merge the curves for each layer for classification.
@@ -577,7 +577,8 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots)
             print()
-        
+
+
 if __name__ == "__main__":
     save_path = './models/investigate'
     layers     = [1, 2, 3]
@@ -589,8 +590,8 @@ if __name__ == "__main__":
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
-    #               train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
+    Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
+                   train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"

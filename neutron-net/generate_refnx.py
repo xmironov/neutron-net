@@ -365,7 +365,7 @@ class XRayGenerator(CurveGenerator):
 if __name__ == "__main__":
     save_path  = './models/investigate/data'
     layers     = ['one', 'two', 'three']
-    num_curves = 5000
+    num_curves = 50000
     xray       = False
     noisy      = False
 

@@ -18,8 +18,7 @@ def merge(save_path, layers_paths, display_status=True):
         os.makedirs(save_path)
 
     for split in ('train', 'validate', 'test'): #Iterate over each split.
-        if display_status:
-            print("\n>>> Merging {}.h5 files".format(split))
+        print("\n>>> Merging {}.h5 files".format(split))
 
         #Load each of the old files for the split.
         old_files = [h5py.File(layer_path + "/{}.h5".format(split), 'r') for layer_path in layers_paths]
