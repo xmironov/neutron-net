@@ -247,8 +247,7 @@ class Plotter:
                             xycoords="axes points", textcoords="offset points",
                             size="large", ha="right", va="center")
         plt.savefig("../resources/three-layer-regression.png", dpi=600)
-        plt.show()
-        
+        plt.show()      
 
     @staticmethod
     def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=100):
@@ -302,4 +301,4 @@ if __name__ == "__main__":
     layers = 3
     data_path  = "./models/investigate/data"
     load_paths = {i: "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    Plotter.kdp_plot(data_path, load_paths, steps=5, n_iter=100)
+    Plotter.kdp_plot(data_path, load_paths, steps=10, n_iter=100)

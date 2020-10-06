@@ -274,9 +274,9 @@ class Model():
         self.objective = Objective(self.model, data)
 
     def fit(self):
-        """Fits the model to the data using differential evolution"""
+        """Fits the model to the data using L-BFGS-B algorithm."""
         fitter = CurveFitter(self.objective)
-        fitter.fit('differential_evolution', verbose=False)
+        fitter.fit('L-BFGS-B', verbose=False)
         self.plot_objective(prediction=False)
 
     def plot_SLD(self):
@@ -590,8 +590,8 @@ if __name__ == "__main__":
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
-                   train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
+    #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
+    #               train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
 
     load_path = "./models/investigate"
     data_path = "./models/investigate"

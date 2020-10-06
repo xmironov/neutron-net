@@ -300,5 +300,6 @@ if __name__ == "__main__":
     save_path = "./models/investigate"
     load_path = "./models/investigate/classifier/full_model.h5"
 
-    classify(data_path, save_path, train=True, epochs=10, show_plots=True) #Train from new
-    #classify(data_path, save_path, load_path=load_path, train=False, show_plots=True) #Load existing
+    classify(data_path, save_path, train=True, epochs=10, show_plots=True) #Train new
+    #classify(data_path, save_path, load_path=load_path, train=True, epochs=10, show_plots=True) #Train existing
+    #classify(data_path, load_path=load_path, train=False, show_plots=True) #Load but do not train existing
