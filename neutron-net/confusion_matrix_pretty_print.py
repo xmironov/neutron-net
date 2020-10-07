@@ -20,7 +20,7 @@ class ConfusionMatrixPrinter:
             matplotlib figure and axis objects.
 
         """
-        fig = plt.figure(figure_num, fig_size)
+        fig = plt.figure(figure_num, fig_size, dpi=600)
         ax  = fig.gca() #Get the current axis.
         ax.cla() #Clear any existing plot.
         return fig, ax

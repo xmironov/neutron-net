@@ -24,13 +24,14 @@ class KerasDropoutPredicter():
             [model.layers[0].input, K.learning_phase()],
             [model.layers[-2].output, model.layers[-1].output])
 
-    def predict(self, sequencer, steps=None, n_iter=5):
+    def predict(self, sequencer, steps=None, n_iter=5, xray=False):
         """Makes Bayesian-like predictions using give model.
 
         Args:
             sequencer (DataLoader): the sequence providing data to predict on.
             steps (int): the number of batches of data to plot.
             n_iter (int): the number of iterations per step.
+            xray (Boolean): whether input data is neutron or x-ray.
 
         Returns:
             List of numpy arrays of depth and SLD predictions, labels and associated errors.
@@ -51,14 +52,24 @@ class KerasDropoutPredicter():
                 [depths, slds] = self.f([images, 1]) #Set Dropout to True: 1
                 #De-scale predictions
                 depth_unscaled = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
-                sld_unscaled   = ImageGenerator.scale_to_range(slds,   (0, 1), ImageGenerator.sld_bounds)
+                
+                if xray:
+                    sld_unscaled = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_xray_bounds)
+                else:
+                    sld_unscaled = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_neutron_bounds)
+                    
                 results.append([depth_unscaled, sld_unscaled])
 
             results = np.array(results)
             prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
             #De-scale targets
             targets_depth = ImageGenerator.scale_to_range(targets["depth"], (0, 1), ImageGenerator.depth_bounds)
-            targets_sld   = ImageGenerator.scale_to_range(targets["sld"],   (0, 1), ImageGenerator.sld_bounds)
+            
+            if xray:
+                targets_sld = ImageGenerator.scale_to_range(targets["sld"], (0, 1), ImageGenerator.sld_xray_bounds)
+            else:
+                targets_sld = ImageGenerator.scale_to_range(targets["sld"], (0, 1), ImageGenerator.sld_neutron_bounds)
+                
             targets_sum = np.array([targets_depth, targets_sld])
             outs = np.array([prediction, uncertainty, targets_sum])
 
@@ -91,17 +102,23 @@ class Plotter:
 
     Class Attributes:
         depth_axis (tuple): the range of depth values for the plot.
-        sld_axis (tuple): the range of SLD values for the plot.
+        sld_neutron_axis (tuple): the range of neutron SLD values for the plot.
+        sld_xray_axis (tuple): the range of xray SLD values for the plot.
         depth_ticks (tuple): the values to place ticks on the depth axis.
-        sld_ticks (tuple): the values to place ticks on the SLD axis.
+        sld_neutron_ticks (tuple): the values to place ticks on the neutron SLD axis.
+        sld_xray_ticks (tuple): the values to place ticks on the x-ray SLD axis.
         pad (int): padding value for the layer annotations.
         v_pad (int): vertical padding value for the layer annotations.
 
     """
-    depth_axis  = (-250, 3250)
-    sld_axis    = (-1.5, 11)
-    depth_ticks = (0, 1000, 2000, 3000)
-    sld_ticks   = (0, 2.5, 5, 7.5, 10)
+    depth_axis       = (-250, 3250)
+    sld_neutron_axis = (-1.5, 11)
+    sld_xray_axis    = (5e-6, 0.00016)
+    
+    depth_ticks       = (0, 1000, 2000, 3000)
+    sld_neutron_ticks = (0, 2.5, 5, 7.5, 10)
+    sld_xray_ticks    = (2e-5, 6e-5, 10e-5, 1.4e-4, 1.8e-4)
+    
     pad   = 55
     v_pad = 80
 
@@ -119,18 +136,12 @@ class Plotter:
         """
         ax.errorbar(labels, preds, errors, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="b", zorder=-130, markersize=4)
         ax.plot([0,1], [0,1], 'k', transform=ax.transAxes)
-        ax.set_xlim(Plotter.depth_axis)
-        ax.set_ylim(Plotter.depth_axis)
-        ax.set_yticks(Plotter.depth_ticks)
-        ax.set_yticklabels(Plotter.depth_ticks)
-        ax.set_xticks(Plotter.depth_ticks)
-        ax.set_xticklabels(Plotter.depth_ticks)
         ax.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
         if x_axis_label:
             ax.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
 
     @staticmethod
-    def __sld_subplot(ax, labels, preds, errors, x_axis_label=False):
+    def __sld_subplot(ax, labels, preds, errors, x_axis_label=False, xray=False):
         """Plots a ground truth against prediction plot for SLDs of a given layer.
 
         Args:
@@ -139,28 +150,39 @@ class Plotter:
             preds (ndarray): predictions for SLDs.
             errors (ndarray): errors in predictions for SLDs.
             x_axis_label (Boolean): whether to add the x-axis label or not.
+            xray (Boolean): whether data to plot is x-ray or neutron.
 
         """
         ax.errorbar(labels, preds, errors, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="g", zorder=-130, markersize=4)
         ax.plot([0,1], [0,1], 'k', transform=ax.transAxes)
-        ax.set_xlim(Plotter.sld_axis)
-        ax.set_ylim(Plotter.sld_axis)
-        ax.set_yticks(Plotter.sld_ticks)
-        ax.set_yticklabels(Plotter.sld_ticks)
-        ax.set_xticks(Plotter.sld_ticks)
-        ax.set_xticklabels(Plotter.sld_ticks)
+        if xray:
+            ax.set_xlim(Plotter.sld_xray_axis)
+            ax.set_ylim(Plotter.sld_xray_axis)
+            ax.set_yticks(Plotter.sld_xray_ticks)
+            ax.set_yticklabels(Plotter.sld_xray_ticks)
+            ax.set_xticks(Plotter.sld_xray_ticks)
+            ax.set_xticklabels(Plotter.sld_xray_ticks)
+        else:
+            ax.set_xlim(Plotter.sld_neutron_axis)
+            ax.set_ylim(Plotter.sld_neutron_axis)
+            ax.set_yticks(Plotter.sld_neutron_ticks)
+            ax.set_yticklabels(Plotter.sld_neutron_ticks)
+            ax.set_xticks(Plotter.sld_neutron_ticks)
+            ax.set_xticklabels(Plotter.sld_neutron_ticks)
+            
         ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
         if x_axis_label:
             ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
 
     @staticmethod
-    def __one_layer_plot(preds, labels, errors):
+    def __one_layer_plot(preds, labels, errors, xray=False):
         """Plots ground truths against predictions for depths and SLDs of 1-layer curves.
 
         Args:
             preds (ndarray): KDP predictions for depth and SLD.
             labels (ndarray): corresponding ground truths for depth and SLD predictions.
             errors (ndarray): errors in depth and SLD KDP predictions.
+            xray (Boolean): whether data uses a x-ray or neutron probe.
 
         """
         fig, (ax_depth, ax_sld) = plt.subplots(1, 2, figsize=(8,4.5)) #Make the subplot structure for one layer.
@@ -169,7 +191,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the single layer
         Plotter.__depth_subplot(ax_depth, labels[:,0], preds[:,0], errors[:,0], x_axis_label=True)
-        Plotter.__sld_subplot(ax_sld,     labels[:,1], preds[:,1], errors[:,1], x_axis_label=True)
+        Plotter.__sld_subplot(ax_sld,     labels[:,1], preds[:,1], errors[:,1], x_axis_label=True, xray=xray)
         ax_depth.annotate("Layer 1", xy=(0, 0.5),
                           xytext=(-ax_depth.yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                           xycoords="axes points", textcoords="offset points",
@@ -178,13 +200,14 @@ class Plotter:
         plt.show()
 
     @staticmethod
-    def __two_layer_plot(preds, labels, errors):
+    def __two_layer_plot(preds, labels, errors, xray=False):
         """Plots ground truths against predictions for depths and SLDs of 2-layer curves.
 
         Args:
             preds (ndarray): KDP predictions for depth and SLD.
             labels (ndarray): corresponding ground truths for depth and SLD predictions.
             errors (ndarray): errors in depth and SLD KDP predictions.
+            xray (Boolean): whether data uses a x-ray or neutron probe.
 
         """
         fig, axes = plt.subplots(2, 2, figsize=(8,8)) #Make the subplot structure for two layers.
@@ -193,7 +216,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the first layer
         Plotter.__depth_subplot(axes[0][0], labels[:,0], preds[:,0], errors[:,0])
-        Plotter.__sld_subplot(axes[0][1],   labels[:,1], preds[:,1], errors[:,1])
+        Plotter.__sld_subplot(axes[0][1],   labels[:,1], preds[:,1], errors[:,1], xray=xray)
         axes[0][0].annotate("Layer 1",
                             xy=(0, 0.5), xytext=(-axes[0][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -201,7 +224,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the second layer
         Plotter.__depth_subplot(axes[1][0], labels[:,2], preds[:,2], errors[:,2], x_axis_label=True)
-        Plotter.__sld_subplot(axes[1][1],   labels[:,3], preds[:,3], errors[:,3], x_axis_label=True)
+        Plotter.__sld_subplot(axes[1][1],   labels[:,3], preds[:,3], errors[:,3], x_axis_label=True, xray=xray)
         axes[1][0].annotate("Layer 2", xy=(0, 0.5),
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -210,13 +233,14 @@ class Plotter:
         plt.show()
 
     @staticmethod
-    def __three_layer_plot(preds, labels, errors):
+    def __three_layer_plot(preds, labels, errors, xray=False):
         """Plots ground truths against predictions for depths and SLDs of 3-layer curves.
 
         Args:
             preds (ndarray): KDP predictions for depth and SLD.
             labels (ndarray): corresponding ground truths for depth and SLD predictions.
             errors (ndarray): errors in depth and SLD KDP predictions.
+            xray (Boolean): whether data uses a x-ray or neutron probe.
 
         """
         fig, axes = plt.subplots(3, 2, figsize=(8,9)) #Make the subplot structure for three layers.
@@ -225,7 +249,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the first layer
         Plotter.__depth_subplot(axes[0][0], labels[:,0], preds[:,0], errors[:,0])
-        Plotter.__sld_subplot(axes[0][1],   labels[:,1], preds[:,1], errors[:,1])
+        Plotter.__sld_subplot(axes[0][1],   labels[:,1], preds[:,1], errors[:,1], xray=xray)
         axes[0][0].annotate("Layer 1", xy=(0, 0.5),
                             xytext=(-axes[0][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -233,7 +257,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the second layer
         Plotter.__depth_subplot(axes[1][0], labels[:,2], preds[:,2], errors[:,2])
-        Plotter.__sld_subplot(axes[1][1],   labels[:,3], preds[:,3], errors[:,3])
+        Plotter.__sld_subplot(axes[1][1],   labels[:,3], preds[:,3], errors[:,3], xray=xray)
         axes[1][0].annotate("Layer 2", xy=(0, 0.5),
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -241,7 +265,7 @@ class Plotter:
 
         #Add depth and SLD subplots for the third layer
         Plotter.__depth_subplot(axes[2][0], labels[:,4], preds[:,4], errors[:,4], x_axis_label=True)
-        Plotter.__sld_subplot(axes[2][1],   labels[:,5], preds[:,5], errors[:,5], x_axis_label=True)
+        Plotter.__sld_subplot(axes[2][1],   labels[:,5], preds[:,5], errors[:,5], x_axis_label=True, xray=xray)
         axes[2][0].annotate("Layer 3", xy=(0, 0.5),
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
@@ -250,7 +274,7 @@ class Plotter:
         plt.show()      
 
     @staticmethod
-    def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=100):
+    def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=100, xray=False):
         """Performs dropout at test time to make Bayesian-like predictions and plots the results.
 
         Args:
@@ -259,6 +283,7 @@ class Plotter:
             steps (int): the number of batches of data to plot.
             batch_size (int): the batch_size for loading data to test with.
             n_iter (int): the number of times to perform a prediction on a single curve (mean is taken of these).
+            xray (Boolean): whether input data is neutron or x-ray.
 
         """
         layers = len(load_paths.values()) #Get the number of layers (either 2 or 3).
@@ -269,7 +294,7 @@ class Plotter:
             loader = DataLoader(file, DIMS, CHANNELS, batch_size, layer)
             kdp    = KerasDropoutPredicter(model, loader)
 
-            preds = kdp.predict(loader, steps=steps, n_iter=n_iter) #Perform KDP predictions and format results.
+            preds = kdp.predict(loader, steps, n_iter, xray) #Perform KDP predictions and format results.
             depth, sld,              = preds[0][0], preds[0][1]
             depth_ground, sld_ground = preds[2][0], preds[2][1]
             depth_std, sld_std       = preds[1][0], preds[1][1]
@@ -290,15 +315,17 @@ class Plotter:
 
             #Call the relevant method for each layer.
             if layer == 1:
-                Plotter.__one_layer_plot(preds_padded,   labels_padded, errors_padded)
+                Plotter.__one_layer_plot(preds_padded, labels_padded, errors_padded, xray)
             elif layer == 2:
-                Plotter.__two_layer_plot(preds_padded,   labels_padded, errors_padded)
+                Plotter.__two_layer_plot(preds_padded, labels_padded, errors_padded, xray)
             elif layer == 3:
-                Plotter.__three_layer_plot(preds_padded, labels_padded, errors_padded)
+                Plotter.__three_layer_plot(preds_padded, labels_padded, errors_padded, xray)
 
 
 if __name__ == "__main__":
     layers = 3
+    xray   = False
     data_path  = "./models/investigate/data"
     load_paths = {i: "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    Plotter.kdp_plot(data_path, load_paths, steps=10, n_iter=100)
+    
+    Plotter.kdp_plot(data_path, load_paths, steps=10, n_iter=100, xray=xray)

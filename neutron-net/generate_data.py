@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import color
 
+from generate_refnx import CurveGenerator, NeutronGenerator, XRayGenerator
+
 LAYERS_STR = {1: "one", 2: "two", 3: "three"}
 DIMS       = (300, 300)
 CHANNELS   = 1
@@ -18,26 +20,34 @@ class ImageGenerator:
     
     Class Attributes:
         depth_bounds (tuple): bounds on depths used for scaling targets.
-        sld_bounds (tuple): bounds on SLDs used for scaling targets.
-        x-ray (Boolean): whether the input reflectivity data is neutron or x-ray.
+        sld_neutron_bounds (tuple): bounds on SLDs used for scaling neutron data targets.
+        x-sld_xray_bounds (tuple): bounds on SLDs used for scaling x-ray data targets.
         
     """
-    depth_bounds = (20, 3000)
-    sld_bounds   = (-1, 10)
+    depth_bounds       = CurveGenerator.thick_bounds
+    sld_neutron_bounds = NeutronGenerator.sld_bounds
+    sld_xray_bounds    = (XRayGenerator.density_constant * XRayGenerator.density_bounds[0], 
+                          XRayGenerator.density_constant * XRayGenerator.density_bounds[1])
 
     @staticmethod
-    def scale_targets(concatenated):
+    def scale_targets(concatenated, xray=False):
         """Scales target (SLD and depth) values to be in the range [0,1].
 
         Args:
             concatenated (Dataset): h5py dataset containing train, validate and test data.
+            xray (Boolean): whether the data is x-ray or neutron.
 
         """
         for split, data in concatenated.items(): #Iterate over each split.
             scaled_targets = np.zeros(data['targets'].shape) #Blank array of zeros to fill in.
             for i in range(3): #Apply scaling to the depth and SLD values for each layer.
-                scaled_targets[:, 2*i]   = ImageGenerator.scale_to_range(data['targets'][:, 2*i],   ImageGenerator.depth_bounds, (0, 1))
-                scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_bounds,   (0, 1))
+                scaled_targets[:, 2*i] = ImageGenerator.scale_to_range(data['targets'][:, 2*i], ImageGenerator.depth_bounds, (0, 1))
+                
+                if xray:
+                    scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_xray_bounds, (0, 1))
+                else:
+                    scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_neutron_bounds, (0, 1))
+                    
             concatenated[split]['targets_scaled'] = scaled_targets
 
     @staticmethod
@@ -252,7 +262,7 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
     del split_data
 
     ImageGenerator.shuffle_data(concatenated)  #Shuffle concatenated data
-    ImageGenerator.scale_targets(concatenated) #Scale the targets to be between 0 and 1.
+    ImageGenerator.scale_targets(concatenated, xray) #Scale the targets to be between 0 and 1.
 
     shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size) #Get dataset shapes for use in defining chunk sizes.
     

@@ -210,18 +210,27 @@ class Regressor():
             os.makedirs(save_path)
         self.model.save(os.path.join(save_path, 'full_model.h5'))
 
-    def plot(self, labels, test_seq):
+    def plot(self, labels, test_seq, xray=False):
         """Plots ground truth depths and SLDs against predictions for each layer.
 
         Args:
             labels (ndarray): an array of ground truth labels.
             test_seq (DataLoader): the test set to predict on.
+            xray (Boolean): whether data is neutron or x-ray.
 
         """
         #Make predictions on test set and descale.
         scaled_preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
         depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), ImageGenerator.depth_bounds)
-        slds   = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_bounds)
+        
+        depth_plot_range = (-100, 3100)
+        
+        if xray:
+            slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_xray_bounds)
+            sld_plot_range = (5e-6, 0.00016)
+        else:
+            slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_neutron_bounds)
+            sld_plot_range = (-1.5, 10.5)
 
         preds = np.zeros((len(depths[:,0]), 2*self.outputs)) #Format predictions into a single array
         for i in range(self.outputs):
@@ -259,8 +268,8 @@ class Regressor():
                 if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
                     ax.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
                 ax.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
-                ax.set_xlim(-100, 3100)
-                ax.set_ylim(-100, 3100)
+                ax.set_xlim(*depth_plot_range)
+                ax.set_ylim(*depth_plot_range)
                 ax.annotate(row_headers[k//2], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
                             xycoords=ax.yaxis.label, textcoords="offset points",
                             size="large", ha="right", va="center")
@@ -268,8 +277,8 @@ class Regressor():
                 if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
                     ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
                 ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
-                ax.set_xlim(-1.5, 10.5)
-                ax.set_ylim(-1.5, 10.5)
+                ax.set_xlim(*sld_plot_range)
+                ax.set_ylim(*sld_plot_range)
             
         plt.show()
 
@@ -279,7 +288,7 @@ class Regressor():
 
 
 def regress(data_path, layer, save_path=None, load_path=None, train=True, summary=False, epochs=2,
-         learning_rate=0.0004, batch_size=20, dropout_rate=0.1, workers=1, show_plots=True):
+         learning_rate=0.0004, batch_size=20, dropout_rate=0.1, workers=1, show_plots=True, xray=False):
     """Either creates a regressor or loads an existing regressor, optionally
        trains the network and then evaluates it.
 
@@ -296,6 +305,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
         dropout_rate (float): the value of the dropout rate hyperparameter.
         workers (int): the number of workers to use.
         show_plots (Boolean): whether to display regression plots.
+        xray (Boolean): whether input data uses a neutron or x-ray probe.
 
     """
     if save_path is not None: #If a save path is provided, save the regressor under a directory
@@ -326,7 +336,7 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
 
     if show_plots:
         test_labels = np.array(test_h5['targets'])
-        model.plot(test_labels, test_loader)
+        model.plot(test_labels, test_loader, xray)
 
     train_h5.close()
     val_h5.close()
@@ -335,10 +345,11 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
 
 if __name__ == "__main__":
     layer     = 1
+    xray      = False
     data_path = "./models/investigate/data/{}".format(LAYERS_STR[layer])
     save_path = "./models/investigate"
     load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
     
-    regress(data_path, layer, save_path, train=True, epochs=15) #Train new
-    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=15) #Train existing
-    #regress(data_path, layer, load_path=load_path, train=False) #Load but do not train existing
+    regress(data_path, layer, save_path, train=True, epochs=15, xray=xray) #Train new
+    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=15, xray=xray) #Train existing
+    #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
