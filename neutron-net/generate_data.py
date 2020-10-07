@@ -26,8 +26,8 @@ class ImageGenerator:
     """
     depth_bounds       = CurveGenerator.thick_bounds
     sld_neutron_bounds = NeutronGenerator.sld_bounds
-    sld_xray_bounds    = (XRayGenerator.density_constant * XRayGenerator.density_bounds[0], 
-                          XRayGenerator.density_constant * XRayGenerator.density_bounds[1])
+    sld_xray_bounds    = (np.floor(XRayGenerator.density_constant * XRayGenerator.density_bounds[0]), 
+                          np.ceil(XRayGenerator.density_constant * XRayGenerator.density_bounds[1]))
 
     @staticmethod
     def scale_targets(concatenated, xray=False):

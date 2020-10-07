@@ -280,15 +280,18 @@ class Model():
         else: #Use neutron probe
             for i in range(layers):
                 layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=Model.roughness)
-                layer.sld.real.setp(bounds=ImageGenerator.sld_bounds, vary=True)
-                layer.thick.setp(bounds=ImageGenerator.depth_bounds,  vary=True)
+                layer.sld.real.setp(bounds=ImageGenerator.sld_neutron_bounds, vary=True)
+                layer.thick.setp(bounds=ImageGenerator.depth_bounds, vary=True)
+                layer.rough.setp(bounds=(0,10), vary=True)
                 self.structure = self.structure | layer  #Next comes each layer.
             #Then substrate
             si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=Model.roughness)
+            si_substrate.rough.setp(bounds=(0,10), vary=True)
             
         self.structure = self.structure | si_substrate
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq)
+        self.model.scale.setp(bounds=(0.8, 1.1), vary=True)
         self.objective = Objective(self.model, data)
 
     def fit(self):

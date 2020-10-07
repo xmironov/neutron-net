@@ -252,10 +252,10 @@ class XRayGenerator(CurveGenerator):
     qMax              = 1
     bkg               = 1e-9
     substrate_density = 2.1 #The density to set water at in order to get the SLD of Si
-    density_constant  = 9.4691e-6
+    density_constant  = 9.4691
     density_bounds    = (0.5, 16)
     wavelength        = 1.54
-    material          = 'H20' #H20 is just used to generate a range of SLD values
+    material          = 'H2O' #H2O is just used to generate a range of SLD values
 
     @staticmethod
     def generate(generate_num, layers):

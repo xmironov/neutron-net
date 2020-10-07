@@ -113,11 +113,11 @@ class Plotter:
     """
     depth_axis       = (-250, 3250)
     sld_neutron_axis = (-1.5, 11)
-    sld_xray_axis    = (5e-6, 0.00016)
+    sld_xray_axis    = (0, 160)
     
     depth_ticks       = (0, 1000, 2000, 3000)
     sld_neutron_ticks = (0, 2.5, 5, 7.5, 10)
-    sld_xray_ticks    = (2e-5, 6e-5, 10e-5, 1.4e-4, 1.8e-4)
+    sld_xray_ticks    = (0, 30, 60, 90, 120, 150)
     
     pad   = 55
     v_pad = 80

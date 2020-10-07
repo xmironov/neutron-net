@@ -227,7 +227,7 @@ class Regressor():
         
         if xray:
             slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_xray_bounds)
-            sld_plot_range = (5e-6, 0.00016)
+            sld_plot_range = (0, 156)
         else:
             slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_neutron_bounds)
             sld_plot_range = (-1.5, 10.5)
