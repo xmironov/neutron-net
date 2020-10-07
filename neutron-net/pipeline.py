@@ -266,7 +266,7 @@ class Model():
         """
         self.structure = SLD(0, name='Air') #Model starts with air.
 
-        if xray:
+        if xray: #Use x-ray probe
             for i in range(layers):
                 density = predicted_slds[i] / XRayGenerator.density_constant
                 SLD_layer = MaterialSLD(XRayGenerator.material, density, probe='x-ray', wavelength=XRayGenerator.wavelength, name='Layer {}'.format(i+1))
@@ -277,7 +277,7 @@ class Model():
             #Then substrate    
             si_substrate = MaterialSLD(XRayGenerator.material, XRayGenerator.substrate_density, probe='x-ray', name='Si Substrate')(thick=0, rough=Model.roughness)
             
-        else:
+        else: #Use neutron probe
             for i in range(layers):
                 layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=Model.roughness)
                 layer.sld.real.setp(bounds=ImageGenerator.sld_bounds, vary=True)
