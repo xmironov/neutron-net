@@ -1,15 +1,14 @@
 import os, glob, sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #Suppress TensorFlow warnings
-
 import numpy  as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-tf.compat.v1.disable_eager_execution()
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils  import Sequence
+tf.compat.v1.disable_eager_execution()
 
 from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, MaterialSLD, ReflectModel
@@ -193,21 +192,25 @@ class KerasDropoutPredicter():
         while steps_done < steps:
             # Yield the sample image and the number of layers it is predicted to have
             x, y = next(output_generator)
+            layer = int(y[0][0])
             results = []
 
-            for i in range(n_iter):
-                if y[0][0] == 1: # If one-layer
+            for i in range(n_iter): #Run the corresponding model for the predicted layer.
+                if layer == 1: 
                     [depths, slds] = self.f_1([x, 1])
-                elif y[0][0] == 2: #Else if two-layer
+                elif layer == 2: 
                     [depths, slds] = self.f_2([x, 1])
-                elif y[0][0] == 3: #Else if three-layer
+                elif layer == 3:
                     [depths, slds] = self.f_3([x, 1])
                     
-                depth_scaled = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
+                depth_scaled = np.zeros((1,3)) #Pad empty depth and SLD values for layers not being predicted on.
+                sld_scaled   = np.zeros((1,3))
+                
+                depth_scaled[0][:layer] = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
                 if xray:
-                    sld_scaled = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_xray_bounds)
+                    sld_scaled[0][:layer]  = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_xray_bounds)
                 else:
-                    sld_scaled = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_neutron_bounds)
+                    sld_scaled[0][:layer]  = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_neutron_bounds)
                     
                 results.append([depth_scaled, sld_scaled])
 
@@ -295,9 +298,9 @@ class Model():
         self.objective = Objective(self.model, data)
 
     def fit(self):
-        """Fits the model to the data using L-BFGS-B algorithm."""
+        """Fits the model to the data using differential evolution."""
         fitter = CurveFitter(self.objective)
-        fitter.fit('L-BFGS-B', verbose=False)
+        fitter.fit('differential_evolution', verbose=False)
         self.plot_objective(prediction=False)
 
     def plot_SLD(self):
@@ -384,7 +387,7 @@ class Pipeline:
             print(">>> Predicted number of layers: {}\n".format(layer_predictions[curve]))
 
         #Use regression to predict the SLDs and depths for each file.
-        sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray)
+        sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray)
         
         models = {} 
         #Print the predictions and errors for the depths and SLDs for each layer for each file.
@@ -429,12 +432,11 @@ class Pipeline:
         return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
 
     @staticmethod
-    def __regress(data_path, save_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
+    def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
         """Performs SLD and depth regression for specified .dat files.
 
         Args:
             data_path (string): path to the directory containing .dat files for predicting on.
-            save_path (string): path to the directory where temporary files are to be stored.
             regressor_paths (dict): dictionary of paths to regressors for each layer.
             layer_predictions (ndarray): an array of layer predictions for each file.
             npy_image_filenames (ndarray): an array of filenames of files containing images
@@ -605,7 +607,7 @@ class Pipeline:
 if __name__ == "__main__":
     save_path = './models/investigate'
     layers     = [1, 2, 3]
-    curve_num  = 25000
+    curve_num  = 50000
     chunk_size = 100
     noisy            = False
     xray             = False
@@ -614,11 +616,11 @@ if __name__ == "__main__":
     train_classifier = True
     train_regressor  = True
     #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
-    #               train_classifier, train_regressor, classifer_epochs=10, regressor_epochs=10)
+    #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
-    load_path = "./models/investigate"
-    data_path = "./models/investigate"
+    load_path = "./models/neutron"
+    data_path = "./data"
     classifier_path = load_path + "/classifier/full_model.h5"
     layers = 3
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    models = Pipeline.run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)

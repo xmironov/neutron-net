@@ -77,7 +77,7 @@ class CurveGenerator:
         plt.yscale('log')
 
     @staticmethod
-    def sample_noise(q, r, file="./data/directbeam_noise.dat", constant=100):
+    def sample_noise(q, r, file="../resources/directbeam_noise.dat", constant=100):
         """Adds noise to given reflectivity data using the direct beam sample.
 
         Args:
