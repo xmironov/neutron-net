@@ -20,7 +20,7 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 
 3. Install pip by running: ```conda install pip```
 
-4. Navigate to the main neutron-net directory. Run the following to install the required packages from the requirements.txt file: <br />
+4. Navigate to the main neutron-net directory. Run the following to install the required packages from the [requirements.txt](/requirements.txt) file: <br />
    ```pip install -r requirements.txt```
 
 5. You should be able to run the code. Try: ```python pipeline.py```
