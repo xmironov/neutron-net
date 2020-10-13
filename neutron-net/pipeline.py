@@ -245,16 +245,22 @@ class Model():
     """The Model class represents a refnx model using predictions made by the classifier and regressors.
 
     Class Attributes:
-        si_sld (float): the substrate SLD (silicon).
         roughness (int): the default roughness between each layer in Angstrom.
+        rough_bounds (tuple): the range of values to fit for roughness.
+        si_sld (float): the substrate SLD (silicon).
         dq (int): the instrument resolution parameter.
         scale (int): the instrument scale parameter.
+        scale_bounds (tuple): the range of values to fit for the instrument scale.
+        dq_bounds (tuple): the range of values to fit for the dq parameter.
 
     """
-    si_sld    = 2.047
-    roughness = 2
-    dq        = 2
-    scale     = 1
+    rough_bounds = (0, 10)
+    roughness    = 2
+    si_sld       = 2.047
+    dq           = 2
+    scale        = 1
+    scale_bounds = (0.8, 1.1)
+    dq_bounds    = (2, 10)
 
     def __init__(self, file_path, layers, predicted_slds, predicted_depths, xray):
         """Initialises the Model class by creating a refnx model with given predicted values.
@@ -276,6 +282,7 @@ class Model():
                 layer = SLD_layer(thick=predicted_depths[i], rough=Model.roughness)
                 layer.density.setp(bounds=XRayGenerator.density_bounds, vary=True)
                 layer.thick.setp(bounds=ImageGenerator.depth_bounds, vary=True)
+                layer.rough.setp(bounds=Model.rough_bounds, vary=True)
                 self.structure = self.structure | layer  #Next comes each layer.
             #Then substrate    
             si_substrate = MaterialSLD(XRayGenerator.material, XRayGenerator.substrate_density, probe='x-ray', name='Si Substrate')(thick=0, rough=Model.roughness)
@@ -285,16 +292,17 @@ class Model():
                 layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=Model.roughness)
                 layer.sld.real.setp(bounds=ImageGenerator.sld_neutron_bounds, vary=True)
                 layer.thick.setp(bounds=ImageGenerator.depth_bounds, vary=True)
-                layer.rough.setp(bounds=(0,10), vary=True)
+                layer.rough.setp(bounds=Model.rough_bounds, vary=True)
                 self.structure = self.structure | layer  #Next comes each layer.
             #Then substrate
             si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=Model.roughness)
-            si_substrate.rough.setp(bounds=(0,10), vary=True)
             
+        si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq)
-        self.model.scale.setp(bounds=(0.8, 1.1), vary=True)
+        self.model.scale.setp(bounds=Model.scale_bounds, vary=True)
+        self.model.dq.setp(bounds=Model.dq_bounds, vary=True)
         self.objective = Objective(self.model, data)
 
     def fit(self):
@@ -380,7 +388,7 @@ class Pipeline:
         dat_files = glob.glob(os.path.join(data_path, '*.dat')) #Search for .dat files.
 
         #Classify the number of layers for each .dat file.
-        layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path)
+        layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path, xray)
         for curve in range(len(dat_files)):
             filename = os.path.basename(dat_files[curve])
             print("Results for '{}'".format(filename))
@@ -410,13 +418,14 @@ class Pipeline:
         return models
 
     @staticmethod
-    def __classify(dat_files, save_path, classifier_path):
+    def __classify(dat_files, save_path, classifier_path, xray):
         """Performs layer classification for specified .dat files.
 
         Args:
             dat_files (list): a list of file paths for .dat files to predict on.
             save_path (type): path to the directory where temporary files are to be stored.
             classifier_path (type): path to a pre-trained classifier.
+            xray (Boolean): whether the .dat files are x-ray or neutron.
 
         Returns:
             The layer predictions for each file along with Numpy image filenames.
@@ -424,12 +433,13 @@ class Pipeline:
         """
         print("-------------- Classification -------------")
         #Convert .dat files to images, ready for passing as input to the classifier.
-        npy_image_filenames = Pipeline.__dat_files_to_npy_images(dat_files, save_path)
+        npy_image_filenames = Pipeline.__dat_files_to_npy_images(dat_files, save_path, xray)
         class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
+        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
+        return [1,1], npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
@@ -490,12 +500,13 @@ class Pipeline:
             print()
 
     @staticmethod
-    def __dat_files_to_npy_images(dat_files, save_path):
+    def __dat_files_to_npy_images(dat_files, save_path, xray):
         """Given a list of .dat files, creates .npy images and save them in `save_path`.
 
         Args:
             dat_files (list): a list of .dat file paths.
             save_path (string): the path to the directory to store npy images in.
+            xray (Boolean): whether the .dat files are x-ray or neutron.
 
         Returns:
             An array of filenames of files containing images corresponding to the input .dat files.
@@ -519,8 +530,10 @@ class Pipeline:
             image_files.append(name)
             sample_momentum = data["X"]
             sample_reflect  = data["Y"]
-            sample = np.vstack((sample_momentum, sample_reflect)).T
-            img = ImageGenerator.image_process(sample, save_format=False) #Convert the reflectivity data to an image.
+            sample_reflect_norm = sample_reflect / np.max(sample_reflect) #Normalise data so that max reflectivity is 1
+
+            sample = np.vstack((sample_momentum, sample_reflect_norm)).T
+            img = ImageGenerator.image_process(sample, xray=xray, save_format=False) #Convert the reflectivity data to an image.
             np.save(name, img)
 
         return image_files
