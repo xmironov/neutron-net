@@ -438,8 +438,7 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
-        return [1,1], npy_image_filenames #Make predictions
+        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
