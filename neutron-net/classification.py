@@ -80,7 +80,7 @@ class DataLoader(Sequence):
         for i, idx in enumerate(indices): #Get images and classes for each index
             images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
             classes[i,] = self.labels[idx]
-            
+
         return images, classes
 
     def __on_epoch_end(self):

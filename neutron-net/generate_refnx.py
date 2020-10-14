@@ -33,7 +33,7 @@ class CurveGenerator:
 
         Args:
             thick_bounds (tuple): the range of values layer thicknesses can take.
-            
+
         Returns:
             A discretised thickness range along with the probability of choosing each value.
 
@@ -44,7 +44,7 @@ class CurveGenerator:
         for i in range(len(thick_range)):
             thick_probs.append(1.0 / (thick_range[i] + 100)) #Biases choices towards thinner layers
         thick_probs /= sum(thick_probs)
-        
+
         return thick_range, thick_probs
 
     @staticmethod
@@ -127,11 +127,11 @@ class NeutronGenerator(CurveGenerator):
         sld_bounds (tuple): the range of values layer SLDs can take.
 
     """
-    qMax          = 0.3 
+    qMax          = 0.3
     bkg           = 0
     substrate_sld = 2.047
     sld_bounds    = (-1,10)
-    
+
     @staticmethod
     def generate(generate_num, layers):
         """Generates `generate_num` curves with given number of layers.
@@ -187,13 +187,13 @@ class NeutronGenerator(CurveGenerator):
         """
         if substrate:
             thickness = 0 #Substrate has 0 thickness in refnx.
-            sld       = NeutronGenerator.substrate_sld 
+            sld       = NeutronGenerator.substrate_sld
         else:
             thickness = np.random.choice(thick_range, p=thick_probs) #Select a random thickness and SLD.
             sld       = np.random.choice(sld_range)
 
         return SLD(sld)(thick=thickness, rough=CurveGenerator.roughness)
-    
+
     @staticmethod
     def save(save_path, name, structures, noisy=False):
         """Saves a list of Structure objects in the HDF5 format.
@@ -215,7 +215,7 @@ class NeutronGenerator(CurveGenerator):
             q = np.linspace(CurveGenerator.qMin, NeutronGenerator.qMax, CurveGenerator.points) #Use range of q values specified.
 
             for i, structure in enumerate(structures):
-                model = ReflectModel(structure, bkg=NeutronGenerator.bkg, 
+                model = ReflectModel(structure, bkg=NeutronGenerator.bkg,
                                      scale=CurveGenerator.scale, dq=CurveGenerator.dq)
                 r = model(q) #Generate r values.
 
@@ -230,7 +230,7 @@ class NeutronGenerator(CurveGenerator):
                     temp[2*i]   = component.thick.value
                     temp[2*i+1] = component.sld.real.value
                 parameters.append(temp)
-                
+
             num_curves = len(structures)
             file.create_dataset("SLD_NUMS", data=parameters, chunks=(num_curves, 6))
             file.create_dataset("DATA",     data=data,       chunks=(num_curves, CurveGenerator.points, 2))
@@ -316,10 +316,10 @@ class XRayGenerator(CurveGenerator):
         else:
             thickness = np.random.choice(thick_range, p=thick_probs)
             density = np.random.choice(density_range)
-            
+
         SLD = MaterialSLD(XRayGenerator.material, density, probe='x-ray', wavelength=XRayGenerator.wavelength)
         return SLD(thick=thickness, rough=CurveGenerator.roughness)
-    
+
     @staticmethod
     def save(save_path, name, structures, noisy=False):
         """Saves a list of Structure objects in the HDF5 format.
@@ -341,7 +341,7 @@ class XRayGenerator(CurveGenerator):
             q = np.linspace(CurveGenerator.qMin, XRayGenerator.qMax, CurveGenerator.points) #Use range of q values specified.
 
             for i, structure in enumerate(structures):
-                model = ReflectModel(structure, bkg=XRayGenerator.bkg, 
+                model = ReflectModel(structure, bkg=XRayGenerator.bkg,
                                      scale=CurveGenerator.scale, dq=CurveGenerator.dq)
                 r = model(q) #Generate r values.
 

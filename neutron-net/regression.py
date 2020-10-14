@@ -222,9 +222,9 @@ class Regressor():
         #Make predictions on test set and descale.
         scaled_preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
         depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), ImageGenerator.depth_bounds)
-        
+
         depth_plot_range = (-100, 3100)
-        
+
         if xray:
             slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_xray_bounds)
             sld_plot_range = (0, 156)
@@ -255,7 +255,7 @@ class Regressor():
             fig_size = (9,9)
         elif self.outputs == 3:
             fig_size = (7,9)
-            
+
         fig = plt.figure(figsize=fig_size, dpi=600)
         fig.subplots_adjust(wspace=0.3, hspace=0.15, top=0.92)
         fig.suptitle("{}-Layer Predictions Against Ground Truths".format(self.outputs), size=16)
@@ -279,7 +279,7 @@ class Regressor():
                 ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
                 ax.set_xlim(*sld_plot_range)
                 ax.set_ylim(*sld_plot_range)
-            
+
         plt.show()
 
     def summary(self):
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     data_path = "./models/neutron/data/{}".format(LAYERS_STR[layer])
     save_path = "./models/neutron"
     load_path = "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
-    
-    regress(data_path, layer, save_path, train=True, epochs=200, xray=xray) #Train new
-    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=15, xray=xray) #Train existing
-    #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
+
+    #regress(data_path, layer, save_path, train=True, epochs=200, xray=xray) #Train new
+    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=100, xray=xray) #Train existing
+    regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing

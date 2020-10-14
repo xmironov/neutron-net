@@ -7,7 +7,7 @@ from   matplotlib.collections import QuadMesh
 
 class ConfusionMatrixPrinter:
     """The ConfusionMatrixPrinter contains code for create confusion matrix plots"""
-    
+
     @staticmethod
     def __get_new_fig(figure_num, fig_size=(9,9)):
         """Initialises graphics for confusion matrix plot.
@@ -57,7 +57,7 @@ class ConfusionMatrixPrinter:
                     for i in range(array_df.shape[0] - 1):
                         tot_rig += array_df[i][i]
                     per_ok = (float(tot_rig) / cell_val) * 100
-                    
+
                 elif (column == ccl - 1):
                     tot_rig = array_df[row][row]
                     per_ok  = (float(tot_rig) / cell_val) * 100
@@ -65,9 +65,9 @@ class ConfusionMatrixPrinter:
                 elif (row == ccl - 1):
                     tot_rig = array_df[column][column]
                     per_ok  = (float(tot_rig) / cell_val) * 100
-                    
+
                 per_err = 100 - per_ok
-                
+
             else:
                 per_ok = per_err = 0
 
@@ -79,15 +79,15 @@ class ConfusionMatrixPrinter:
             text_kwargs = dict(color='w', ha="center", va="center", gid='sum', fontproperties=font_prop)
             lis_txt     = ['%d'%(cell_val), per_ok_s, '%.2f%%'%(per_err)]
             lis_kwa     = [text_kwargs]
-            
+
             dic = text_kwargs.copy()
             dic['color'] = 'g'
             lis_kwa.append(dic)
-            
+
             dic = text_kwargs.copy()
             dic['color'] = 'r'
             lis_kwa.append(dic)
-            
+
             lis_pos = [(text._x, text._y-0.3), (text._x, text._y), (text._x, text._y+0.3)]
             for i in range(len(lis_txt)):
                 newText = dict(x=lis_pos[i][0], y=lis_pos[i][1], text=lis_txt[i], kw=lis_kwa[i])

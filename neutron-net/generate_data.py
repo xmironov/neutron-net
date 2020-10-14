@@ -17,16 +17,16 @@ DTYPES = {'images': np.dtype(np.uint16),
 
 class ImageGenerator:
     """The ImageGenerator class generates images from reflectivity data.
-    
+
     Class Attributes:
         depth_bounds (tuple): bounds on depths used for scaling targets.
         sld_neutron_bounds (tuple): bounds on SLDs used for scaling neutron data targets.
         x-sld_xray_bounds (tuple): bounds on SLDs used for scaling x-ray data targets.
-        
+
     """
     depth_bounds       = CurveGenerator.thick_bounds
     sld_neutron_bounds = NeutronGenerator.sld_bounds
-    sld_xray_bounds    = (np.floor(XRayGenerator.density_constant * XRayGenerator.density_bounds[0]), 
+    sld_xray_bounds    = (np.floor(XRayGenerator.density_constant * XRayGenerator.density_bounds[0]),
                           np.ceil(XRayGenerator.density_constant * XRayGenerator.density_bounds[1]))
 
     @staticmethod
@@ -42,12 +42,12 @@ class ImageGenerator:
             scaled_targets = np.zeros(data['targets'].shape) #Blank array of zeros to fill in.
             for i in range(3): #Apply scaling to the depth and SLD values for each layer.
                 scaled_targets[:, 2*i] = ImageGenerator.scale_to_range(data['targets'][:, 2*i], ImageGenerator.depth_bounds, (0, 1))
-                
+
                 if xray:
                     scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_xray_bounds, (0, 1))
                 else:
                     scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_neutron_bounds, (0, 1))
-                    
+
             concatenated[split]['targets_scaled'] = scaled_targets
 
     @staticmethod
@@ -197,19 +197,19 @@ class ImageGenerator:
         fig = plt.figure(figsize=(4,4)) #Create matplotlib figure and setup axes.
         plt.plot(q, r)
         plt.yscale("log")
-        
-        if xray: 
+
+        if xray:
             plt.xlim(0, 1) #Plot up to 1 for Q if x-ray data
             plt.ylim(1e-9, 1.5)
         else:
             plt.xlim(0, 0.3)
             plt.ylim(1e-8, 1.5)
         plt.axis("off")
-        
+
         dpi = fig.get_dpi()
         fig.set_size_inches(DIMS[0]/float(dpi), DIMS[1]/float(dpi)) #Resize to DIMS
         fig.canvas.draw()
-        
+
         mplimage = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(*DIMS, 3)
         gray_image = color.rgb2gray(mplimage) #Convert to grey scale.
         plt.close()
@@ -245,7 +245,7 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
              print("\n   {0} {1}-layer .h5 file(s) selected".format(len(layers_files[layer]), LAYERS_STR[layer]))
         layers_dict[i] = ImageGenerator.load_simulated_files(layers_files[layer], layer) #Load the found file.
         i += 1
-    
+
     if display_status:
         print()
 
@@ -265,7 +265,7 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
     ImageGenerator.scale_targets(concatenated, xray) #Scale the targets to be between 0 and 1.
 
     shapes = ImageGenerator.get_shapes(concatenated, chunk_size=chunk_size) #Get dataset shapes for use in defining chunk sizes.
-    
+
     for section, dictionary in concatenated.items():
         file = os.path.normpath(os.path.join(save_path, '{}.h5'.format(section)))
 
@@ -278,32 +278,32 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
                 print(">>> Generating images for {}.h5".format(section))
 
             num_curves = len(file['inputs']) #Create the image dataset.
-            file.create_dataset('images', (num_curves, *DIMS, CHANNELS), chunks=(chunk_size, *DIMS, CHANNELS), dtype=DTYPES['images']) 
-            
+            file.create_dataset('images', (num_curves, *DIMS, CHANNELS), chunks=(chunk_size, *DIMS, CHANNELS), dtype=DTYPES['images'])
+
             steps = int(num_curves / chunk_size) #Each step corresponds to writing a chunk.
             for i in range(steps):
                 start = i*chunk_size
                 end = (i+1)*chunk_size #Get the start and end points of the chunk.
-                
+
                 #Create and store images for each sample in the chunk.
-                file['images'][start:end] = [ImageGenerator.image_process(sample, xray=xray, save_format=True) for sample in file['inputs'][start:end]] 
+                file['images'][start:end] = [ImageGenerator.image_process(sample, xray=xray, save_format=True) for sample in file['inputs'][start:end]]
                 if display_status and i % max(1, int(steps/10)) == 0:
                     print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps)) #Display how many chunks have been written so far.
-                
+
             remainder = steps*chunk_size #Write any leftover samples.
             if len(file['inputs'][remainder:]) != 0:
                 if display_status:
                     print("   Writing remainder...")
-                file['images'][remainder:] = [ImageGenerator.image_process(sample, xray=xray, save_format=True) for sample in file['inputs'][remainder:]]   
-                
-            if display_status: 
+                file['images'][remainder:] = [ImageGenerator.image_process(sample, xray=xray, save_format=True) for sample in file['inputs'][remainder:]]
+
+            if display_status:
                 print()
-            
+
 
 if __name__ == "__main__":
     data_path = "./models/neutron/data/one"
     save_path = "./models/neutron/data/one"
     layers = [1]
     xray = False
-    
+
     generate_images(data_path, save_path, layers, xray=xray, chunk_size=100, display_status=True)

@@ -52,24 +52,24 @@ class KerasDropoutPredicter():
                 [depths, slds] = self.f([images, 1]) #Set Dropout to True: 1
                 #De-scale predictions
                 depth_unscaled = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
-                
+
                 if xray:
                     sld_unscaled = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_xray_bounds)
                 else:
                     sld_unscaled = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_neutron_bounds)
-                    
+
                 results.append([depth_unscaled, sld_unscaled])
 
             results = np.array(results)
             prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
             #De-scale targets
             targets_depth = ImageGenerator.scale_to_range(targets["depth"], (0, 1), ImageGenerator.depth_bounds)
-            
+
             if xray:
                 targets_sld = ImageGenerator.scale_to_range(targets["sld"], (0, 1), ImageGenerator.sld_xray_bounds)
             else:
                 targets_sld = ImageGenerator.scale_to_range(targets["sld"], (0, 1), ImageGenerator.sld_neutron_bounds)
-                
+
             targets_sum = np.array([targets_depth, targets_sld])
             outs = np.array([prediction, uncertainty, targets_sum])
 
@@ -114,11 +114,11 @@ class Plotter:
     depth_axis       = (-250, 3250)
     sld_neutron_axis = (-1.5, 11)
     sld_xray_axis    = (0, 160)
-    
+
     depth_ticks       = (0, 1000, 2000, 3000)
     sld_neutron_ticks = (0, 2.5, 5, 7.5, 10)
     sld_xray_ticks    = (0, 30, 60, 90, 120, 150)
-    
+
     pad   = 55
     v_pad = 80
 
@@ -169,7 +169,7 @@ class Plotter:
             ax.set_yticklabels(Plotter.sld_neutron_ticks)
             ax.set_xticks(Plotter.sld_neutron_ticks)
             ax.set_xticklabels(Plotter.sld_neutron_ticks)
-            
+
         ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
         if x_axis_label:
             ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
@@ -271,7 +271,7 @@ class Plotter:
                             xycoords="axes points", textcoords="offset points",
                             size="large", ha="right", va="center")
         plt.savefig("../resources/three-layer-regression.png", dpi=600)
-        plt.show()      
+        plt.show()
 
     @staticmethod
     def kdp_plot(data_path, load_paths, steps=None, batch_size=20, n_iter=100, xray=False):
@@ -327,5 +327,5 @@ if __name__ == "__main__":
     xray   = False
     data_path  = "./models/neutron/data"
     load_paths = {i: "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
-    
+
     Plotter.kdp_plot(data_path, load_paths, steps=10, n_iter=100, xray=xray)

@@ -196,22 +196,22 @@ class KerasDropoutPredicter():
             results = []
 
             for i in range(n_iter): #Run the corresponding model for the predicted layer.
-                if layer == 1: 
+                if layer == 1:
                     [depths, slds] = self.f_1([x, 1])
-                elif layer == 2: 
+                elif layer == 2:
                     [depths, slds] = self.f_2([x, 1])
                 elif layer == 3:
                     [depths, slds] = self.f_3([x, 1])
-                    
+
                 depth_scaled = np.zeros((1,3)) #Pad empty depth and SLD values for layers not being predicted on.
                 sld_scaled   = np.zeros((1,3))
-                
+
                 depth_scaled[0][:layer] = ImageGenerator.scale_to_range(depths, (0, 1), ImageGenerator.depth_bounds)
                 if xray:
                     sld_scaled[0][:layer]  = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_xray_bounds)
                 else:
                     sld_scaled[0][:layer]  = ImageGenerator.scale_to_range(slds, (0, 1), ImageGenerator.sld_neutron_bounds)
-                    
+
                 results.append([depth_scaled, sld_scaled])
 
             results = np.array(results)
@@ -284,9 +284,9 @@ class Model():
                 layer.thick.setp(bounds=ImageGenerator.depth_bounds, vary=True)
                 layer.rough.setp(bounds=Model.rough_bounds, vary=True)
                 self.structure = self.structure | layer  #Next comes each layer.
-            #Then substrate    
+            #Then substrate
             si_substrate = MaterialSLD(XRayGenerator.material, XRayGenerator.substrate_density, probe='x-ray', name='Si Substrate')(thick=0, rough=Model.roughness)
-            
+
         else: #Use neutron probe
             for i in range(layers):
                 layer = SLD(predicted_slds[i], name='Layer {}'.format(i+1))(thick=predicted_depths[i], rough=Model.roughness)
@@ -296,7 +296,7 @@ class Model():
                 self.structure = self.structure | layer  #Next comes each layer.
             #Then substrate
             si_substrate = SLD(Model.si_sld, name='Si Substrate')(thick=0, rough=Model.roughness)
-            
+
         si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
@@ -349,14 +349,14 @@ class Model():
             label="Fitted"
         fig = plt.figure(figsize=[9,7], dpi=600)
         ax = fig.add_subplot(111)
-        
+
         y, y_err, model = self.objective._data_transform(model=self.objective.generative())
         # Add the data in a transformed fashion.
         ax.errorbar(self.objective.data.x, y, y_err, label=self.objective.data.name,
                     color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
         #Add the fit
         ax.plot(self.objective.data.x, model, color="red", label=label, zorder=20)
-        
+
         plt.xlabel('Q', fontsize=11, weight='bold')
         plt.ylabel('Reflectivity', fontsize=11, weight='bold')
         plt.yscale('log')
@@ -396,8 +396,8 @@ class Pipeline:
 
         #Use regression to predict the SLDs and depths for each file.
         sld_predictions, depth_predictions, sld_errors, depth_errors = Pipeline.__regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray)
-        
-        models = {} 
+
+        models = {}
         #Print the predictions and errors for the depths and SLDs for each layer for each file.
         for curve in range(len(dat_files)): #Iterate over each file.
             filename = os.path.basename(dat_files[curve])
@@ -411,10 +411,10 @@ class Pipeline:
             model.plot_objective(prediction=True)
             models[filename] = model
             print()
-            
+
         if fit: #Fit each model if requested.
             Pipeline.__fit(models)
-            
+
         return models
 
     @staticmethod
@@ -453,7 +453,7 @@ class Pipeline:
                                            corresponding to the input .dat files.
             n_iter (int): number of times to predict using the KDP.
             xray (Boolean): whether the .dat files are x-ray or neutron.
-                              
+
         Returns:
             SLD and depth predictions along with the errors for each.
 
@@ -557,7 +557,7 @@ class Pipeline:
 
     @staticmethod
     def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, noisy=False, xray=False,
-              show_plots=True, generate_data=True, train_classifier=True, train_regressor=True, 
+              show_plots=True, generate_data=True, train_classifier=True, train_regressor=True,
               classifer_epochs=2, regressor_epochs=2):
         """Sets up the pipeline for predictions on .dat files by generating data and training.
 
@@ -628,7 +628,7 @@ if __name__ == "__main__":
     generate_data    = True
     train_classifier = True
     train_regressor  = True
-    #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data, 
+    #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data,
     #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
     load_path = "./models/neutron"
