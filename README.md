@@ -1,6 +1,5 @@
 # neutron-net
-![neutron-curve](/resources/real_sim_ansto.png) <br/>
-![neutron-curve](/resources/real_sim_pt.png) <br/>
+![neutron-curve](/resources/real_sim.png) <br/>
 A lightweight tool to analyse neutron reflectivity curves and generate initial refnx fits.
 
 ## About The Project
