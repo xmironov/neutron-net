@@ -363,7 +363,7 @@ class XRayGenerator(CurveGenerator):
 
 
 if __name__ == "__main__":
-    save_path  = './models/investigate/data'
+    save_path  = './models/neutron/data'
     layers     = ['one', 'two', 'three']
     num_curves = 50000
     xray       = False

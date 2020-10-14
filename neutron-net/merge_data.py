@@ -72,7 +72,7 @@ def merge(save_path, layers_paths, display_status=True):
 
 if __name__ == "__main__":
     layers = [1, 2, 3]
-    layers_paths = ["./models/investigate/data/{}".format(LAYERS_STR[layer]) for layer in layers]
-    save_path = "./models/investigate/data"
+    layers_paths = ["./models/neutron/data/{}".format(LAYERS_STR[layer]) for layer in layers]
+    save_path = "./models/neutron/data"
 
     merge(save_path, layers_paths, display_status=True)

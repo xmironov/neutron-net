@@ -346,10 +346,10 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
 if __name__ == "__main__":
     layer     = 1
     xray      = False
-    data_path = "./models/investigate/data/{}".format(LAYERS_STR[layer])
-    save_path = "./models/investigate"
-    load_path = "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
+    data_path = "./models/neutron/data/{}".format(LAYERS_STR[layer])
+    save_path = "./models/neutron"
+    load_path = "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
     
-    regress(data_path, layer, save_path, train=True, epochs=15, xray=xray) #Train new
+    regress(data_path, layer, save_path, train=True, epochs=200, xray=xray) #Train new
     #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=15, xray=xray) #Train existing
     #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing

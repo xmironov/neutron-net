@@ -3,6 +3,7 @@ os.environ["KMP_AFFINITY"] = "none"
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
@@ -79,6 +80,7 @@ class DataLoader(Sequence):
         for i, idx in enumerate(indices): #Get images and classes for each index
             images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
             classes[i,] = self.labels[idx]
+            
         return images, classes
 
     def __on_epoch_end(self):
@@ -162,12 +164,12 @@ class Classifier():
             predictions = self.model.predict(test_sequence, use_multiprocessing=False, verbose=1)
             predictions = np.argmax(predictions, axis=1) #Get layer predictions
             remainder = len(test_labels) % self.batch_size
-    
+
             # Sometimes batch_size may not divide evenly into number of samples
             # and so, some trimming may be required
             if remainder:
                 test_labels = test_labels[:-remainder]
-            
+
             labels = [i for i in "123"]
             cm = confusion_matrix(test_labels, predictions)
             df_cm = pd.DataFrame(cm, index=labels, columns=labels)
@@ -186,10 +188,10 @@ class Classifier():
 
     def create_model(self):
         """Creates the classifier model.
-        
+
         Returns:
             A Keras Model object.
-            
+
         """
         model = Sequential()
         model.add(Conv2D(32, (3,3), strides=(1,1), padding='same', activation="relu", input_shape=(*self.dims, self.channels)))
@@ -296,10 +298,10 @@ def load_labels(path):
 
 
 if __name__ == "__main__":
-    data_path = "./models/investigate/data/merged"
-    save_path = "./models/investigate"
-    load_path = "./models/investigate/classifier/full_model.h5"
+    data_path = "./models/neutron/data/merged"
+    save_path = "./models/neutron"
+    load_path = "./models/neutron/classifier/full_model.h5"
 
-    classify(data_path, save_path, train=True, epochs=10, show_plots=True) #Train new
-    #classify(data_path, save_path, load_path=load_path, train=True, epochs=10, show_plots=True) #Train existing
-    #classify(data_path, load_path=load_path, train=False, show_plots=True) #Load but do not train existing
+    #classify(data_path, save_path, train=True, epochs=200, show_plots=True) #Train new
+    #classify(data_path, save_path, load_path=load_path, train=True, epochs=100, show_plots=True) #Train existing
+    classify(data_path, load_path=load_path, train=False, show_plots=True) #Load but do not train existing

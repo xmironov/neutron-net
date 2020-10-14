@@ -323,9 +323,9 @@ class Plotter:
 
 
 if __name__ == "__main__":
-    layers = 3
+    layers = 1
     xray   = False
-    data_path  = "./models/investigate/data"
-    load_paths = {i: "./models/investigate/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
+    data_path  = "./models/neutron/data"
+    load_paths = {i: "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
     
     Plotter.kdp_plot(data_path, load_paths, steps=10, n_iter=100, xray=xray)
