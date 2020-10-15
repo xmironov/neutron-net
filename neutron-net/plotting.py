@@ -323,7 +323,7 @@ class Plotter:
 
 
 if __name__ == "__main__":
-    layers = 1
+    layers = 3
     xray   = False
     data_path  = "./models/neutron/data"
     load_paths = {i: "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
