@@ -196,7 +196,6 @@ class Plotter:
                           xytext=(-ax_depth.yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                           xycoords="axes points", textcoords="offset points",
                           size="large", ha="right", va="center")
-        plt.savefig("../resources/one-layer-regression.png", dpi=600)
         plt.show()
 
     @staticmethod
@@ -229,7 +228,6 @@ class Plotter:
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
                             size="large", ha="right", va="center")
-        plt.savefig("../resources/two-layer-regression.png", dpi=600)
         plt.show()
 
     @staticmethod
@@ -270,7 +268,6 @@ class Plotter:
                             xytext=(-axes[1][0].yaxis.labelpad - Plotter.pad, Plotter.v_pad),
                             xycoords="axes points", textcoords="offset points",
                             size="large", ha="right", va="center")
-        plt.savefig("../resources/three-layer-regression.png", dpi=600)
         plt.show()
 
     @staticmethod
