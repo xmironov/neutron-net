@@ -9,7 +9,7 @@ def generate_time_varying(save_path):
 
     sld_range = np.arange(*NeutronGenerator.sld_bounds, 0.1) #Discretise SLD range.
     thick_range = np.arange(100, 850, 50)
-    points = 1000
+    points = 200
     q = np.linspace(CurveGenerator.qMin, NeutronGenerator.qMax, points) #Use range of q values specified.
     
     layer1_sld, layer2_sld = np.random.choice(sld_range), np.random.choice(sld_range)

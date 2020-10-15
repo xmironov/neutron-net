@@ -14,7 +14,7 @@ from refnx.dataset  import ReflectDataset
 from refnx.reflect  import SLD, MaterialSLD, ReflectModel
 from refnx.analysis import Objective, CurveFitter
 
-from generate_refnx import NeutronGenerator, XRayGenerator
+from generate_refnx import CurveGenerator, NeutronGenerator, XRayGenerator
 from generate_data  import generate_images, ImageGenerator, LAYERS_STR, DIMS, CHANNELS
 from merge_data     import merge
 from classification import classify
@@ -243,24 +243,31 @@ class KerasDropoutPredicter():
 
 class Model():
     """The Model class represents a refnx model using predictions made by the classifier and regressors.
+       Please adjust the dq, bkg, scale and roughness values for your data.
 
     Class Attributes:
         roughness (int): the default roughness between each layer in Angstrom.
         rough_bounds (tuple): the range of values to fit for roughness.
         si_sld (float): the substrate SLD (silicon).
-        dq (int): the instrument resolution parameter.
-        scale (int): the instrument scale parameter.
+        dq (float): the instrument resolution parameter.
+        scale (float): the instrument scale parameter.
         scale_bounds (tuple): the range of values to fit for the instrument scale.
         dq_bounds (tuple): the range of values to fit for the dq parameter.
+        bkg (float): value for the background parameter.
 
     """
     rough_bounds = (0, 10)
     roughness    = 5
-    si_sld       = 2.047
+    #roughness    = CurveGenerator.roughness
+    si_sld       = NeutronGenerator.substrate_sld
     dq           = 2.5
-    scale        = 1
+    #dq           = CurveGenerator.dq
+    scale        = CurveGenerator.scale
     scale_bounds = (0.8, 1.1)
     dq_bounds    = (2, 10)
+    bkg          = 1e-7
+    #bkg          = NeutronGenerator.bkg
+    
 
     def __init__(self, file_path, layers, predicted_slds, predicted_depths, xray):
         """Initialises the Model class by creating a refnx model with given predicted values.
@@ -300,7 +307,7 @@ class Model():
         si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
-        self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq)
+        self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
         self.model.scale.setp(bounds=Model.scale_bounds, vary=True)
         self.model.dq.setp(bounds=Model.dq_bounds, vary=True)
         self.objective = Objective(self.model, data)
@@ -438,8 +445,8 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        return [1,1], npy_image_filenames
-        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
+        #return [1,1], npy_image_filenames
+        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
@@ -631,9 +638,8 @@ if __name__ == "__main__":
     #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data,
     #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
-    load_path = "./models/neutron"
-    data_path = "./data"
+    load_path = "./models/noisy"
+    data_path = "./data/two-layer-time-varying"
     classifier_path = load_path + "/classifier/full_model.h5"
-    layers = 3
-    regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
+    regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
     models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
