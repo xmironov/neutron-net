@@ -252,22 +252,15 @@ class Model():
         dq (float): the instrument resolution parameter.
         scale (float): the instrument scale parameter.
         scale_bounds (tuple): the range of values to fit for the instrument scale.
-        dq_bounds (tuple): the range of values to fit for the dq parameter.
         bkg (float): value for the background parameter.
 
     """
     rough_bounds = (0, 10)
-    roughness    = 5
-    #roughness    = CurveGenerator.roughness
+    roughness    = CurveGenerator.roughness
     si_sld       = NeutronGenerator.substrate_sld
-    dq           = 2.5
-    #dq           = CurveGenerator.dq
+    dq           = CurveGenerator.dq
     scale        = CurveGenerator.scale
-    scale_bounds = (0.8, 1.1)
-    dq_bounds    = (2, 10)
-    bkg          = 1e-7
-    #bkg          = NeutronGenerator.bkg
-    
+    bkg          = 2e-7
 
     def __init__(self, file_path, layers, predicted_slds, predicted_depths, xray):
         """Initialises the Model class by creating a refnx model with given predicted values.
@@ -307,9 +300,8 @@ class Model():
         si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
+        data.scale(np.max(data.data[1])) #Normalise Y and Error by dividing by max R point.
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
-        self.model.scale.setp(bounds=Model.scale_bounds, vary=True)
-        self.model.dq.setp(bounds=Model.dq_bounds, vary=True)
         self.objective = Objective(self.model, data)
 
     def fit(self):
@@ -537,6 +529,8 @@ class Pipeline:
             image_files.append(name)
             sample_momentum = data["X"]
             sample_reflect  = data["Y"]
+            
+            
             sample_reflect_norm = sample_reflect / np.max(sample_reflect) #Normalise data so that max reflectivity is 1
 
             sample = np.vstack((sample_momentum, sample_reflect_norm)).T
@@ -639,7 +633,7 @@ if __name__ == "__main__":
     #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
     load_path = "./models/noisy"
-    data_path = "./data/two-layer-time-varying"
+    data_path = "./data"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=500, xray=xray)
