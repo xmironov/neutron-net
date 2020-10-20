@@ -193,10 +193,9 @@ class Regressor():
         sld_linear   = Dense(units=self.outputs, activation='linear', name='sld')(dropout_5_d)
 
         model = Model(inputs=input_img, outputs=[depth_linear, sld_linear])
-        model.compile(loss={'depth':'mse','sld':'mse'},
-                        loss_weights={'depth':1,'sld':1},
+        model.compile(loss={'depth': 'msle', 'sld': 'mse'},
                         optimizer = Nadam(self.learning_rate),
-                        metrics={'depth':'mae','sld':'mae'})
+                        metrics={'depth': 'mae', 'sld': 'mae'})
         return model
 
     def save(self, save_path):
@@ -256,7 +255,7 @@ class Regressor():
         elif self.outputs == 3:
             fig_size = (7,9)
 
-        fig = plt.figure(figsize=fig_size, dpi=600)
+        fig = plt.figure(figsize=fig_size)
         fig.subplots_adjust(wspace=0.3, hspace=0.15, top=0.92)
         fig.suptitle("{}-Layer Predictions Against Ground Truths".format(self.outputs), size=16)
 
@@ -346,10 +345,10 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
 if __name__ == "__main__":
     layer     = 1
     xray      = False
-    data_path = "./models/neutron/data/{}".format(LAYERS_STR[layer])
-    save_path = "./models/neutron"
-    load_path = "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
+    data_path = "./models/noisy/data/{}".format(LAYERS_STR[layer])
+    save_path = "./models/loss-test"
+    #load_path = "./models/loss-test/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
 
-    #regress(data_path, layer, save_path, train=True, epochs=200, xray=xray) #Train new
-    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=100, xray=xray) #Train existing
-    regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
+    regress(data_path, layer, save_path, train=True, epochs=100, xray=xray, learning_rate=0.000001) #Train new
+    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=150, xray=xray, learning_rate=0.000001) #Train existing
+    #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
