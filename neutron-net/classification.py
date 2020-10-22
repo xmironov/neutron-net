@@ -1,9 +1,6 @@
 import h5py, os
-os.environ["KMP_AFFINITY"] = "none"
-
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
@@ -16,7 +13,6 @@ tf.compat.v1.disable_eager_execution()
 
 from generate_data import DIMS, CHANNELS, IMAGE_BITS
 from confusion_matrix_pretty_print import ConfusionMatrixPrinter
-
 
 class DataLoader(Sequence):
     """DataLoader uses a Keras Sequence to load image data from a h5 file."""

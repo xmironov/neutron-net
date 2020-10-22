@@ -1,5 +1,4 @@
 import os, glob, sys
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #Suppress TensorFlow warnings
 import numpy  as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -301,6 +300,7 @@ class Model():
         self.structure = self.structure | si_substrate
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
         data.scale(np.max(data.data[1])) #Normalise Y and Error by dividing by max R point.
+        
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
         self.objective = Objective(self.model, data)
 
@@ -437,7 +437,7 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        #return [1,1], npy_image_filenames
+        #return [1]*5, npy_image_filenames
         return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
 
     @staticmethod
@@ -520,17 +520,19 @@ class Pipeline:
             header_setting = Pipeline.__identify_header(dat_file)
 
             if header_setting is None:
-                data = pd.read_csv(dat_file, header=0, delim_whitespace=True, names=['X', 'Y', 'Error'])
+                data = pd.read_csv(dat_file, header=0, delim_whitespace=True, delimiter=',', names=['X', 'Y', 'Error'])
             else:
                 data = pd.read_csv(dat_file, header=header_setting)
+
+            data = data[(data != 0).all(1)] #Remove any 0 values.
+            data.to_csv(dat_file, index=False) #Save the filtered data.
 
             head, tail = os.path.split(dat_file)
             name = os.path.normpath(os.path.join(save_path, tail)).replace(".dat", ".npy")
             image_files.append(name)
             sample_momentum = data["X"]
             sample_reflect  = data["Y"]
-            
-            
+    
             sample_reflect_norm = sample_reflect / np.max(sample_reflect) #Normalise data so that max reflectivity is 1
 
             sample = np.vstack((sample_momentum, sample_reflect_norm)).T
@@ -632,8 +634,8 @@ if __name__ == "__main__":
     #Pipeline.setup(save_path, layers, curve_num, chunk_size, noisy, xray, show_plots, generate_data,
     #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
-    load_path = "./models/noisy"
-    data_path = "./data"
+    load_path = "./models/neutron"
+    data_path = "./data/one-layer-test"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=500, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=500, xray=xray)

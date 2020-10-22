@@ -1,5 +1,4 @@
 import os, h5py
-os.environ["KMP_AFFINITY"] = "none"
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -41,7 +40,7 @@ class DataLoader(Sequence):
             An integer number of batches per epoch.
 
         """
-        return int(np.floor(len(np.array(self.file['images'])) / self.batch_size))
+        return int(np.floor(len(self.file['images']) / self.batch_size))
 
     def __getitem__(self, index):
         """Generates one batch of data.
@@ -135,7 +134,7 @@ class Regressor():
             patience=10,
             verbose=1,
             factor=0.5,
-            min_lr = 0.000001
+            min_lr = 0.000000001
         )
 
         self.history = self.model.fit(
@@ -343,12 +342,12 @@ def regress(data_path, layer, save_path=None, load_path=None, train=True, summar
 
 
 if __name__ == "__main__":
-    layer     = 1
+    layer     = 2
     xray      = False
-    data_path = "./models/noisy/data/{}".format(LAYERS_STR[layer])
-    save_path = "./models/loss-test"
+    data_path = "./models/neutron/data/{}".format(LAYERS_STR[layer])
+    save_path = "./models/neutron"
     #load_path = "./models/loss-test/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
 
-    regress(data_path, layer, save_path, train=True, epochs=100, xray=xray, learning_rate=0.000001) #Train new
+    regress(data_path, layer, save_path, train=True, epochs=150, xray=xray, batch_size=40, learning_rate=0.000001) #Train new
     #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=150, xray=xray, learning_rate=0.000001) #Train existing
     #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing

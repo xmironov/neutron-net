@@ -200,10 +200,10 @@ class ImageGenerator:
 
         if xray:
             plt.xlim(0, 1) #Plot up to 1 for Q if x-ray data
-            plt.ylim(1e-9, 1.5)
+            plt.ylim(1e-9, 1.2)
         else:
             plt.xlim(0, 0.3)
-            plt.ylim(1e-8, 1.5)
+            plt.ylim(1e-8, 1.2)
         plt.axis("off")
 
         dpi = fig.get_dpi()
@@ -301,9 +301,9 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
 
 
 if __name__ == "__main__":
-    data_path = "./models/neutron/data/one"
-    save_path = "./models/neutron/data/one"
-    layers = [1]
+    data_path = "./models/neutron/data/three"
+    save_path = "./models/neutron/data/three"
+    layers = [3]
     xray = False
 
     generate_images(data_path, save_path, layers, xray=xray, chunk_size=100, display_status=True)
