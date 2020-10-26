@@ -3,7 +3,7 @@ import os, sys
 import numpy as np
 from generate_data import LAYERS_STR, DTYPES #String representations of each layer.
 
-MERGE_DATASETS = ['images', 'layers'] #The classifier only uses images and their layer labels.
+MERGE_DATASETS = ['images', 'targets', 'targets_scaled', 'layers']
 
 def merge(save_path, layers_paths, display_status=True):
     """Merges train, validate and test .h5 files for curves of different layers.
@@ -26,7 +26,7 @@ def merge(save_path, layers_paths, display_status=True):
         old_files = [h5py.File(layer_path + "/{}.h5".format(split), 'r') for layer_path in layers_paths]
         #Check each file contains the same number of curves.
         for file in old_files[1:]:
-            if len(file['inputs']) != len(old_files[0]['inputs']):
+            if len(file['layers']) != len(old_files[0]['layers']):
                 sys.exit('All files must contain the same number of curves.')
 
         #Get the shapes of each dataset. This is used for defining the chunk size in the merged file.

@@ -298,11 +298,33 @@ class Model():
 
         si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
+        
+        data = self.__load_data(file_path)
+        self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
+        self.objective = Objective(self.model, data)
+
+    def __load_data(self, file_path):
+        """Loads a reflectivity dataset from a given file path and applies scaling.
+
+        Args:
+            file_path (string): a path to the file with the data to construct the model for.
+
+        """
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
         data.scale(np.max(data.data[1])) #Normalise Y and Error by dividing by max R point.
         
-        self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
-        self.objective = Objective(self.model, data)
+        x, y, y_err = data.x.tolist(), data.y.tolist(), data.y_err.tolist()
+        removed = [] #Remove any points containing 0 values as these cause NaNs when fitting.
+        for i in range(len(x)):
+            if x[i] == 0 or y[i] == 0 or y_err[i] == 0:
+                removed.append(i)
+        
+        #Remove the identified points and return the processed dataset.
+        x     = np.delete(np.array(x),     removed)
+        y     = np.delete(np.array(y),     removed)
+        y_err = np.delete(np.array(y_err), removed)
+        data_new = np.array([x, y, y_err])
+        return ReflectDataset(data_new)
 
     def fit(self):
         """Fits the model to the data using differential evolution."""
@@ -516,16 +538,8 @@ class Pipeline:
 
         image_files = []
         for dat_file in dat_files:
-            # Identify if there are column headings, or whether the header is empty
-            header_setting = Pipeline.__identify_header(dat_file)
-
-            if header_setting is None:
-                data = pd.read_csv(dat_file, header=0, delim_whitespace=True, delimiter=',', names=['X', 'Y', 'Error'])
-            else:
-                data = pd.read_csv(dat_file, header=header_setting)
-
+            data = pd.read_csv(dat_file, header='infer', names=['X', 'Y', 'Error'])
             data = data[(data != 0).all(1)] #Remove any 0 values.
-            data.to_csv(dat_file, index=False) #Save the filtered data.
 
             head, tail = os.path.split(dat_file)
             name = os.path.normpath(os.path.join(save_path, tail)).replace(".dat", ".npy")
@@ -540,23 +554,6 @@ class Pipeline:
             np.save(name, img)
 
         return image_files
-
-    @staticmethod
-    def __identify_header(path, threshold=0.9):
-        """Parses the .dat file header to find out if there are headings or if it's empty.
-
-        Args:
-            path (string): file path to a .dat file
-            threshold (float): a threshold constant for the similarity check.
-
-        Returns:
-            None or 'infer' based on whether a header is present or not respectively.
-
-        """
-        dataframe1 = pd.read_csv(path, header='infer', nrows=5)
-        dataframe2 = pd.read_csv(path, header=None,    nrows=5)
-        similarity = (dataframe1.dtypes.values == dataframe2.dtypes.values).mean()
-        return 'infer' if similarity < threshold else None
 
     @staticmethod
     def setup(save_path, layers=[1,2,3], curve_num=5000, chunk_size=1000, noisy=False, xray=False,
@@ -635,7 +632,7 @@ if __name__ == "__main__":
     #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
     load_path = "./models/neutron"
-    data_path = "./data/one-layer-test"
+    data_path = "./data"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=500, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)

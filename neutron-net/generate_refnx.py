@@ -216,6 +216,7 @@ class NeutronGenerator(CurveGenerator):
 
             points_range, points_probs = CurveGenerator.bias_range(CurveGenerator.points_bounds, 10)
             points = np.random.choice(points_range, p=points_probs)
+            
             #Use a random range of q values and space the points in equal log bins.
             q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(NeutronGenerator.qMax), points)
 
@@ -229,6 +230,8 @@ class NeutronGenerator(CurveGenerator):
                     r = CurveGenerator.sample_noise(q, r_noisy, constant=CurveGenerator.noise_constant)
 
                 data.append(list(zip(q, r))) #Add (q, r) pairs as a list to the data to store.
+                
+                #CurveGenerator.plot_reflectivity(q, r)
 
                 temp = [0, 0, 0, 0, 0, 0] #Designed for parameter for up to 3 layers.
                 for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate
@@ -373,7 +376,7 @@ class XRayGenerator(CurveGenerator):
 
 if __name__ == "__main__":
     save_path  = './models/neutron/data'
-    layers     = ['two', 'three']
+    layers     = ['one', 'two', 'three']
     num_curves = 100000
     xray       = False
     noisy      = False

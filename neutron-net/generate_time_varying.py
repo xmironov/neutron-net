@@ -40,12 +40,12 @@ def generate_time_varying(save_path):
         r = model(q)
 
         #Add simulated noise to the data.
-        r_noisy_bkg    = CurveGenerator.background_noise(r, bkg_rate=CurveGenerator.bkg_rate)
-        r_noisy_sample = CurveGenerator.sample_noise(q, r_noisy_bkg, constant=CurveGenerator.noise_constant)
+        #r_noisy_bkg    = CurveGenerator.background_noise(r, bkg_rate=CurveGenerator.bkg_rate)
+        #r_noisy_sample = CurveGenerator.sample_noise(q, r_noisy_bkg, constant=CurveGenerator.noise_constant)
 
         data = np.zeros((points, 3))
         data[:, 0] = q
-        data[:, 1] = r_noisy_sample
+        data[:, 1] = r
         data[:, 2] = 1e-10 #Error is set to be (near) zero as it is not used by the networks. This could be improved.
         np.savetxt(save_path+"/{}.dat".format(thickness), data, delimiter="    ")
 
