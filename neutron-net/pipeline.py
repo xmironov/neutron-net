@@ -255,7 +255,7 @@ class Model():
 
     """
     rough_bounds = (0, 10)
-    roughness    = CurveGenerator.roughness
+    roughness    = 8
     si_sld       = NeutronGenerator.substrate_sld
     dq           = CurveGenerator.dq
     scale        = CurveGenerator.scale
@@ -330,7 +330,6 @@ class Model():
         """Fits the model to the data using differential evolution."""
         fitter = CurveFitter(self.objective)
         fitter.fit('differential_evolution', verbose=False)
-        self.plot_objective(prediction=False)
 
     def plot_SLD(self):
         """Plots the SLD profile for the model."""
@@ -459,8 +458,8 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        #return [1]*5, npy_image_filenames
-        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1), npy_image_filenames #Make predictions
+        return [1]*5, npy_image_filenames
+        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
@@ -515,6 +514,7 @@ class Pipeline:
             print("Results for '{}'".format(filename))
             model = models[filename]
             model.fit()
+            model.plot_objective(prediction=False)
             for i, component in enumerate(model.structure.components[1:-1]): #Iterate over each layer
                 print(">>> Fitted layer {0} - SLD:   {1:10.4f}".format(i+1, component.sld.real.value))
                 print(">>> Fitted layer {0} - Depth: {1:10.4f}".format(i+1, component.thick.value))
@@ -538,7 +538,7 @@ class Pipeline:
 
         image_files = []
         for dat_file in dat_files:
-            data = pd.read_csv(dat_file, header='infer', names=['X', 'Y', 'Error'])
+            data = pd.read_csv(dat_file, header='infer', sep='\s+', names=['X', 'Y', 'Error'])
             data = data[(data != 0).all(1)] #Remove any 0 values.
 
             head, tail = os.path.split(dat_file)
@@ -615,16 +615,16 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots, xray=xray)
             print()
-
+            
 
 if __name__ == "__main__":
     save_path = './models/neutron'
     layers     = [1, 2, 3]
     curve_num  = 50000
     chunk_size = 100
-    noisy            = False
+    noisy            = True
     xray             = False
-    show_plots       = True
+    show_plots       = False
     generate_data    = True
     train_classifier = True
     train_regressor  = True

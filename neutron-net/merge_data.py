@@ -3,8 +3,6 @@ import os, sys
 import numpy as np
 from generate_data import LAYERS_STR, DTYPES #String representations of each layer.
 
-MERGE_DATASETS = ['images', 'targets', 'targets_scaled', 'layers']
-
 def merge(save_path, layers_paths, display_status=True):
     """Merges train, validate and test .h5 files for curves of different layers.
        This is used in training the classifier.
@@ -30,7 +28,7 @@ def merge(save_path, layers_paths, display_status=True):
                 sys.exit('All files must contain the same number of curves.')
 
         #Get the shapes of each dataset. This is used for defining the chunk size in the merged file.
-        shapes = {dataset: old_files[0][dataset].shape[1:] for dataset in MERGE_DATASETS}
+        shapes = {dataset: old_files[0][dataset].shape[1:] for dataset in DTYPES.keys()}
 
         #Define the old and new number of curves.
         old_num_curves = old_files[0]['layers'].shape[0]
@@ -57,7 +55,7 @@ def merge(save_path, layers_paths, display_status=True):
                 indices = np.arange(new_chunk_size)
                 np.random.shuffle(indices) #For shuffling the merged datasets.
 
-                datasets = {dataset: [] for dataset in MERGE_DATASETS}
+                datasets = {dataset: [] for dataset in DTYPES.keys()}
                 for dataset in datasets.keys():
                     for old_file in old_files:
                         datasets[dataset].append(np.array(old_file[dataset][old_start:old_end])) #Add the previous datasets to the new file.

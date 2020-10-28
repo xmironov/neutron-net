@@ -174,6 +174,7 @@ class ImageGenerator:
             np array (image) of size DIMS by CHANNELS.
 
         """
+        sample = sample[(sample != 0).all(1)] #Remove any 0 values.
         q = sample[:,0]
         r = sample[:,1]
         image = ImageGenerator.__get_image(q, r, xray) #Generate the image.
@@ -301,9 +302,9 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
 
 
 if __name__ == "__main__":
-    data_path = "./models/neutron/data/one"
-    save_path = "./models/neutron/data/one"
-    layers = [1]
+    data_path = "./models/neutron/data/three"
+    save_path = "./models/neutron/data/three"
+    layers = [3]
     xray = False
 
     generate_images(data_path, save_path, layers, xray=xray, chunk_size=100, display_status=True)

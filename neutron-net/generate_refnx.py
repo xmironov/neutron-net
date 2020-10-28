@@ -8,7 +8,7 @@ class CurveGenerator:
     """The CurveGenerator class contains all code relating to general reflectivity curve generation with refnx.
 
     Class Attributes:
-        roughness (int): the default roughness between each layer in Angstrom.
+        rough_bounds (tuple): bounds on the roughness between each layer in Angstrom.
         qMin (float): the minimum Q value to use when generating data.
         scale (int): the value for the scale instrument parameter.
         dq (int): the instrument resolution parameter.
@@ -18,35 +18,34 @@ class CurveGenerator:
         thick_bounds (tuple): the range of values layer thicknesses can take.
 
     """
-    roughness      = 2
-    qMin           = 0.005
-    scale          = 1
-    dq             = 2
-    points_bounds  = (120,300)
-    bkg_rate       = 5e-7
-    noise_constant = 100
-    thick_bounds   = (20,3000)
+    rough_bounds    = (2,8)
+    qMin            = 0.005
+    scale           = 1
+    dq              = 2
+    points          = 500
+    bkg_rate        = 5e-7
+    noise_constant  = 100
+    thick_bounds    = (20,1000)
 
     @staticmethod
-    def bias_range(bounds, bias_constant=100):
-        """Biases a given range towards its lower end.
+    def bias_thickness(bounds):
+        """Biases a given thickness range towards its lower end.
 
         Args:
-            bounds (tuple): the range of values to bias.
-            bias_constant (int): determines how much values are biased.
+            bounds (tuple): the range of thicknesses to bias.
 
         Returns:
-            A discretised range along with the probability of choosing each value.
+            A discretised range along with the probability of choosing each thickness.
 
         """
-        arange = np.arange(*bounds, 10) #Discretise range.
+        thick_range = np.arange(*bounds, 10) #Discretise range.
 
-        probs = []
-        for i in range(len(arange)):
-            probs.append(1.0 / (arange[i] + bias_constant)) #Biases choices towards lower values
-        probs /= sum(probs)
+        thick_probs = []
+        for i in range(len(thick_range)):
+            thick_probs.append(1.0 / (thick_range[i] + 100)) #Biases choices towards lower values
+        thick_probs /= sum(thick_probs)
 
-        return arange, probs
+        return thick_range, thick_probs
 
     @staticmethod
     def plot_SLD(structure):
@@ -146,7 +145,7 @@ class NeutronGenerator(CurveGenerator):
 
         """
         sld_range = np.arange(*NeutronGenerator.sld_bounds, 0.1) #Discretise SLD range.
-        thick_range, thick_probs = CurveGenerator.bias_range(CurveGenerator.thick_bounds) #Apply thickness bias.
+        thick_range, thick_probs = CurveGenerator.bias_thickness(CurveGenerator.thick_bounds) #Apply thickness bias.
         return [NeutronGenerator.__random_structure(layers, sld_range, thick_range, thick_probs) for i in range(generate_num)]
 
     @staticmethod
@@ -164,16 +163,17 @@ class NeutronGenerator(CurveGenerator):
 
         """
         #The structure consists of air followed by each layer and then finally the substrate.
+        roughness = np.random.choice(np.arange(*CurveGenerator.rough_bounds, 0.5))
         structure = SLD(0, name="Air")
         for i in range(layers):
-            component = NeutronGenerator.__make_component(sld_range, thick_range, thick_probs, substrate=False)
+            component = NeutronGenerator.__make_component(sld_range, thick_range, thick_probs, roughness, substrate=False)
             structure = structure | component
-        substrate = NeutronGenerator.__make_component(sld_range, thick_range, thick_probs, substrate=True)
+        substrate = NeutronGenerator.__make_component(sld_range, thick_range, thick_probs, roughness, substrate=True)
         structure = structure | substrate
         return structure
 
     @staticmethod
-    def __make_component(sld_range, thick_range, thick_probs, substrate=False):
+    def __make_component(sld_range, thick_range, thick_probs, roughness, substrate=False):
         """Generates a single refnx component object representing a layer of the structure.
 
         Args:
@@ -193,7 +193,7 @@ class NeutronGenerator(CurveGenerator):
             thickness = np.random.choice(thick_range, p=thick_probs) #Select a random thickness and SLD.
             sld       = np.random.choice(sld_range)
 
-        return SLD(sld)(thick=thickness, rough=CurveGenerator.roughness)
+        return SLD(sld)(thick=thickness, rough=roughness)
 
     @staticmethod
     def save(save_path, name, structures, noisy=False):
@@ -210,38 +210,34 @@ class NeutronGenerator(CurveGenerator):
         if not os.path.exists(save_path): #Create directories if not present.
             os.makedirs(save_path)
 
-        with h5py.File(save_path + "/{}-Layer.h5".format(name), 'w') as file:
-            parameters = []
-            data = []
+        parameters = []
+        data = []
 
-            points_range, points_probs = CurveGenerator.bias_range(CurveGenerator.points_bounds, 10)
-            points = np.random.choice(points_range, p=points_probs)
-            
+        for structure in structures:
+            model = ReflectModel(structure, bkg=NeutronGenerator.bkg,
+                                 scale=CurveGenerator.scale, dq=CurveGenerator.dq)
+
             #Use a random range of q values and space the points in equal log bins.
-            q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(NeutronGenerator.qMax), points)
+            q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(NeutronGenerator.qMax), CurveGenerator.points)
+            r = model(q) #Generate r values.
 
-            for i, structure in enumerate(structures):
-                model = ReflectModel(structure, bkg=NeutronGenerator.bkg,
-                                     scale=CurveGenerator.scale, dq=CurveGenerator.dq)
-                r = model(q) #Generate r values.
+            if noisy: #Add background and sample noise if specified.
+                r_noisy = CurveGenerator.background_noise(r, bkg_rate=CurveGenerator.bkg_rate)
+                r = CurveGenerator.sample_noise(q, r_noisy, constant=CurveGenerator.noise_constant)
 
-                if noisy: #Add background and sample noise if specified.
-                    r_noisy = CurveGenerator.background_noise(r, bkg_rate=CurveGenerator.bkg_rate)
-                    r = CurveGenerator.sample_noise(q, r_noisy, constant=CurveGenerator.noise_constant)
+            data.append(list(zip(q, r))) #Add (q, r) pairs as a list to the data to store.
 
-                data.append(list(zip(q, r))) #Add (q, r) pairs as a list to the data to store.
-                
-                #CurveGenerator.plot_reflectivity(q, r)
+            #CurveGenerator.plot_reflectivity(q, r)
 
-                temp = [0, 0, 0, 0, 0, 0] #Designed for parameter for up to 3 layers.
-                for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate
-                    temp[2*i]   = component.thick.value
-                    temp[2*i+1] = component.sld.real.value
-                parameters.append(temp)
+            temp = [0, 0, 0, 0, 0, 0] #Designed for parameter for up to 3 layers.
+            for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate
+                temp[2*i]   = component.thick.value
+                temp[2*i+1] = component.sld.real.value
+            parameters.append(temp)
 
-            num_curves = len(structures)
-            file.create_dataset("SLD_NUMS", data=parameters, chunks=(num_curves, 6))
-            file.create_dataset("DATA",     data=data,       chunks=(num_curves, int(CurveGenerator.points_bounds[0]/2), 2))
+        with h5py.File(save_path + "/{}-Layer.h5".format(name), 'w') as file:
+            file.create_dataset("SLD_NUMS", data=parameters, chunks=(len(structures), 6))
+            file.create_dataset("DATA",     data=data,       chunks=(len(structures), CurveGenerator.points, 2))
 
 
 class XRayGenerator(CurveGenerator):
@@ -346,11 +342,11 @@ class XRayGenerator(CurveGenerator):
         with h5py.File(save_path + "/{}-Layer.h5".format(name), 'w') as file:
             parameters = []
             data = []
-            
+
             points_range, points_probs = CurveGenerator.bias_range(CurveGenerator.points_bounds, 10)
             points = np.random.choice(points_range, p=points_probs)
             #Use a random range of q values and space the points in equal log bins.
-            q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(XRayGenerator.qMax), points)            
+            q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(XRayGenerator.qMax), points)
 
             for i, structure in enumerate(structures):
                 model = ReflectModel(structure, bkg=XRayGenerator.bkg,
@@ -369,17 +365,17 @@ class XRayGenerator(CurveGenerator):
                     temp[2*i+1] = component.sld.density.value * XRayGenerator.density_constant #Convert density to SLD
                 parameters.append(temp)
 
-            num_curves = len(structures)
-            file.create_dataset("SLD_NUMS", data=parameters, chunks=(num_curves, 6))
-            file.create_dataset("DATA",     data=data,       chunks=(num_curves, int(CurveGenerator.points_bounds[0]/2), 2))
+            chunk_size = len(structures) / 10
+            file.create_dataset("SLD_NUMS", data=parameters, chunks=(chunk_size, 6))
+            file.create_dataset("DATA",     data=data,       chunks=(chunk_size, int(CurveGenerator.points_bounds[0]/2), 2))
 
 
 if __name__ == "__main__":
     save_path  = './models/neutron/data'
     layers     = ['one', 'two', 'three']
-    num_curves = 100000
+    num_curves = 50000
     xray       = False
-    noisy      = False
+    noisy      = True
 
     for i, name in enumerate(layers):
         layers = i+1

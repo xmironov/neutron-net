@@ -134,7 +134,7 @@ class Regressor():
             patience=10,
             verbose=1,
             factor=0.5,
-            min_lr = 0.000000001
+            min_lr = 0.0000001
         )
 
         self.history = self.model.fit(
@@ -221,7 +221,7 @@ class Regressor():
         scaled_preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
         depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), ImageGenerator.depth_bounds)
 
-        depth_plot_range = (-100, 3100)
+        depth_plot_range = (-100, 1100)
 
         if xray:
             slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_xray_bounds)
@@ -348,6 +348,6 @@ if __name__ == "__main__":
     save_path = "./models/neutron"
     load_path = "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
 
-    #regress(data_path, layer, save_path, train=True, epochs=20, xray=xray) #Train new
-    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10, xray=xray) #Train existing
-    regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
+    #regress(data_path, layer, save_path, train=True, epochs=10, xray=xray) #Train new
+    regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10, xray=xray) #Train existing
+    #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing

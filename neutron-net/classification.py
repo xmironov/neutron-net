@@ -75,7 +75,7 @@ class DataLoader(Sequence):
 
         for i, idx in enumerate(indices): #Get images and classes for each index
             images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
-            classes[i,] = self.labels[idx]
+            classes[i,] = self.labels[idx] - 1 
 
         return images, classes
 
@@ -210,7 +210,7 @@ class Classifier():
         model.add(Dropout(self.dropout))
         model.add(Dense(50, activation="relu"))
         model.add(Dropout(self.dropout))
-        model.add(Dense(4, activation="softmax"))
+        model.add(Dense(3, activation="softmax"))
 
         model.compile(
             optimizer=Nadam(self.lr),
@@ -298,6 +298,6 @@ if __name__ == "__main__":
     save_path = "./models/neutron"
     load_path = "./models/neutron/classifier/full_model.h5"
 
-    #classify(data_path, save_path, train=True, epochs=50, show_plots=True) #Train new
+    classify(data_path, save_path, train=True, epochs=40, show_plots=True, learning_rate=0.00003) #Train new
     #classify(data_path, save_path, load_path=load_path, train=True, epochs=50, show_plots=True) #Train existing
-    classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
+    #classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
