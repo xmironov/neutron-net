@@ -28,6 +28,9 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 ### Usage
 Please read [usage](/usage.md) for instructions on how to use the system.
 
+### Data
+The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is avaliable for download [`here`](https://www.onedrive.com).
+
 ## Contributing
 Contributions are gladly accepted and would be very much appreciated.
 
