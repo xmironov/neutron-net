@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 
-from generate_data  import ImageGenerator, LAYERS_STR, DIMS, CHANNELS
-from regression     import DataLoader
+from generate_data import ImageGenerator, LAYERS_STR, DIMS, CHANNELS
+from regression    import DataLoader
 
 class KerasDropoutPredicter():
     """KerasDropoutPredicter takes trained models and uses dropout at test time to make Bayesian-like predictions."""
@@ -111,11 +111,11 @@ class Plotter:
         v_pad (int): vertical padding value for the layer annotations.
 
     """
-    depth_axis       = (-250, 3250)
+    depth_axis       = (-250, 1250)
     sld_neutron_axis = (-1.5, 11)
     sld_xray_axis    = (0, 160)
 
-    depth_ticks       = (0, 1000, 2000, 3000)
+    depth_ticks       = (0, 250, 500, 750, 1000)
     sld_neutron_ticks = (0, 2.5, 5, 7.5, 10)
     sld_xray_ticks    = (0, 30, 60, 90, 120, 150)
 

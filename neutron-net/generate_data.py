@@ -41,8 +41,10 @@ class ImageGenerator:
         for split, data in concatenated.items(): #Iterate over each split.
             scaled_targets = np.zeros(data['targets'].shape) #Blank array of zeros to fill in.
             for i in range(3): #Apply scaling to the depth and SLD values for each layer.
+                #Scale target depths    
                 scaled_targets[:, 2*i] = ImageGenerator.scale_to_range(data['targets'][:, 2*i], ImageGenerator.depth_bounds, (0, 1))
-
+                
+                #Scale target SLDs
                 if xray:
                     scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_xray_bounds, (0, 1))
                 else:

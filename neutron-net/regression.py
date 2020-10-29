@@ -192,7 +192,7 @@ class Regressor():
         sld_linear   = Dense(units=self.outputs, activation='linear', name='sld')(dropout_5_d)
 
         model = Model(inputs=input_img, outputs=[depth_linear, sld_linear])
-        model.compile(loss={'depth': 'mse', 'sld': 'mse'},
+        model.compile(loss={'depth': 'mse', 'sld': 'mse'}, #msle was tried here for depth.
                         optimizer = Nadam(self.learning_rate),
                         metrics={'depth': 'mae', 'sld': 'mae'})
         return model
@@ -349,5 +349,5 @@ if __name__ == "__main__":
     load_path = "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
 
     #regress(data_path, layer, save_path, train=True, epochs=10, xray=xray) #Train new
-    regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10, xray=xray) #Train existing
-    #regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
+    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10, xray=xray) #Train existing
+    regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing

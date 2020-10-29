@@ -26,7 +26,7 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 5. You should be able to run the code. Try: ```python pipeline.py```
 
 ### Usage
-Please read [usage](/resources/usage.md) for instructions on how to use the system.
+Please read [usage](/usage.md) for instructions on how to use the system.
 
 ## Contributing
 Contributions are gladly accepted and would be very much appreciated.

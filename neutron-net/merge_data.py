@@ -5,7 +5,7 @@ from generate_data import LAYERS_STR, DTYPES #String representations of each lay
 
 def merge(save_path, layers_paths, display_status=True):
     """Merges train, validate and test .h5 files for curves of different layers.
-       This is used in training the classifier.
+       This can be used for training the classifier.
 
     Args:
         save_path (string): the file path to save the newly merged .h5 files to.

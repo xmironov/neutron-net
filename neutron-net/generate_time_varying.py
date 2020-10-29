@@ -1,22 +1,25 @@
 import os.path, glob
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import numpy as np
 import matplotlib.pyplot as plt
 
 from tensorflow.keras.models import load_model
 from refnx.reflect import SLD, ReflectModel
+
 from generate_refnx import CurveGenerator, NeutronGenerator
 from generate_data  import DIMS, CHANNELS
-from pipeline import Pipeline, DataLoaderRegression, KerasDropoutPredicter
+from pipeline       import Pipeline, DataLoaderRegression, KerasDropoutPredicter
 
 class TimeVarying:
+    """The TimeVarying class contains all the code for generating and predicting on
+       a dataset whose layer-one depth changes over time"""
+    
     def __init__(self, path):
-        """Initalises a TimeVarying object with given file path to save to / load from.
+        """Initialises a TimeVarying object with given file path to save to or load from.
         
         Args:
-            save_path (string): the file path to save/load datasets.
+            save_path (string): the file path to save or load datasets.
         """
-        if not os.path.exists(path): #Create directories if not present.
+        if not os.path.exists(path): #Create directory if not present.
             os.makedirs(path)
             
         self.path         = path
@@ -28,19 +31,16 @@ class TimeVarying:
         self.thick_min    = 100
         self.thick_max    = 900
         self.thick_step   = 50
-        self.thick_range  = np.arange(self.thick_min, self.thick_max, self.thick_step) #Range of thicknesses over the experiement duration.
+        #Range of thicknesses over the experiment duration.
+        self.thick_range  = np.arange(self.thick_min, self.thick_max, self.thick_step)
     
     def generate(self):
-        """Generates a series of datasets simulating an experiement with a layer whose
+        """Generates a series of datasets simulating an experiment with a layer whose
            thickness changes over time."""
-
+           
+        print("---------------- Generating ----------------")
+        
         q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(NeutronGenerator.qMax), self.points)
-        #q = np.linspace(CurveGenerator.qMin, NeutronGenerator.qMax, points)
-
-        print("-------------- Generating --------------")
-        print("Layer 1 - Depth: [{0},{1}] | SLD: {2:1.3f}".format(self.thick_min, self.thick_max-self.thick_step, self.layer1_sld))
-        print("Layer 2 - Depth: {0}       | SLD: {1:1.3f}".format(self.layer2_thick, self.layer2_sld))
-    
         for thickness in self.thick_range: #Iterate over each thickness the top layer will take.
             #The structure consists of air followed by each layer and then finally the substrate.
             air       = SLD(0, name="Air")
@@ -61,6 +61,9 @@ class TimeVarying:
             data[:, 1] = r_noisy_sample
             data[:, 2] = 1e-10 #Error is set to be (near) zero as it is not used by the networks. This could be improved.
             np.savetxt(self.path+"/{}.dat".format(thickness), data, delimiter="    ")
+    
+        print("Layer 1 - Depth: [{0},{1}] | SLD: {2:1.3f}".format(self.thick_min, self.thick_max-self.thick_step, self.layer1_sld))
+        print("Layer 2 - Depth: {0}       | SLD: {1:1.3f}".format(self.layer2_thick, self.layer2_sld))
 
     def predict(self, regressor_path):
         """Performs predictions on generated time-varying data.
@@ -69,20 +72,20 @@ class TimeVarying:
             regressor_path (string): file path to the two-layer-regressor for prediction.
         
         """
-        print("\n-------------- Predicting --------------")
+        print("\n---------------- Predicting ----------------")
         dat_files = glob.glob(os.path.join(self.path, '*.dat')) #Search for .dat files.
-        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, self.path, xray=False)
+        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, self.path, xray=False) #Generate images for .dat files.
 
         values_labels = {}
-        for filename in npy_image_filenames:
+        for filename in npy_image_filenames: #All labels are 2-layer.
             values_labels[filename] = {"depth": np.zeros((1, 2)), "sld": np.zeros((1, 2)), "class": 2}
 
         loader = DataLoaderRegression(values_labels, DIMS, CHANNELS)
-        regressor = {2: load_model(regressor_path+"/full_model.h5")}
+        regressor = {2: load_model(regressor_path+"/full_model.h5")} #Only need to load a two-layer regressor.
 
         #Use custom class to activate Dropout at test time in models
         kdp = KerasDropoutPredicter(regressor)
-        kdp_predictions = kdp.predict(loader, n_iter=100, xray=False)
+        kdp_predictions = kdp.predict(loader, n_iter=100, xray=False) #Predict 100 times per .dat file
 
         depth_predictions = kdp_predictions[0][0]
         sld_predictions   = kdp_predictions[0][1]
@@ -99,12 +102,13 @@ class TimeVarying:
                 print(">>> Predicted layer {0} - Depth: {1:10.4f} | Error: {2:10.6f}".format(i+1, depth_predictions[curve][i], depth_errors[curve][i]))
             print()
         
-        self.__plot(depth_predictions, sld_predictions, depth_errors, sld_errors)
+        self.__plot(depth_predictions, sld_predictions, depth_errors, sld_errors) #Generate plots for results.
       
     def __plot(self, depth_predictions, sld_predictions, depth_errors, sld_errors):
         steps = len(self.thick_range)
-        time_steps = np.arange(1, steps+1, 1)
+        time_steps = np.arange(1, steps+1, 1) #The time steps of arbitrary units.
         
+        #Plot the ground truth and predictions for both of the layers' SLDs and depths.
         self.__plot_data(time_steps,  self.thick_range,         depth_predictions[:,0], depth_errors[:,0], "Depth")   
         self.__plot_data(time_steps, [self.layer2_thick]*steps, depth_predictions[:,1], depth_errors[:,1], "Depth")
         self.__plot_data(time_steps, [self.layer1_sld]*steps,   sld_predictions[:,0],   sld_errors[:,0],   "SLD")   

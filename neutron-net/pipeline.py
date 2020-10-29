@@ -1,5 +1,4 @@
 import os, glob, sys
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import numpy  as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -243,7 +242,6 @@ class KerasDropoutPredicter():
 
 class Model():
     """The Model class represents a refnx model using predictions made by the classifier and regressors.
-       Please adjust the dq, bkg, scale and roughness values for your data.
 
     Class Attributes:
         roughness (int): the default roughness between each layer in Angstrom.
@@ -251,12 +249,11 @@ class Model():
         si_sld (float): the substrate SLD (silicon).
         dq (float): the instrument resolution parameter.
         scale (float): the instrument scale parameter.
-        scale_bounds (tuple): the range of values to fit for the instrument scale.
         bkg (float): value for the background parameter.
 
     """
-    rough_bounds = (0, 10)
     roughness    = 8
+    rough_bounds = CurveGenerator.rough_bounds
     si_sld       = NeutronGenerator.substrate_sld
     dq           = CurveGenerator.dq
     scale        = CurveGenerator.scale
@@ -300,7 +297,7 @@ class Model():
         si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
         
-        data = self.__load_data(file_path)
+        data = self.__load_data(file_path) #Pre-process and load given dataset.
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
         self.objective = Objective(self.model, data)
 
@@ -391,7 +388,7 @@ class Pipeline:
     """The Pipeline class can perform data generation, training and predictions."""
 
     @staticmethod
-    def run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=5, xray=False):
+    def run(data_path, save_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=False):
         """Performs classification and regression to create a refnx model for given .dat files.
 
         Args:
@@ -460,8 +457,7 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        return [1]*16, npy_image_filenames
-        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
+        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):

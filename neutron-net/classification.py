@@ -210,7 +210,7 @@ class Classifier():
         model.add(Dropout(self.dropout))
         model.add(Dense(50, activation="relu"))
         model.add(Dropout(self.dropout))
-        model.add(Dense(3, activation="softmax"))
+        model.add(Dense(3, activation="softmax")) #Number of layers as the number of softmax outputs.
 
         model.compile(
             optimizer=Nadam(self.lr),
@@ -254,6 +254,7 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
     test_file     = h5py.File(test_dir, "r")
 
     labels = load_labels(data_path) #Get the labels for each split.
+    #Subtract 1 from all labels to match with softmax output.
     train_labels, validate_labels, test_labels = labels["train"]-1, labels["validate"]-1, labels["test"]-1
 
     train_loader    = DataLoader(train_file,    train_labels,    DIMS, CHANNELS, batch_size, shuffle=False)
@@ -298,6 +299,6 @@ if __name__ == "__main__":
     save_path = "./models/neutron"
     load_path = "./models/neutron/classifier/full_model.h5"
 
-    classify(data_path, save_path, train=True, epochs=35, show_plots=True) #Train new
+    #classify(data_path, save_path, train=True, epochs=35, show_plots=True) #Train new
     #classify(data_path, save_path, load_path=load_path, train=True, epochs=50, show_plots=True) #Train existing
-    #classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
+    classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
