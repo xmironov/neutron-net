@@ -1,4 +1,5 @@
 import os, glob, sys
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import numpy  as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -159,15 +160,15 @@ class KerasDropoutPredicter():
             models (list): a list of Keras models.
 
         """
-        #One-layer model function
-        self.f_1 = K.function([models[1].layers[0].input, K.learning_phase()],
-                              [models[1].layers[-2].output, models[1].layers[-1].output])
+        if 1 in models: #One-layer model function
+            self.f_1 = K.function([models[1].layers[0].input, K.learning_phase()],
+                                  [models[1].layers[-2].output, models[1].layers[-1].output])
 
-        #Two-layer model function
-        self.f_2 = K.function([models[2].layers[0].input, K.learning_phase()],
-                              [models[2].layers[-2].output, models[2].layers[-1].output])
+        if 2 in models: #Two-layer model function
+            self.f_2 = K.function([models[2].layers[0].input, K.learning_phase()],
+                                  [models[2].layers[-2].output, models[2].layers[-1].output])
 
-        if len(models) == 3: #Three-layer model function
+        if 3 in models: #Three-layer model function
             self.f_3 = K.function([models[3].layers[0].input, K.learning_phase()],
                                   [models[3].layers[-2].output, models[3].layers[-1].output])
 
@@ -311,6 +312,7 @@ class Model():
 
         """
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
+        self.filename = os.path.basename(data.filename)
         data.scale(np.max(data.data[1])) #Normalise Y and Error by dividing by max R point.
         
         x, y, y_err = data.x.tolist(), data.y.tolist(), data.y_err.tolist()
@@ -372,7 +374,7 @@ class Model():
 
         y, y_err, model = self.objective._data_transform(model=self.objective.generative())
         # Add the data in a transformed fashion.
-        ax.errorbar(self.objective.data.x, y, y_err, label=self.objective.data.name,
+        ax.errorbar(self.objective.data.x, y, y_err, label=self.filename,
                     color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
         #Add the fit
         ax.plot(self.objective.data.x, model, color="red", label=label, zorder=20)
@@ -453,12 +455,12 @@ class Pipeline:
         """
         print("-------------- Classification -------------")
         #Convert .dat files to images, ready for passing as input to the classifier.
-        npy_image_filenames = Pipeline.__dat_files_to_npy_images(dat_files, save_path, xray)
+        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, save_path, xray)
         class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        return [1]*5, npy_image_filenames
+        return [1]*16, npy_image_filenames
         #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
 
     @staticmethod
@@ -521,7 +523,7 @@ class Pipeline:
             print()
 
     @staticmethod
-    def __dat_files_to_npy_images(dat_files, save_path, xray):
+    def dat_files_to_npy_images(dat_files, save_path, xray):
         """Given a list of .dat files, creates .npy images and save them in `save_path`.
 
         Args:
@@ -535,14 +537,16 @@ class Pipeline:
         """
         if dat_files == []:
             sys.exit("No .dat files found for classification in save path")
-
+        temp_path = save_path + '/npy_images'
         image_files = []
         for dat_file in dat_files:
             data = pd.read_csv(dat_file, header='infer', sep='\s+', names=['X', 'Y', 'Error'])
             data = data[(data != 0).all(1)] #Remove any 0 values.
-
+            
+            if not os.path.exists(temp_path):
+                os.makedirs(temp_path)
             head, tail = os.path.split(dat_file)
-            name = os.path.normpath(os.path.join(save_path, tail)).replace(".dat", ".npy")
+            name = os.path.normpath(os.path.join(temp_path, tail)).replace(".dat", ".npy")
             image_files.append(name)
             sample_momentum = data["X"]
             sample_reflect  = data["Y"]
@@ -632,7 +636,7 @@ if __name__ == "__main__":
     #               train_classifier, train_regressor, classifer_epochs=50, regressor_epochs=50)
 
     load_path = "./models/neutron"
-    data_path = "./data"
+    data_path = "./data/real"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=100, xray=xray)

@@ -302,9 +302,9 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
 
 
 if __name__ == "__main__":
-    data_path = "./models/neutron/data/three"
-    save_path = "./models/neutron/data/three"
-    layers = [3]
+    data_path = "./models/neutron/data/one"
+    save_path = "./models/neutron/data/one"
+    layers = [1]
     xray = False
 
     generate_images(data_path, save_path, layers, xray=xray, chunk_size=100, display_status=True)

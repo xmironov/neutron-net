@@ -1,5 +1,6 @@
 /neutron-net/__pycache__/
 /neutron-net/.spyproject
+/neutron-net/data/real/npy_images
+/neutron-net/data/time-varying/npy_images
 /neutron-net/models/neutron/data
-/neutron-net/models/noisy/data
 /neutron-net/models/xray/data

@@ -75,7 +75,7 @@ class DataLoader(Sequence):
 
         for i, idx in enumerate(indices): #Get images and classes for each index
             images[i,]  = np.array(self.file["images"][idx]) / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
-            classes[i,] = self.labels[idx] - 1 
+            classes[i,] = self.labels[idx]
 
         return images, classes
 
@@ -254,7 +254,7 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
     test_file     = h5py.File(test_dir, "r")
 
     labels = load_labels(data_path) #Get the labels for each split.
-    train_labels, validate_labels, test_labels = labels["train"], labels["validate"], labels["test"]
+    train_labels, validate_labels, test_labels = labels["train"]-1, labels["validate"]-1, labels["test"]-1
 
     train_loader    = DataLoader(train_file,    train_labels,    DIMS, CHANNELS, batch_size, shuffle=False)
     validate_loader = DataLoader(validate_file, validate_labels, DIMS, CHANNELS, batch_size, shuffle=False)
@@ -298,6 +298,6 @@ if __name__ == "__main__":
     save_path = "./models/neutron"
     load_path = "./models/neutron/classifier/full_model.h5"
 
-    classify(data_path, save_path, train=True, epochs=40, show_plots=True, learning_rate=0.00003) #Train new
+    classify(data_path, save_path, train=True, epochs=35, show_plots=True) #Train new
     #classify(data_path, save_path, load_path=load_path, train=True, epochs=50, show_plots=True) #Train existing
     #classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
