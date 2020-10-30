@@ -74,7 +74,7 @@ class TimeVarying:
         """
         print("\n---------------- Predicting ----------------")
         dat_files = glob.glob(os.path.join(self.path, '*.dat')) #Search for .dat files.
-        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, self.path, xray=False) #Generate images for .dat files.
+        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, self.path) #Generate images for .dat files.
 
         values_labels = {}
         for filename in npy_image_filenames: #All labels are 2-layer.

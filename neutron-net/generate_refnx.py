@@ -20,6 +20,7 @@ class CurveGenerator:
     """
     rough_bounds    = (2,8)
     qMin            = 0.005
+    qMax            = 0.3
     scale           = 1
     dq              = 2
     points          = 500
@@ -212,7 +213,7 @@ class NeutronGenerator(CurveGenerator):
             os.makedirs(save_path)
 
         #Use space q points in equal log bins.
-        q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(NeutronGenerator.qMax), CurveGenerator.points)
+        q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(CurveGenerator.qMax), CurveGenerator.points)
         
         parameters = []
         data = []
@@ -254,7 +255,6 @@ class XRayGenerator(CurveGenerator):
         material (string): chemical formula of the substrate.
 
     """
-    qMax              = 1
     bkg               = 1e-9
     substrate_density = 2.1 #The density to set water at in order to get the SLD of Si
     density_constant  = 9.4691
@@ -343,7 +343,7 @@ class XRayGenerator(CurveGenerator):
             os.makedirs(save_path)
 
         #Space q points in equal log bins.
-        q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(XRayGenerator.qMax), CurveGenerator.points)
+        q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(CurveGenerator.qMax), CurveGenerator.points)
 
         parameters = []
         data = []
@@ -357,6 +357,8 @@ class XRayGenerator(CurveGenerator):
                 r = CurveGenerator.sample_noise(q, r_noisy, constant=CurveGenerator.noise_constant)
 
             data.append(list(zip(q, r))) #Add (q, r) pairs as a list to the data to store.
+            
+            #CurveGenerator.plot_reflectivity(q, r)
 
             temp = [0, 0, 0, 0, 0, 0] #Designed for parameter for up to 3 layers.
             for i, component in enumerate(structure.components[1:-1]): #Exclude air and substrate

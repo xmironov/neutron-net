@@ -41,9 +41,9 @@ class ImageGenerator:
         for split, data in concatenated.items(): #Iterate over each split.
             scaled_targets = np.zeros(data['targets'].shape) #Blank array of zeros to fill in.
             for i in range(3): #Apply scaling to the depth and SLD values for each layer.
-                #Scale target depths    
+                #Scale target depths
                 scaled_targets[:, 2*i] = ImageGenerator.scale_to_range(data['targets'][:, 2*i], ImageGenerator.depth_bounds, (0, 1))
-                
+
                 #Scale target SLDs
                 if xray:
                     scaled_targets[:, 2*i+1] = ImageGenerator.scale_to_range(data['targets'][:, 2*i+1], ImageGenerator.sld_xray_bounds, (0, 1))
@@ -164,12 +164,11 @@ class ImageGenerator:
                 split[type_of_data] = split[type_of_data][indices]
 
     @staticmethod
-    def image_process(sample, xray=False, save_format=False):
+    def image_process(sample, save_format=False):
         """Processes a sample by generating an image for it and resizing it.
 
         Args:
             sample (ndarray): the sample to convert to an image.
-            xray (Boolean): whether the input data is neutron or x-ray.
             save_format (Boolean): whether to convert data to the save format.
 
         Returns:
@@ -179,19 +178,18 @@ class ImageGenerator:
         sample = sample[(sample != 0).all(1)] #Remove any 0 values.
         q = sample[:,0]
         r = sample[:,1]
-        image = ImageGenerator.__get_image(q, r, xray) #Generate the image.
+        image = ImageGenerator.__get_image(q, r) #Generate the image.
         if save_format:
              image = image * (2**IMAGE_BITS) #Multiply up values between 0 and 1 to become integer values.
         return np.resize(image, (*DIMS, CHANNELS))
 
     @staticmethod
-    def __get_image(q, r, xray=False):
+    def __get_image(q, r):
         """Plots image using matplotlib and returns as an array.
 
         Args:
             q (ndarray): an array of momentum transfer values.
             r (ndarray): an array of reflectance values.
-            xray (Boolean): whether the input data is neutron or x-ray.
 
         Returns:
             np array corresponding to an image of the original reflectivity data.
@@ -200,13 +198,8 @@ class ImageGenerator:
         fig = plt.figure(figsize=(4,4)) #Create matplotlib figure and setup axes.
         plt.plot(q, r)
         plt.yscale("log")
-
-        if xray:
-            plt.xlim(0, 1) #Plot up to 1 for Q if x-ray data
-            plt.ylim(1e-9, 1.2)
-        else:
-            plt.xlim(0, 0.3)
-            plt.ylim(1e-8, 1.2)
+        plt.xlim(0, 0.3)
+        plt.ylim(1e-8, 1.2)
         plt.axis("off")
 
         dpi = fig.get_dpi()
@@ -289,7 +282,7 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
                 end = (i+1)*chunk_size #Get the start and end points of the chunk.
 
                 #Create and store images for each sample in the chunk.
-                file['images'][start:end] = [ImageGenerator.image_process(sample, xray=xray, save_format=True) for sample in file['inputs'][start:end]]
+                file['images'][start:end] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][start:end]]
                 if display_status and i % max(1, int(steps/10)) == 0:
                     print("   Writing chunk {0}/{1}...".format(i+int(steps/10), steps)) #Display how many chunks have been written so far.
 
@@ -297,16 +290,16 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
             if len(file['inputs'][remainder:]) != 0:
                 if display_status:
                     print("   Writing remainder...")
-                file['images'][remainder:] = [ImageGenerator.image_process(sample, xray=xray, save_format=True) for sample in file['inputs'][remainder:]]
+                file['images'][remainder:] = [ImageGenerator.image_process(sample, save_format=True) for sample in file['inputs'][remainder:]]
 
             if display_status:
                 print()
 
 
 if __name__ == "__main__":
-    data_path = "./models/neutron/data/one"
-    save_path = "./models/neutron/data/one"
-    layers = [1]
     xray = False
-
-    generate_images(data_path, save_path, layers, xray=xray, chunk_size=100, display_status=True)
+    for layer in [1,2,3]:
+        layer_str = LAYERS_STR[layer]
+        data_path = "./models/neutron/data/" + layer_str
+        save_path = "./models/neutron/data/" + layer_str
+        generate_images(data_path, save_path, [layer], xray=xray, chunk_size=100, display_status=True)

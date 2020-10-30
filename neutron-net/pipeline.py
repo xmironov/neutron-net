@@ -407,7 +407,7 @@ class Pipeline:
         dat_files = glob.glob(os.path.join(data_path, '*.dat')) #Search for .dat files.
 
         #Classify the number of layers for each .dat file.
-        layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path, xray)
+        layer_predictions, npy_image_filenames = Pipeline.__classify(dat_files, save_path, classifier_path)
         for curve in range(len(dat_files)):
             filename = os.path.basename(dat_files[curve])
             print("Results for '{}'".format(filename))
@@ -437,14 +437,13 @@ class Pipeline:
         return models
 
     @staticmethod
-    def __classify(dat_files, save_path, classifier_path, xray):
+    def __classify(dat_files, save_path, classifier_path):
         """Performs layer classification for specified .dat files.
 
         Args:
             dat_files (list): a list of file paths for .dat files to predict on.
             save_path (type): path to the directory where temporary files are to be stored.
             classifier_path (type): path to a pre-trained classifier.
-            xray (Boolean): whether the .dat files are x-ray or neutron.
 
         Returns:
             The layer predictions for each file along with Numpy image filenames.
@@ -452,7 +451,7 @@ class Pipeline:
         """
         print("-------------- Classification -------------")
         #Convert .dat files to images, ready for passing as input to the classifier.
-        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, save_path, xray)
+        npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, save_path)
         class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
@@ -519,13 +518,12 @@ class Pipeline:
             print()
 
     @staticmethod
-    def dat_files_to_npy_images(dat_files, save_path, xray):
+    def dat_files_to_npy_images(dat_files, save_path):
         """Given a list of .dat files, creates .npy images and save them in `save_path`.
 
         Args:
             dat_files (list): a list of .dat file paths.
             save_path (string): the path to the directory to store npy images in.
-            xray (Boolean): whether the .dat files are x-ray or neutron.
 
         Returns:
             An array of filenames of files containing images corresponding to the input .dat files.
@@ -550,7 +548,7 @@ class Pipeline:
             sample_reflect_norm = sample_reflect / np.max(sample_reflect) #Normalise data so that max reflectivity is 1
 
             sample = np.vstack((sample_momentum, sample_reflect_norm)).T
-            img = ImageGenerator.image_process(sample, xray=xray, save_format=False) #Convert the reflectivity data to an image.
+            img = ImageGenerator.image_process(sample, save_format=False) #Convert the reflectivity data to an image.
             np.save(name, img)
 
         return image_files
