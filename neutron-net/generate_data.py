@@ -295,7 +295,6 @@ def generate_images(data_path, save_path, layers, xray=False, chunk_size=1000, d
             if display_status:
                 print()
 
-
 if __name__ == "__main__":
     xray = False
     for layer in [1,2,3]:

@@ -112,7 +112,7 @@ class Plotter:
 
     """
     depth_axis       = (-250, 1250)
-    sld_neutron_axis = (-1.5, 11)
+    sld_neutron_axis = (-1.5, 10.5)
     sld_xray_axis    = (0, 160)
 
     depth_ticks       = (0, 250, 500, 750, 1000)
@@ -185,7 +185,7 @@ class Plotter:
             xray (Boolean): whether data uses a x-ray or neutron probe.
 
         """
-        fig, (ax_depth, ax_sld) = plt.subplots(1, 2, figsize=(8,4.5)) #Make the subplot structure for one layer.
+        fig, (ax_depth, ax_sld) = plt.subplots(1, 2, figsize=(8,4.5), dpi=600) #Make the subplot structure for one layer.
         fig.subplots_adjust(wspace=0.35)
         fig.suptitle("One Layer - Predictions Against Ground Truths", size=16)
 
@@ -209,7 +209,7 @@ class Plotter:
             xray (Boolean): whether data uses a x-ray or neutron probe.
 
         """
-        fig, axes = plt.subplots(2, 2, figsize=(8,8)) #Make the subplot structure for two layers.
+        fig, axes = plt.subplots(2, 2, figsize=(8,8), dpi=600) #Make the subplot structure for two layers.
         fig.subplots_adjust(wspace=0.30, top=0.94)
         fig.suptitle("Two Layer - Predictions Against Ground Truths", size=16)
 
@@ -241,7 +241,7 @@ class Plotter:
             xray (Boolean): whether data uses a x-ray or neutron probe.
 
         """
-        fig, axes = plt.subplots(3, 2, figsize=(8,9)) #Make the subplot structure for three layers.
+        fig, axes = plt.subplots(3, 2, figsize=(8,9), dpi=600) #Make the subplot structure for three layers.
         fig.subplots_adjust(wspace=0.30, hspace=0.2, top=0.94)
         fig.suptitle("Three Layer - Predictions Against Ground Truths", size=16)
 
@@ -325,4 +325,4 @@ if __name__ == "__main__":
     data_path  = "./models/neutron/data"
     load_paths = {i: "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, layers+1)}
 
-    Plotter.kdp_plot(data_path, load_paths, steps=10, n_iter=100, xray=xray)
+    Plotter.kdp_plot(data_path, load_paths, steps=8, n_iter=100, xray=xray)

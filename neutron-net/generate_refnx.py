@@ -214,7 +214,7 @@ class NeutronGenerator(CurveGenerator):
 
         #Use space q points in equal log bins.
         q = np.logspace(np.log10(CurveGenerator.qMin), np.log10(CurveGenerator.qMax), CurveGenerator.points)
-        
+
         parameters = []
         data = []
         for structure in structures:
@@ -357,7 +357,7 @@ class XRayGenerator(CurveGenerator):
                 r = CurveGenerator.sample_noise(q, r_noisy, constant=CurveGenerator.noise_constant)
 
             data.append(list(zip(q, r))) #Add (q, r) pairs as a list to the data to store.
-            
+
             #CurveGenerator.plot_reflectivity(q, r)
 
             temp = [0, 0, 0, 0, 0, 0] #Designed for parameter for up to 3 layers.
@@ -365,7 +365,7 @@ class XRayGenerator(CurveGenerator):
                 temp[2*i]   = component.thick.value
                 temp[2*i+1] = component.sld.density.value * XRayGenerator.density_constant #Convert density to SLD
             parameters.append(temp)
-                
+
         with h5py.File(save_path + "/{}-Layer.h5".format(name), 'w') as file:
             file.create_dataset("SLD_NUMS", data=parameters, chunks=(len(structures), 6))
             file.create_dataset("DATA",     data=data,       chunks=(len(structures), CurveGenerator.points, 2))
@@ -374,7 +374,7 @@ class XRayGenerator(CurveGenerator):
 if __name__ == "__main__":
     save_path  = './models/neutron/data'
     layers     = ['one', 'two', 'three']
-    num_curves = 50000
+    num_curves = 100000
     xray       = False
     noisy      = True
 

@@ -254,7 +254,7 @@ class Regressor():
         elif self.outputs == 3:
             fig_size = (7,9)
 
-        fig = plt.figure(figsize=fig_size)
+        fig = plt.figure(figsize=fig_size, dpi=600)
         fig.subplots_adjust(wspace=0.3, hspace=0.15, top=0.92)
         fig.suptitle("{}-Layer Predictions Against Ground Truths".format(self.outputs), size=16)
 

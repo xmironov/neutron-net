@@ -456,7 +456,8 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
+        return [1]*2, npy_image_filenames
+        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
@@ -633,4 +634,4 @@ if __name__ == "__main__":
     data_path = "./data/real"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)

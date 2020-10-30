@@ -1,5 +1,5 @@
 # neutron-net
-![neutron-curve](/resources/real_sim.png) <br/>
+![neutron-curve](/resources/figures/real/real_sim.png) <br/>
 A lightweight tool to analyse neutron reflectivity curves and generate initial refnx fits.
 
 ## About The Project

@@ -1,2 +1,0 @@
-Layer 1 - Thickness: [100,850] | SLD:  2.50
-Layer 2 - Thickness: 100       | SLD:  5.00
