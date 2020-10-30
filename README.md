@@ -7,6 +7,8 @@ A neural network-based tool for automatic estimation of thin film thicknesses an
 
 The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>.
 
+Additional figures to those seen in the paper are avaliable [here](/resources/figures).
+
 ### Built With
 * TensorFlow Keras
 * Python
