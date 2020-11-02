@@ -273,8 +273,8 @@ class Regressor():
                             size="large", ha="right", va="center")
             else:
                 if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
-                    ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-2})}$", fontsize=10, weight="bold")
-                ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-2})}$", fontsize=11, weight="bold")
+                    ax.set_xlabel("$\mathregular{SLD_{true}\ (x10^{-6} Å^{-2})}$", fontsize=10, weight="bold")
+                ax.set_ylabel("$\mathregular{SLD_{predict}\ (x10^{-6} Å^{-2})}$", fontsize=11, weight="bold")
                 ax.set_xlim(*sld_plot_range)
                 ax.set_ylim(*sld_plot_range)
 

@@ -170,9 +170,9 @@ class Plotter:
             ax.set_xticks(Plotter.sld_neutron_ticks)
             ax.set_xticklabels(Plotter.sld_neutron_ticks)
 
-        ax.set_ylabel("$\mathregular{SLD_{predict}\ (Å^{-3})}$", fontsize=11, weight="bold")
+        ax.set_ylabel("$\mathregular{SLD_{predict}\ (x10^{-6} Å^{-2})}$", fontsize=11, weight="bold")
         if x_axis_label:
-            ax.set_xlabel("$\mathregular{SLD_{true}\ (Å^{-3})}$", fontsize=10, weight="bold")
+            ax.set_xlabel("$\mathregular{SLD_{true}\ (x10^{-6} Å^{-2})}$", fontsize=10, weight="bold")
 
     @staticmethod
     def __one_layer_plot(preds, labels, errors, xray=False):

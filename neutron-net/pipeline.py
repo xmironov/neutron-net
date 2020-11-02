@@ -330,29 +330,6 @@ class Model():
         fitter = CurveFitter(self.objective)
         fitter.fit('differential_evolution', verbose=False)
 
-    def plot_SLD(self):
-        """Plots the SLD profile for the model."""
-        plt.figure()
-        plt.plot(*self.structure.sld_profile())
-        plt.ylabel('SLD /$10^{-6} \AA^{-2}$')
-        plt.xlabel('distance / $\AA$')
-
-    def plot_reflectivity(self, qMin=0.005, qMax=0.3, points=300):
-        """Plots the reflectivity profile for the model.
-
-        Args:
-            qMin (int): the minimum Q value to use when generating R values.
-            qMax (int): the maximum Q value to use when generating R values.
-            points (int): the number of Q values to use.
-
-        """
-        q = np.linspace(qMin, qMax, points)
-        plt.figure()
-        plt.plot(q, self.model(q))
-        plt.xlabel('Q')
-        plt.ylabel('Reflectivity')
-        plt.yscale('log')
-
     def plot_objective(self, prediction=True):
         """Plots the current objective for the model against given dataset.
 
@@ -376,8 +353,8 @@ class Model():
         #Add the fit
         ax.plot(self.objective.data.x, model, color="red", label=label, zorder=20)
 
-        plt.xlabel('Q', fontsize=11, weight='bold')
-        plt.ylabel('Reflectivity', fontsize=11, weight='bold')
+        plt.xlabel("$\mathregular{Q\ (Å^{-1})}$",      fontsize=11, weight='bold')
+        plt.ylabel('Reflectivity Reflectivity (arb.)', fontsize=11, weight='bold')
         plt.yscale('log')
         plt.legend()
         if title:

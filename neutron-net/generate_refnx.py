@@ -56,26 +56,27 @@ class CurveGenerator:
             structure (Structure): the structure to plot the SLD profile for.
 
         """
-        plt.figure(1)
+        plt.figure(1, dpi=600)
         plt.plot(*structure.sld_profile())
         plt.ylabel('SLD /$10^{-6} \AA^{-2}$')
         plt.xlabel('distance / $\AA$')
+        plt.show()
 
     @staticmethod
-    def plot_reflectivity(q, r, figure=2):
+    def plot_reflectivity(q, r):
         """Plots the reflectivity profile for a given Structure object.
 
         Args:
             q (ndarray): the range of momentum transfer values to plot (x-axis).
             r (ndarray): the range of reflectance values to plot (y-axis).
-            figure (int): the figure identifier.
 
         """
-        plt.figure(figure)
-        plt.plot(q, r)
-        plt.xlabel('Q')
-        plt.ylabel('Reflectivity')
+        plt.figure(dpi=600)
+        plt.plot(q, r, c="black")
+        plt.xlabel("$\mathregular{Q\ (Å^{-1})}$")
+        plt.ylabel('Reflectivity (arb.)')
         plt.yscale('log')
+        plt.show()
 
     @staticmethod
     def sample_noise(q, r, file="../resources/directbeam_noise.dat", constant=100):

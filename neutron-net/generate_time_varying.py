@@ -56,6 +56,8 @@ class TimeVarying:
             r_noisy_bkg    = CurveGenerator.background_noise(r, bkg_rate=CurveGenerator.bkg_rate)
             r_noisy_sample = CurveGenerator.sample_noise(q, r_noisy_bkg, constant=CurveGenerator.noise_constant)
     
+            #CurveGenerator.plot_reflectivity(q, r_noisy_sample)        
+            
             data = np.zeros((self.points, 3))
             data[:, 0] = q
             data[:, 1] = r_noisy_sample
@@ -118,12 +120,13 @@ class TimeVarying:
         time_steps = np.arange(1, steps+1, 1) #The time steps of arbitrary units.
         
         #Plot the ground truth and predictions for both of the layers' SLDs and depths.
-        self.__plot_data(time_steps,  self.thick_range,         depth_predictions[:,0], depth_errors[:,0], "Depth", 1)   
-        self.__plot_data(time_steps, [self.layer2_thick]*steps, depth_predictions[:,1], depth_errors[:,1], "Depth", 2)
-        self.__plot_data(time_steps, [self.layer1_sld]*steps,   sld_predictions[:,0],   sld_errors[:,0],   "SLD",   1)   
-        self.__plot_data(time_steps, [self.layer2_sld]*steps,   sld_predictions[:,1],   sld_errors[:,1],   "SLD",   2) 
+        depth_true = (self.thick_range,        [self.layer2_thick]*steps)
+        sld_true   = ([self.layer1_sld]*steps, [self.layer2_sld]*steps)
+        
+        self.__plot_data(time_steps, depth_true, depth_predictions, depth_errors, "Depth", True)   
+        self.__plot_data(time_steps, sld_true,   sld_predictions,   sld_errors,   "SLD", False) 
             
-    def __plot_data(self, time_steps, ground_truth, predictions, errors, parameter, layer):
+    def __plot_data(self, time_steps, ground_truths, predictions, errors, parameter, legend):
         """Creates an individual of plot of predictions against ground-truth.
         
         Args:
@@ -132,30 +135,30 @@ class TimeVarying:
             predictions (ndarray): predictions for either depth or SLD made by the KDP.
             errors (ndarray): errors in the given predictions.
             parameter (string): either 'Depth' or 'SLD'.
-            layer (int): the layer for which the predictions are for.
+            legend (Boolean): whether to display the legend or not.
         
         """
+        true_layer1,  true_layer2  = ground_truths[0], ground_truths[1]
+        pred_layer1,  pred_layer2  = predictions[:,0], predictions[:,1]
+        error_layer1, error_layer2 = errors[:,0],      errors[:,1]
+        
         fig = plt.figure(figsize=(8,5), dpi=600)
         ax = fig.add_subplot(111)
-        ax.scatter(time_steps, ground_truth, s=10, c='g', marker="s", label='Ground Truth')
-        ax.errorbar(time_steps, predictions, errors, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="b", zorder=-130, markersize=4, label='Prediction')
+        ax.plot(time_steps, true_layer1, mew=0.5, alpha=0.6, c='b', label='Layer 1 Ground Truth')
+        ax.plot(time_steps, true_layer2, mew=0.5, alpha=0.6, c='g', label='Layer 2 Ground Truth')
+        ax.errorbar(time_steps, pred_layer1, error_layer1, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="b", zorder=-130, markersize=4, label='Layer 1 Prediction')
+        ax.errorbar(time_steps, pred_layer2, error_layer2, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="g", zorder=-130, markersize=4, label='Layer 2 Prediction')
         ax.set_xlabel("Time Step", fontsize=10, weight="bold")
         
-        pad   = 55
-        v_pad = 80
-        ax.annotate("Layer {}".format(layer), xy=(0, 0.5),
-                xytext=(-ax.yaxis.labelpad - pad, v_pad),
-                xycoords="axes points", textcoords="offset points",
-                size="medium", ha="right", va="center")
-        
         if parameter == "SLD":
-            ax.set_ylim(*NeutronGenerator.sld_bounds)
-            ax.set_ylabel("$\mathregular{SLD\ (Å^{-3})}$", fontsize=10, weight="bold")
+            #ax.set_ylim(*NeutronGenerator.sld_bounds)
+            ax.set_ylabel("$\mathregular{SLD\ (x10^{-6} Å^{-2})}$", fontsize=10, weight="bold")
         elif parameter == "Depth":
             ax.set_ylim(*CurveGenerator.thick_bounds)
             ax.set_ylabel("$\mathregular{Depth\ (Å)}$", fontsize=10, weight="bold")
-        
-        plt.legend(loc='upper right')
+            
+        if legend:
+            plt.legend(loc='upper right')
         plt.show()
 
 
