@@ -23,7 +23,7 @@ class TimeVarying:
             os.makedirs(path)
             
         self.path         = path
-        self.points       = 800
+        self.points       = 500
         self.roughness    = 8
         self.layer1_sld   = 2.5
         self.layer2_sld   = 5.0
@@ -105,21 +105,48 @@ class TimeVarying:
         self.__plot(depth_predictions, sld_predictions, depth_errors, sld_errors) #Generate plots for results.
       
     def __plot(self, depth_predictions, sld_predictions, depth_errors, sld_errors):
+        """Creates a series of plots of predictions against ground-truths for generated time-varying data.
+        
+        Args:
+            depth_predictions (ndarray): KDP predictions for layer one and two depths.
+            sld_predictions (ndarray): KDP predictions for layer one and two SLDS.
+            depth_errors (ndarray): KDP errors for layer one and two depth predictions.
+            sld_errors (ndarray): KDP errors for layer one and two SLD predictions.
+        
+        """
         steps = len(self.thick_range)
         time_steps = np.arange(1, steps+1, 1) #The time steps of arbitrary units.
         
         #Plot the ground truth and predictions for both of the layers' SLDs and depths.
-        self.__plot_data(time_steps,  self.thick_range,         depth_predictions[:,0], depth_errors[:,0], "Depth")   
-        self.__plot_data(time_steps, [self.layer2_thick]*steps, depth_predictions[:,1], depth_errors[:,1], "Depth")
-        self.__plot_data(time_steps, [self.layer1_sld]*steps,   sld_predictions[:,0],   sld_errors[:,0],   "SLD")   
-        self.__plot_data(time_steps, [self.layer2_sld]*steps,   sld_predictions[:,1],   sld_errors[:,1],   "SLD") 
+        self.__plot_data(time_steps,  self.thick_range,         depth_predictions[:,0], depth_errors[:,0], "Depth", 1)   
+        self.__plot_data(time_steps, [self.layer2_thick]*steps, depth_predictions[:,1], depth_errors[:,1], "Depth", 2)
+        self.__plot_data(time_steps, [self.layer1_sld]*steps,   sld_predictions[:,0],   sld_errors[:,0],   "SLD",   1)   
+        self.__plot_data(time_steps, [self.layer2_sld]*steps,   sld_predictions[:,1],   sld_errors[:,1],   "SLD",   2) 
             
-    def __plot_data(self, time_steps, ground_truth, predictions, errors, parameter):
-        fig = plt.figure(figsize=(8,5))
+    def __plot_data(self, time_steps, ground_truth, predictions, errors, parameter, layer):
+        """Creates an individual of plot of predictions against ground-truth.
+        
+        Args:
+            time_steps (ndarray): the x-axis for the plot (how many datasets are the in the experiment).
+            ground_truth (ndarray): the ground truth labels associated with given predictions
+            predictions (ndarray): predictions for either depth or SLD made by the KDP.
+            errors (ndarray): errors in the given predictions.
+            parameter (string): either 'Depth' or 'SLD'.
+            layer (int): the layer for which the predictions are for.
+        
+        """
+        fig = plt.figure(figsize=(8,5), dpi=600)
         ax = fig.add_subplot(111)
         ax.scatter(time_steps, ground_truth, s=10, c='g', marker="s", label='Ground Truth')
         ax.errorbar(time_steps, predictions, errors, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="b", zorder=-130, markersize=4, label='Prediction')
         ax.set_xlabel("Time Step", fontsize=10, weight="bold")
+        
+        pad   = 55
+        v_pad = 80
+        ax.annotate("Layer {}".format(layer), xy=(0, 0.5),
+                xytext=(-ax.yaxis.labelpad - pad, v_pad),
+                xycoords="axes points", textcoords="offset points",
+                size="medium", ha="right", va="center")
         
         if parameter == "SLD":
             ax.set_ylim(*NeutronGenerator.sld_bounds)

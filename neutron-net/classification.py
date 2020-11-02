@@ -299,6 +299,6 @@ if __name__ == "__main__":
     save_path = "./models/neutron"
     load_path = "./models/neutron/classifier/full_model.h5"
 
-    #classify(data_path, save_path, train=True, epochs=35, show_plots=True) #Train new
-    #classify(data_path, save_path, load_path=load_path, train=True, epochs=50, show_plots=True) #Train existing
+    #classify(data_path, save_path, train=True, epochs=20, show_plots=True) #Train new
+    #classify(data_path, save_path, load_path=load_path, train=True, epochs=10, show_plots=True) #Train existing
     classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
