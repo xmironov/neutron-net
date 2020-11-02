@@ -350,11 +350,11 @@ class Model():
         # Add the data in a transformed fashion.
         ax.errorbar(self.objective.data.x, y, y_err, label=self.filename,
                     color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
-        #Add the fit
+        #Add the prediction/fit
         ax.plot(self.objective.data.x, model, color="red", label=label, zorder=20)
 
-        plt.xlabel("$\mathregular{Q\ (Å^{-1})}$",      fontsize=11, weight='bold')
-        plt.ylabel('Reflectivity Reflectivity (arb.)', fontsize=11, weight='bold')
+        plt.xlabel("$\mathregular{Q\ (Å^{-1})}$", fontsize=11, weight='bold')
+        plt.ylabel('Reflectivity (arb.)',         fontsize=11, weight='bold')
         plt.yscale('log')
         plt.legend()
         if title:
@@ -433,8 +433,8 @@ class Pipeline:
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
-        #return [1]*2, npy_image_filenames
-        return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
+        return [1]*2, npy_image_filenames
+        #return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
 
     @staticmethod
     def __regress(data_path, regressor_paths, layer_predictions, npy_image_filenames, n_iter, xray=False):
@@ -592,6 +592,37 @@ class Pipeline:
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots, xray=xray)
             print()
             
+def plot_objective_dual(objective1, objective2):
+    """Creates a plot of two predictions on the same axis (for the paper).
+
+    Args:
+        objective1 (Objective): the first refnx objective object to plot.
+        objective2 (Objective): the second refnx objective object to plot.
+
+    """
+    fig = plt.figure(figsize=[9,7], dpi=600)
+    ax = fig.add_subplot(111)
+
+    #Get the data, errors and predictions for each objective.
+    y1, y_err1, model1 = objective1._data_transform(model=objective1.generative())
+    y2, y_err2, model2 = objective2._data_transform(model=objective2.generative())
+    
+    # Add the data in a transformed fashion.
+    ax.errorbar(objective1.data.x, y1, y_err1, label="Dataset1",
+                color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
+    ax.errorbar(objective2.data.x, y2/100, y_err2/100, label="$\mathregular{Dataset2\ (x10^{-2})}$", 
+                color="green", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
+    
+    #Add the predictions
+    ax.plot(objective1.data.x, model1, color="red", label="Prediction1", zorder=20)
+    ax.plot(objective2.data.x, model2/100, color="black", label="$\mathregular{Prediction2\ (x10^{-2})}$", zorder=20)
+    ax.set_xlim((0, 0.35))
+    ax.set_ylim((5e-10, 1.2))
+
+    plt.xlabel("$\mathregular{Q\ (Å^{-1})}$", fontsize=11, weight='bold')
+    plt.ylabel('Reflectivity (arb.)',         fontsize=11, weight='bold')
+    plt.yscale('log')
+    plt.legend()
 
 if __name__ == "__main__":
     save_path = './models/neutron'
@@ -611,4 +642,7 @@ if __name__ == "__main__":
     data_path = "./data/real"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=100, xray=xray)
+    
+    #Make sure to set fit to false otherwise fits are plotted.
+    plot_objective_dual(models['test_sample_1.dat'].objective, models['test_sample_2.dat'].objective)
