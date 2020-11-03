@@ -399,8 +399,8 @@ class Pipeline:
             filename = os.path.basename(dat_files[curve])
             print("Results for '{}'".format(filename))
             for i in range(layer_predictions[curve]): #Iterate over each layer
-                print(">>> Predicted layer {0} - SLD:   {1:10.4f} | Error: {2:10.6f}".format(i+1, sld_predictions[curve][i], sld_errors[curve][i]))
-                print(">>> Predicted layer {0} - Depth: {1:10.4f} | Error: {2:10.6f}".format(i+1, depth_predictions[curve][i], depth_errors[curve][i]))
+                print(">>> Predicted layer {0} - SLD:   {1:9.3f} | Error: {2:7.3f}".format(i+1, sld_predictions[curve][i], sld_errors[curve][i]))
+                print(">>> Predicted layer {0} - Depth: {1:9.4f} | Error: {2:7.3f}".format(i+1, depth_predictions[curve][i], depth_errors[curve][i]))
 
             #Create a refnx model with the predicted number of layers, SLDs and depths.
             model = Model(dat_files[curve], layer_predictions[curve], sld_predictions[curve], depth_predictions[curve], xray)
@@ -426,13 +426,14 @@ class Pipeline:
             The layer predictions for each file along with Numpy image filenames.
 
         """
-        print("-------------- Classification -------------")
+        print("---------------------- Classification --------------------")
         #Convert .dat files to images, ready for passing as input to the classifier.
         npy_image_filenames = Pipeline.dat_files_to_npy_images(dat_files, save_path)
         class_labels = dict(zip(npy_image_filenames, np.zeros((len(npy_image_filenames), 1))))
 
         classifier_loader = DataLoaderClassification(class_labels, DIMS, CHANNELS)
         classifier = load_model(classifier_path)
+        #return [1,1], npy_image_filenames
         return np.argmax(classifier.predict(classifier_loader, verbose=1), axis=1)+1, npy_image_filenames #Make predictions
 
     @staticmethod
@@ -452,7 +453,7 @@ class Pipeline:
             SLD and depth predictions along with the errors for each.
 
         """
-        print("---------------- Regression ---------------")
+        print("----------------------- Regression -----------------------")
         # Dictionary to pair image with "depth", "sld", "class" values
         values_labels = {}
         for filename, layer_prediction in zip(npy_image_filenames, layer_predictions):
@@ -483,15 +484,16 @@ class Pipeline:
             models (dict): a dictionary of refnx models, index by filename.
 
         """
-        print("----------------- Fitting -----------------")
+        print("------------------------- Fitting ------------------------")
         for filename in models.keys(): #Iterate over each model and fit.
             print("Results for '{}'".format(filename))
             model = models[filename]
             model.fit()
             model.plot_objective(prediction=False)
+
             for i, component in enumerate(model.structure.components[1:-1]): #Iterate over each layer
-                print(">>> Fitted layer {0} - SLD:   {1:10.4f}".format(i+1, component.sld.real.value))
-                print(">>> Fitted layer {0} - Depth: {1:10.4f}".format(i+1, component.thick.value))
+                print(">>> Fitted layer {0} - SLD:   {1:9.3f} | Error: {2:6.4f}".format(i+1, component.sld.real.value, component.sld.real.stderr))
+                print(">>> Fitted layer {0} - Depth: {1:9.3f} | Error: {2:6.4f}".format(i+1, component.thick.value,    component.thick.stderr))
             print()
 
     @staticmethod
@@ -641,7 +643,7 @@ if __name__ == "__main__":
     data_path = "./data/real"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
     
     #Make sure to set fit to false otherwise fits are plotted.
     plot_objective_dual(models['test_sample_1.dat'].objective, models['test_sample_2.dat'].objective)
