@@ -492,8 +492,8 @@ class Pipeline:
             model.plot_objective(prediction=False)
 
             for i, component in enumerate(model.structure.components[1:-1]): #Iterate over each layer
-                print(">>> Fitted layer {0} - SLD:   {1:9.3f} | Error: {2:6.4f}".format(i+1, component.sld.real.value, component.sld.real.stderr))
-                print(">>> Fitted layer {0} - Depth: {1:9.3f} | Error: {2:6.4f}".format(i+1, component.thick.value,    component.thick.stderr))
+                print(">>> Fitted layer {0} - SLD:   {1:9.3f} | Error: {2:7.5f}".format(i+1, component.sld.real.value, component.sld.real.stderr))
+                print(">>> Fitted layer {0} - Depth: {1:9.3f} | Error: {2:7.5f}".format(i+1, component.thick.value,    component.thick.stderr))
             print()
 
     @staticmethod
