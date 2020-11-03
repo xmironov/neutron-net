@@ -329,9 +329,9 @@ class Model():
         """Fits the model to the data using differential evolution."""
         fitter = CurveFitter(self.objective)
         fitter.fit('differential_evolution', verbose=False)
-        fitter.sample(400)
-        fitter.reset()
-        fitter.sample(15, nthin=100)
+        #fitter.sample(400)
+        #fitter.reset()
+        #fitter.sample(15, nthin=100)
 
     def plot_objective(self, prediction=True):
         """Plots the current objective for the model against given dataset.
