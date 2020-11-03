@@ -267,11 +267,11 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
 
     if train:
         model.train(train_loader, validate_loader)
-
-    model.test(test_loader, test_labels, show_plots)
-
+    
     if save_path is not None:
         model.save(save_path)
+
+    model.test(test_loader, test_labels, show_plots)
 
     train_file.close()
     validate_file.close()
@@ -300,5 +300,5 @@ if __name__ == "__main__":
     load_path = "./models/neutron/classifier/full_model.h5"
 
     #classify(data_path, save_path, train=True, epochs=20, show_plots=True) #Train new
-    #classify(data_path, save_path, load_path=load_path, train=True, epochs=10, show_plots=True) #Train existing
+    #classify(data_path, save_path, load_path=load_path, train=True, epochs=5, show_plots=True) #Train existing
     classify(data_path, load_path=load_path, train=False, show_plots=True) #Load existing but do not train
