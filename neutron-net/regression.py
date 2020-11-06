@@ -1,108 +1,142 @@
-from comet_ml import Experiment
-
-import os 
-os.environ["KMP_AFFINITY"] = "none"
-
-import argparse
-import h5py, time, re, sys 
-import json, glob, pickle, random
-import warnings
-
-import numpy as np 
-import pandas as pd
+import os, h5py
+import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-
-from datetime import datetime
-from sklearn.metrics import mean_squared_error
 
 import tensorflow as tf
-from tensorflow.keras import backend as K
-from tensorflow.keras.models import Sequential, Model, load_model
-from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, LeakyReLU, BatchNormalization, Dropout, Input
-from tensorflow.keras.utils import Sequence
-from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
-from tensorflow.keras.optimizers import Adam, Nadam
-
-DIMS = (300, 300)
-CHANNELS = 1
 tf.compat.v1.disable_eager_execution()
+from tensorflow.keras.models     import Model, load_model
+from tensorflow.keras.layers     import Dense, Flatten, Conv2D, MaxPooling2D, Dropout, Input
+from tensorflow.keras.utils      import Sequence
+from tensorflow.keras.callbacks  import ReduceLROnPlateau
+from tensorflow.keras.optimizers import Nadam
 
-class KerasDropoutPredicter():
-    def __init__(self, model, sequence):
-        # Define model with toggleable Dropout, K.learning_phase()
-        self.f = K.function(
-            [model.layers[0].input, K.learning_phase()], 
-            [model.layers[-2].output, model.layers[-1].output])
+from generate_data import ImageGenerator, LAYERS_STR, DIMS, CHANNELS, IMAGE_BITS
 
-    def predict(self, sequencer, n_iter=2):
-        steps_done = 0
-        all_out = []
-        steps = len(sequencer)
-        output_generator = iter_sequence_infinite(sequencer)
+class DataLoader(Sequence):
+    """DataLoader uses a Keras Sequence to load image and target data from a h5 file."""
 
-        while steps_done < steps:
-            generator_output = next(output_generator)
-            images, targets = generator_output
+    def __init__(self, file, dim, channels, batch_size, layers):
+        """Initialises the DataLoader class with given parameters.
 
-            results = []
-            for i in range(n_iter):
-                # Set Dropout to True: 1
-                result = self.f([images, 1])
-                results.append(result)
+        Args:
+            file (string): the path of the file to load data from.
+            dim (tuple): dimensions of images loaded.
+            channels (int): number of channels of images loaded.
+            batch_size (int): size of each mini-batch to load.
+            layers (int): number of layers of the curves the file contains.
 
-            results = np.array(results)
-            prediction, uncertainty = results.mean(axis=0), results.std(axis=0)
-            outs = [prediction, uncertainty]
-            targets_depth = targets["depth"]
-            targets_sld = targets["sld"]
-            targets_sum = np.array([targets_depth, targets_sld])
-            outs = np.array([prediction, uncertainty, targets_sum])
+        """
+        self.file       = file
+        self.dim        = dim
+        self.channels   = channels
+        self.batch_size = batch_size
+        self.layers     = layers
+        self.__on_epoch_end()
 
-            if not all_out:
-                for out in outs:
-                    all_out.append([])
+    def __len__(self):
+        """Calculates the number of batches per epoch.
 
-            for i, out in enumerate(outs):
-                all_out[i].append(out)
+        Returns:
+            An integer number of batches per epoch.
 
-            steps_done += 1
+        """
+        return int(np.floor(len(self.file['images']) / self.batch_size))
 
-        return [np.concatenate(out, axis=1) for out in all_out]
+    def __getitem__(self, index):
+        """Generates one batch of data.
 
-class Net():
-    def __init__(self, dims, channels, epochs, dropout, learning_rate, workers, layers, batch_size):
-        'Initialisation'
-        self.outputs       = layers
+        Args:
+            index (int): position of batch.
+
+        Returns:
+            A `batch_size` sample of images (inputs) and classes (targets).
+
+        """
+        indices = self.indices[index*self.batch_size: (index + 1)*self.batch_size]
+        images, targets = self.__data_generation(indices)
+        return images, targets
+
+    def __data_generation(self, indices):
+        """Generates data containing batch_size samples.
+
+        Args:
+            indices (ndarray): an array of indices to retrieve data from.
+
+        Returns:
+            A `batch_size` sample of images (inputs) and targets.
+
+        """
+        images        = np.empty((self.batch_size, *self.dim, self.channels))
+        targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
+        targets_sld   = np.empty((self.batch_size, self.layers), dtype=float)
+
+        for i, idx in enumerate(indices): #Get images and targets for each index
+            image  = self.file['images'][idx] / (2**IMAGE_BITS) #Divide to get images back into 0-1 range.
+            values = self.file['targets_scaled'][idx]
+
+            length = len(values)
+            difference = length - self.layers * 2
+            if difference: #Take out the SLDs and depths of layers that are not present.
+                values = values[:-difference]
+
+            images[i,]        = image
+            targets_depth[i,] = values[::2]
+            targets_sld[i,]   = values[1::2]
+
+        return images, {'depth': targets_depth, 'sld': targets_sld}
+
+    def __on_epoch_end(self):
+        """Updates indices after each epoch."""
+        self.indices = np.arange(len(self.file['images']))
+
+
+class Regressor():
+    """The Regressor class represents the network used for SLD and depth regression"""
+
+    def __init__(self, dims, channels, layers, epochs, learning_rate, batch_size, dropout, workers, load_path=None):
+        """Initialises the network with given hyperparameters.
+
+        Args:
+            dims (tuple): dimensions of the input images.
+            channels (int): number of channels of the input images.
+            layers (int): the number of layers the regressor is designed for.
+            epochs (int): number of epochs to train for.
+            learning_rate (float): the value for the learning rate hyperparameter.
+            batch_size (int): the size of each mini-batch.
+            dropout (float): the value of the dropout rate hyperparameter.
+            workers (int): number of workers to use.
+            load_path (string): the path an existing model to load from.
+
+        """
         self.dims          = dims
         self.channels      = channels
+        self.outputs       = layers
         self.epochs        = epochs
-        self.dropout       = dropout
         self.learning_rate = learning_rate
-        self.workers       = workers
         self.batch_size    = batch_size
-        self.model         = self.create_model()
+        self.dropout       = dropout
+        self.workers       = workers
+        if load_path is None: #If a load path is not provided, create a new model.
+            self.model = self.create_model()
+        else:
+            self.model = load_model(load_path)
 
     def train(self, train_seq, valid_seq):
-        'Trains data on Sequences'
+        """Trains the network using the training set and validates it.
 
+        Args:
+            train_seq (DataLoader): training set data as a Keras Sequence.
+            valid_seq (type): validation set data as a Keras Sequence.
+
+        """
         learning_rate_reduction_cbk = ReduceLROnPlateau(
             monitor='val_loss',
             patience=10,
             verbose=1,
             factor=0.5,
-            min_lr = 0.000001
+            min_lr = 0.0000001
         )
 
-        model_checkpoint_cbk = ModelCheckpoint(
-            'weights.{epoch:02d}-{val_loss:2f}.h5',
-            monitor='val_loss',
-            verbose=0,
-            save_best_only=True
-        )
-
-        start = time.time()
         self.history = self.model.fit(
             train_seq,
             validation_data = valid_seq,
@@ -113,430 +147,207 @@ class Net():
             callbacks = [learning_rate_reduction_cbk]
         )
 
-        train_seq.close_file()
-        valid_seq.close_file()
+    def test(self, test_seq):
+        """Evaluates the network against the test set.
 
-        return self.history
-    
-    def test(self, test_seq, datapath):
-        scaler = pickle.load(open(os.path.join(datapath, "output_scaler.p"), "rb"))
-        preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
-        depth, sld = preds[0], preds[1]
+        Args:
+            test_seq (DataLoader): the test set data for evaluation as a Keras Sequence.
 
-        if self.outputs == 2:
-            padded_preds = np.c_[depth[:,0], sld[:,0], depth[:,1], sld[:,1]]
-            self.preds = scaler.inverse_transform(padded_preds)
-
-        elif self.outputs ==1:
-            padded_preds = np.c_[depth[:,0], sld[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
-            self.preds = scaler.inverse_transform(padded_preds)
+        """
+        print("Evaluating")
+        results = self.model.evaluate(test_seq)
+        print("Depth Loss: {0:10.8f} | Depth mae: {1:10.8f}\nSLD Loss:   {2:10.8f} | SLD mae:   {3:10.8f}".format(results[1], results[3], results[2], results[4]))
 
     def create_model(self):
+        """Creates the regressor network.
+
+        Returns:
+            A Keras model for the regressor network architecture.
+
+        """
         # Convolutional Encoder
         input_img = Input(shape=(*self.dims, self.channels))
-        conv_1 = Conv2D(32, (3,3), activation='relu')(input_img)
-        pool_1 = MaxPooling2D((2,2))(conv_1)
-        conv_2 = Conv2D(64, (3,3), activation='relu')(pool_1)
-        pool_2 = MaxPooling2D((2,2), strides=(2,2))(conv_2)
-        conv_3 = Conv2D(32, (3,3), activation='relu')(pool_2)
-        pool_3 = MaxPooling2D((2,2))(conv_3)
-        conv_4 = Conv2D(16, (3,3), activation='relu')(pool_3)
-        pool_4 = MaxPooling2D((2,2))(conv_4)
-        flatten = Flatten()(pool_4)
+        conv_1    = Conv2D(32, (3,3), activation='relu')(input_img)
+        pool_1    = MaxPooling2D((2,2))(conv_1)
+        conv_2    = Conv2D(64, (3,3), activation='relu')(pool_1)
+        pool_2    = MaxPooling2D((2,2), strides=(2,2))(conv_2)
+        conv_3    = Conv2D(32, (3,3), activation='relu')(pool_2)
+        pool_3    = MaxPooling2D((2,2))(conv_3)
+        conv_4    = Conv2D(16, (3,3), activation='relu')(pool_3)
+        pool_4    = MaxPooling2D((2,2))(conv_4)
+        flatten   = Flatten()(pool_4)
 
-        # Depth feed-forward
-        dense_1_d = Dense(units=300, activation='relu', kernel_initializer='he_normal')(flatten)
+        # Deep feed-forward network
+        dense_1_d   = Dense(units=300, activation='relu', kernel_initializer='he_normal')(flatten)
         dropout_1_d = Dropout(self.dropout)(dense_1_d)
-        dense_2_d = Dense(units=192, activation='relu', kernel_initializer='he_normal')(dropout_1_d)
+        dense_2_d   = Dense(units=192, activation='relu', kernel_initializer='he_normal')(dropout_1_d)
         dropout_2_d = Dropout(self.dropout)(dense_2_d)
-        dense_3_d = Dense(units=123, activation='relu', kernel_initializer='he_normal')(dropout_2_d)
+        dense_3_d   = Dense(units=123, activation='relu', kernel_initializer='he_normal')(dropout_2_d)
         dropout_3_d = Dropout(self.dropout)(dense_3_d)
-        dense_4_d = Dense(units=79, activation='relu', kernel_initializer='he_normal')(dropout_3_d)
+        dense_4_d   = Dense(units=79, activation='relu', kernel_initializer='he_normal')(dropout_3_d)
         dropout_4_d = Dropout(self.dropout)(dense_4_d)
-        dense_5_d = Dense(units=50, activation='relu', kernel_initializer='he_normal')(dropout_4_d)
+        dense_5_d   = Dense(units=50, activation='relu', kernel_initializer='he_normal')(dropout_4_d)
         dropout_5_d = Dropout(self.dropout)(dense_5_d)
         depth_linear = Dense(units=self.outputs, activation='linear', name='depth')(dropout_5_d)
-        sld_linear = Dense(units=self.outputs, activation='linear', name='sld')(dropout_5_d)
+        sld_linear   = Dense(units=self.outputs, activation='linear', name='sld')(dropout_5_d)
 
         model = Model(inputs=input_img, outputs=[depth_linear, sld_linear])
-        model.compile(loss={'depth':'mse','sld':'mse'},
-                        loss_weights={'depth':1,'sld':1},
+        model.compile(loss={'depth': 'mse', 'sld': 'mse'}, #msle was tried here for depth.
                         optimizer = Nadam(self.learning_rate),
-                        metrics={'depth':'mae','sld':'mae'})
+                        metrics={'depth': 'mae', 'sld': 'mae'})
         return model
 
-    def summary(self):
-        self.model.summary()
+    def save(self, save_path):
+        """Saves a regressor model under the given directory.
 
-    def plot(self, labels, save_path):
-        remainder = len(labels) % self.batch_size
+        Args:
+            save_path (string): path of the directory to save the model in.
 
+        """
+        if not os.path.exists(save_path): #Create the necessary directories if not present.
+            os.makedirs(save_path)
+        self.model.save(os.path.join(save_path, 'full_model.h5'))
+
+    def plot(self, labels, test_seq, xray=False):
+        """Plots ground truth depths and SLDs against predictions for each layer.
+
+        Args:
+            labels (ndarray): an array of ground truth labels.
+            test_seq (DataLoader): the test set to predict on.
+            xray (Boolean): whether data is neutron or x-ray.
+
+        """
+        #Make predictions on test set and descale.
+        scaled_preds = self.model.predict(test_seq, use_multiprocessing=False, verbose=1)
+        depths = ImageGenerator.scale_to_range(scaled_preds[0], (0, 1), ImageGenerator.depth_bounds)
+
+        depth_plot_range = (-100, 1100)
+
+        if xray:
+            slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_xray_bounds)
+            sld_plot_range = (0, 156)
+        else:
+            slds = ImageGenerator.scale_to_range(scaled_preds[1], (0, 1), ImageGenerator.sld_neutron_bounds)
+            sld_plot_range = (-1.5, 10.5)
+
+        preds = np.zeros((len(depths[:,0]), 2*self.outputs)) #Format predictions into a single array
+        for i in range(self.outputs):
+            preds[:, 2*i]   = depths[:, i]
+            preds[:, 2*i+1] = slds[:, i]
+
+        remainder = len(labels) % self.batch_size #Handle the remainder section.
         if remainder:
             labels = labels[:-remainder]
-        
+
         total_plots = 2 * self.outputs
-        columns = 2 # depth & sld
-        rows = total_plots // columns # If 2-layer system: total_plots=2*2=4, rows=4//2=2
+        columns = 2 # Depth and SLD
+        rows = total_plots // columns
         position = range(1, total_plots+1)
 
-        column_headers = ["Depth", "SLD"]
         row_headers = ["Layer {}".format(row+1) for row in range(rows)]
         pad = 5
-        fig = plt.figure(figsize=(15,10))
+        #Define the figure size for each number of layers.
+        if self.outputs == 1:
+            fig_size = (10,5)
+        elif self.outputs == 2:
+            fig_size = (9,9)
+        elif self.outputs == 3:
+            fig_size = (7,9)
+
+        fig = plt.figure(figsize=fig_size, dpi=600)
+        fig.subplots_adjust(wspace=0.3, hspace=0.15, top=0.92)
+        fig.suptitle("{}-Layer Predictions Against Ground Truths".format(self.outputs), size=16)
+
         for k in range(total_plots):
             ax = fig.add_subplot(rows, columns, position[k])
-            ax.scatter(labels[:,k], self.preds[:,k], alpha=0.2)
-            
-            if k == 0:
-                ax.set_title(column_headers[k])
-            elif k == 1:
-                ax.set_title(column_headers[k])
-            
+            ax.scatter(labels[:,k], preds[:,k], alpha=0.2)
+
             if k % 2 == 0:
-                ax.set_xlabel("Ground truth: depth")
-                ax.set_ylabel("Prediction: depth")
-                ax.set_xlim(-100, 3000)
-                ax.set_ylim(-100, 3000)
+                if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
+                    ax.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
+                ax.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
+                ax.set_xlim(*depth_plot_range)
+                ax.set_ylim(*depth_plot_range)
                 ax.annotate(row_headers[k//2], xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
                             xycoords=ax.yaxis.label, textcoords="offset points",
                             size="large", ha="right", va="center")
             else:
-                ax.set_xlabel("Ground truth: SLD")
-                ax.set_ylabel("Prediction: SLD")
-                ax.set_xlim(-0.1, 1.1)
-                ax.set_ylim(-0.1, 1.1)
-        
-        plt.savefig(save_path)
+                if k // 2 == self.outputs-1: #Only add ground truth label to bottom subplot
+                    ax.set_xlabel("$\mathregular{SLD_{true}\ (x10^{-6} Å^{-2})}$", fontsize=10, weight="bold")
+                ax.set_ylabel("$\mathregular{SLD_{predict}\ (x10^{-6} Å^{-2})}$", fontsize=11, weight="bold")
+                ax.set_xlim(*sld_plot_range)
+                ax.set_ylim(*sld_plot_range)
 
-    def save(self, save_path):
-        try:
-            os.makedirs(save_path)
-            print('Created path: ' + save_path)
+        plt.show()
 
-        except OSError:
-            print("Couldn't create save directory")
+    def summary(self):
+        """Displays a summary of the regressor network."""
+        self.model.summary()
 
-        self.model.save(os.path.join(save_path, 'full_model.h5'))
 
-class DataLoader(Sequence):
-    ''' Use Keras sequence to load image data from h5 file '''
-    def __init__(self, h5_file, dim, channels, batch_size, layers):
-        'Initialisation'
-        self.file       = h5_file                 # H5 file to read
-        self.dim        = dim                     # Image dimensions
-        self.channels   = channels                # Image channels                   
-        self.batch_size = batch_size              # Batch size
-        self.layers     = layers
-        self.on_epoch_end()
+def regress(data_path, layer, save_path=None, load_path=None, train=True, summary=False, epochs=2,
+         learning_rate=0.0004, batch_size=20, dropout_rate=0.1, workers=1, show_plots=True, xray=False):
+    """Either creates a regressor or loads an existing regressor, optionally
+       trains the network and then evaluates it.
 
-    def __len__(self):
-        'Denotes number of batches per epoch'
-        return int(np.floor(len(np.array(self.file['images'])) / self.batch_size))
+    Args:
+        data_path (string): path to the directory containing the data to train and test on.
+        layer (int): the layer for which the regressor is being trained on.
+        save_path (string): path to the directory to save the trained model to.
+        load_path (string): path to the full_model.h5 file to load an existing model from.
+        train (Boolean): whether to train the model or not.
+        summary (Boolean): whether to display a summary of the model or not.
+        epochs (int): the number of epochs to train for.
+        learning_rate (float): the value of the learning rate hyperparameter.
+        batch_size (int): the size of each batch used when training.
+        dropout_rate (float): the value of the dropout rate hyperparameter.
+        workers (int): the number of workers to use.
+        show_plots (Boolean): whether to display regression plots.
+        xray (Boolean): whether input data uses a neutron or x-ray probe.
 
-    def __getitem__(self, index):
-        'Generates one batch of data'
-        indexes = self.indexes[index * self.batch_size: (index + 1) * self.batch_size]
-        images, targets = self.__data_generation(indexes)
+    """
+    if save_path is not None: #If a save path is provided, save the regressor under a directory
+        save_path = os.path.join(save_path, "{}-layer-regressor".format(LAYERS_STR[layer]))
 
-        return images, targets
+    train_dir = os.path.join(data_path, 'train.h5')
+    val_dir   = os.path.join(data_path, 'validate.h5')
+    test_dir  = os.path.join(data_path, 'test.h5')
 
-    def __data_generation(self, indexes):
-        'Generates data containing batch_size samples'
-        images = np.empty((self.batch_size, *self.dim, self.channels))
-        targets_depth = np.empty((self.batch_size, self.layers), dtype=float)
-        targets_sld = np.empty((self.batch_size, self.layers), dtype=float)
+    train_h5 = h5py.File(train_dir, 'r')
+    val_h5   = h5py.File(val_dir,   'r')
+    test_h5  = h5py.File(test_dir,  'r')
 
-        for i, idx in enumerate(indexes):
-            image = self.file['images'][idx]
-            values = self.file['scaledY'][idx]
+    train_loader = DataLoader(train_h5, DIMS, CHANNELS, batch_size, layer) #Load the train.h5, validate.h5 and test.h5 files.
+    valid_loader = DataLoader(val_h5,   DIMS, CHANNELS, batch_size, layer)
+    test_loader  = DataLoader(test_h5,  DIMS, CHANNELS, batch_size, layer)
 
-            length = len(values)
-            difference = length - self.layers * 2
+    model = Regressor(DIMS, CHANNELS, layer, epochs, learning_rate, batch_size, dropout_rate, workers, load_path)
+    if summary:
+        model.summary()
 
-            if difference:
-                values = values[:-difference]
-
-            images[i,] = image
-            targets_depth[i,] = values[::2]
-            targets_sld[i,] = values[1::2]
-        
-        return images, {'depth': targets_depth, 'sld': targets_sld}
-
-    def on_epoch_end(self):
-        'Updates indexes after each epoch'    
-        self.indexes = np.arange(len(self.file['images']))
-
-    def close_file(self):
-        self.file.close()
-    
-def iter_sequence_infinite(sequence):
-    while True:
-        for item in sequence:
-            yield item
-
-def plot(preds, labels, save_path, batch_size, error):
-    # Weird bug was causing passed arrays to have indexing issues
-    # The following is specific for the graphs generated in the paper graphics
-    labels_1_a = labels[0][:,0]
-    preds_1_a = preds[0][:,0]
-    error_1_a = error[0][:,0]
-
-    labels_1_b = labels[0][:,1]
-    preds_1_b = preds[0][:,1]
-    error_1_b = error[0][:,1]
-
-    labels_2_a = labels[1][:,0]
-    preds_2_a = preds[1][:,0]
-    error_2_a = error[1][:,0]
-
-    labels_2_b = labels[1][:,1]
-    preds_2_b = preds[1][:,1]
-    error_2_b = error[1][:,1]
-
-    labels_2_c = labels[1][:,2]
-    preds_2_c = preds[1][:,2]
-    error_2_c = error[1][:,2]
-
-    labels_2_d = labels[1][:,3]
-    preds_2_d = preds[1][:,3]
-    error_2_d = error[1][:,3]
-
-    remainder = len(labels) % batch_size
-
-    if remainder:
-        labels = labels[:-remainder]
-    
-    total_plots = 6
-    columns = 2
-    rows = total_plots // columns 
-
-    outer_grid = gridspec.GridSpec(3, 2, hspace=0.00, wspace=0.390, left=0.19, right=0.9, top=0.950, bottom=0.110)
-
-    fig = plt.figure()
-    pad = 55
-    v_pad = 80
-
-    ax0 = fig.add_subplot(outer_grid[0, 0])
-    ax0.errorbar(labels_1_a, preds_1_a, error_1_a, fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="b",zorder=-130,markersize=4)
-    ax0.plot([0,1], [0,1], 'k', transform=ax0.transAxes)
-    ax0.set_xlim([-250, 3250])
-    ax0.set_ylim([-250, 3250])
-    ax0.set_yticks([0, 1000, 2000, 3000])
-    ax0.set_yticklabels([0, 1000, 2000, 3000])
-    ax0.set_xticklabels([])
-    ax0.annotate("$\mathregular{1^{i}}$", xy=(0., 0.5), xytext=(-ax0.yaxis.labelpad - pad, v_pad),
-                        xycoords="axes points", textcoords="offset points",
-                        size="large", ha="right", va="center")
-
-    ax0.set_facecolor("xkcd:very light blue")
-
-    ax0_1 = fig.add_subplot(outer_grid[0, 1])
-    ax0_1.errorbar(labels_1_b, preds_1_b, error_1_b,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="g",zorder=-130,markersize=4)
-    ax0_1.plot([0,1], [0,1], 'k', transform=ax0_1.transAxes)
-    ax0_1.set_xlim([-0.1, 1.1])
-    ax0_1.set_ylim([-0.1, 1.1])
-    ax0_1.set_yticks([0, 0.5, 1])
-    ax0_1.set_yticklabels([0, 0.5, 1])
-    ax0_1.set_xticklabels([])
-    ax0_1.set_facecolor("xkcd:very light blue")
-
-    ax1 = fig.add_subplot(outer_grid[1, 0])
-    ax1.errorbar(labels_2_a, preds_2_a, error_2_a,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="b",zorder=-130,markersize=4)
-    ax1.plot([0,1], [0,1], 'k', transform=ax1.transAxes)
-    ax1.set_xlim([-250, 3250])
-    ax1.set_ylim([-250, 3250])
-    ax1.set_yticks([0, 1000, 2000, 3000])
-    ax1.set_yticklabels([0, 1000, 2000, 3000])
-    ax1.set_xticklabels([])
-    ax1.set_ylabel("$\mathregular{Depth_{predict}\ (Å)}$", fontsize=11, weight="bold")
-    ax1.annotate("$\mathregular{2^{i}}$", xy=(0, 0.5), xytext=(-ax0.yaxis.labelpad - pad, v_pad),
-                        xycoords="axes points", textcoords="offset points",
-                        size="large", ha="right", va="center")
-
-    ax2 = fig.add_subplot(outer_grid[1, 1])
-    ax2.errorbar(labels_2_b, preds_2_b, error_2_b,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="g",zorder=-130,markersize=4)
-    ax2.plot([0,1], [0,1], 'k', transform=ax2.transAxes)
-    ax2.set_xlim([-0.1, 1.1])
-    ax2.set_ylim([-0.1, 1.1])
-    ax2.set_yticks([0, 0.5, 1])
-    ax2.set_yticklabels([0, 0.5, 1])
-    ax2.set_xticklabels([])
-    ax2.set_ylabel("$\mathregular{SLD_{predict}\ (fm\ Å^{-3})}$", fontsize=11, weight="bold")
-
-    ax3 = fig.add_subplot(outer_grid[2, 0])
-    ax3.errorbar(labels_2_c, preds_2_c, error_2_c,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="b",zorder=-130,markersize=4)
-    ax3.plot([0,1], [0,1], 'k', transform=ax3.transAxes)
-    ax3.set_xlim([-250, 3250])
-    ax3.set_ylim([-250, 3250])
-    ax3.set_yticks([0, 1000, 2000, 3000])
-    ax3.set_yticklabels([0, 1000, 2000, 3000])
-    ax3.set_xlabel("$\mathregular{Depth_{true}\ (Å)}$", fontsize=10, weight="bold")
-    ax3.annotate("$\mathregular{2^{ii}}$", xy=(0, 0.5), xytext=(-ax3.yaxis.labelpad - pad, v_pad),
-                        xycoords="axes points", textcoords="offset points",
-                        size="large", ha="right", va="center")
-
-    ax4 = fig.add_subplot(outer_grid[2, 1])
-    ax4.errorbar(labels_2_d, preds_2_d, error_2_d,fmt="o",mec="k",mew=.5,alpha=.6,capsize=3,color="g",zorder=-130,markersize=4)
-    ax4.plot([0,1], [0,1], 'k', transform=ax4.transAxes)
-    ax4.set_xlim([-0.1, 1.1])
-    ax4.set_xticks([0, 0.25, 0.5, 0.75, 1])
-    ax4.set_xticklabels([0, 0.25, 0.5, 0.75, 1])
-    ax4.set_ylim([-0.1, 1.1])
-    ax4.set_yticks([0, 0.5, 1])
-    ax4.set_yticklabels([0, 0.5, 1])
-    ax4.set_xlabel("$\mathregular{SLD_{true}\ (fm\ Å^{-3})}$", fontsize=10, weight="bold")
-
-    plt.savefig('onetwolayer.png', dpi=600)
-
-def main(args):
-    if args.test:
-        # Change to paths which have the one- and two-layer models, respectively
-        path_1_layer = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-1-layer-[2020-05-05T153216]/full_model.h5"
-        path_2_layer = r"C:/Users/mtk57988/stfc/neutron-net/neutron-net/models/investigate/regressor-2-layer-[2020-05-06T231932]/full_model.h5"
-        
-        name = os.path.basename(os.path.dirname(os.path.abspath(args.test)))
-        save_path = os.path.join(args.save, name)
-
-        model_1_layer = load_model(path_1_layer)
-        model_2_layer = load_model(path_2_layer)
-        
-        testdir_1_layer = os.path.join(args.data, "1", "test.h5")
-        testh5_1_layer = h5py.File(testdir_1_layer, "r")
-        test_labels_1_layer = np.array(testh5_1_layer["Y"])
-
-        testdir_2_layer = os.path.join(args.data, "2", "test.h5")
-        testh5_2_layer = h5py.File(testdir_2_layer, "r")
-        test_labels_2_layer = np.array(testh5_2_layer["Y"])
-
-        test_loader_1_layer = DataLoader(testh5_1_layer, DIMS, CHANNELS, args.batch_size, 1)
-        test_loader_2_layer = DataLoader(testh5_2_layer, DIMS, CHANNELS, args.batch_size, 2)
-
-        scaler = pickle.load(open(os.path.join(args.data, "output_scaler.p"), "rb"))
-
-        # If --bayesian flag passed, use Dropout at testing, currently hard-coded for paper
-        if args.bayesian:
-            kdp_1_layer = KerasDropoutPredicter(model_1_layer, test_loader_1_layer)
-            kdp_2_layer = KerasDropoutPredicter(model_2_layer, test_loader_2_layer)
-
-            preds_1_layer = kdp_1_layer.predict(test_loader_1_layer, n_iter=1)
-            preds_2_layer = kdp_2_layer.predict(test_loader_2_layer, n_iter=1)
-
-            ####################################################################################
-            # y_predictions[n] : n = 0:mean prediction, 1:standard deviation, 2:ground truth
-            # y_predictions[n][j] : j = 0:depth, 1:sld
-            # y_predictions[n][j][k] : k = sample number
-            # y_predictions[n][j][k][l] : l = 0:layer1, 1:layer2
-            ###################################################################################
-            
-            depth_1, sld_1 = preds_1_layer[0][0], preds_1_layer[0][1]
-            depth_2, sld_2 = preds_2_layer[0][0], preds_2_layer[0][1]
-
-            depth_ground_1, sld_ground_1 = preds_1_layer[2][0], preds_1_layer[2][1]
-            depth_ground_2, sld_ground_2 = preds_2_layer[2][0], preds_2_layer[2][1]
-
-            depth_std_1, sld_std_1 = preds_1_layer[1][0], preds_1_layer[1][1]
-            depth_std_2, sld_std_2 = preds_2_layer[1][0], preds_2_layer[1][1]
-
-            padded_preds_1 = np.c_[depth_1[:,0], sld_1[:,0], np.zeros(len(depth_1)), np.zeros(len(sld_1))]
-            padded_error_1 = np.c_[depth_std_1[:,0], sld_std_1[:,0], np.zeros(len(depth_1)), np.zeros(len(sld_1))]
-            labels_1 = np.c_[depth_ground_1[:,0], sld_ground_1[:,0], np.zeros(len(depth_1)), np.zeros(len(sld_1))]
-            error_1 = scaler.inverse_transform(padded_error_1)
-            preds_1 = scaler.inverse_transform(padded_preds_1)
-
-            padded_preds_2 = np.c_[depth_2[:,0], sld_2[:,0], depth_2[:,1], sld_2[:,1]]
-            padded_error_2 = np.c_[depth_std_2[:,0], sld_std_2[:,0], depth_std_2[:,1], sld_std_2[:,1]]
-            labels_2 = np.c_[depth_ground_2[:,0], sld_ground_2[:,0], depth_ground_2[:,1], sld_ground_2[:,1]]
-            error_2 = scaler.inverse_transform(padded_error_2)
-            preds_2 = scaler.inverse_transform(padded_preds_2)
-
-            preds = [preds_1, preds_2]
-            labels = [labels_1, labels_2]
-            error = [error_1, error_2]
-
-            plot(preds, labels, save_path, args.batch_size, error)
-
-        # Else if no --bayesian flag passed, test normally without applying Dropout
-        else:
-            preds = model.predict(test_loader, use_multiprocessing=False, verbose=1)
-            depth, sld = preds[0], preds[1]
-            if args.layers == 2:
-                padded_preds = np.c_[depth[:,0], sld[:,0], depth[:,1], sld[:,1]]
-                preds = scaler.inverse_transform(padded_preds)
-            elif args.layers ==1:
-                padded_preds = np.c_[depth[:,0], sld[:,0], np.zeros(len(depth)), np.zeros(len(sld))]
-                preds = scaler.inverse_transform(padded_preds)
-
-            ## the plot() function is currently hard-coded to produce the publication graphics
-            # plot(sample_preds, sample_labels, save_path, args.batch_size, args.layers, )
-        # model.plot(test_labels, save_path)
-    
-    # If not testing proceed to train network and save it
-    else:
-        name = "regressor-%s-layer-[" % str(args.layers) + datetime.now().strftime("%Y-%m-%dT%H%M%S") + "]"
-        save_path = os.path.join(args.save, name)
-
-        # Log to CometML: need to add own api_key and details
-        if args.log:
-            pass
-            # Set up account with Comet-ML and retrieve api_key from them to track experiments
-            # experiment = Experiment(api_key="", project_name="", workspace="")
-
-        train_dir = os.path.join(args.data, str(args.layers), 'train.h5')
-        val_dir = os.path.join(args.data, str(args.layers), 'valid.h5')
-        test_dir = os.path.join(args.data, str(args.layers), 'test.h5')
-
-        train_h5 = h5py.File(train_dir, 'r')
-        val_h5 = h5py.File(val_dir, 'r')
-        test_h5 = h5py.File(test_dir, 'r')
-
-        test_labels = np.array(test_h5["Y"])
-
-        train_loader = DataLoader(train_h5, DIMS, CHANNELS, args.batch_size, args.layers)
-        valid_loader = DataLoader(val_h5, DIMS, CHANNELS, args.batch_size, args.layers)
-        test_loader = DataLoader(test_h5, DIMS, CHANNELS, args.batch_size, args.layers)
-
-        model = Net(DIMS, CHANNELS, args.epochs, args.dropout_rate, 
-            args.learning_rate, args.workers, args.layers, args.batch_size)
-        
-        if args.summary:
-            model.summary()
-
+    if train:
         model.train(train_loader, valid_loader)
-        model.test(test_loader, args.data) 
-        # model.plot(test_labels, save_path)
+
+    model.test(test_loader)
+    if save_path is not None:
         model.save(save_path)
 
-def parse():
-    parser = argparse.ArgumentParser(description="Keras Regressor Training")
-    # Meta Parameters
-    parser.add_argument("data", metavar="data_path", help="path to data directory")
-    parser.add_argument("save", metavar="save_path", help="path to save directory")
-    parser.add_argument("layers", metavar="no_layers", type=int, help="no. layers of system")
-    parser.add_argument("-l", "--log", action="store_true", help="boolean: log metrics to CometML?")
-    parser.add_argument("-s", "--summary", action="store_true", help="show model summary")
-    parser.add_argument("--test", metavar="PATH", help="path to regression model you wish to test")
-    parser.add_argument("--bayesian", action="store_true", help="boolean: be bayesian?")
+    if show_plots:
+        test_labels = np.array(test_h5['targets'])
+        model.plot(test_labels, test_loader, xray)
 
-    # Model parameters
-    parser.add_argument("-e", "--epochs", default=2, type=int, metavar="N", help="number of epochs")
-    parser.add_argument("-b", "--batch_size", default=20, type=int, metavar="N", help="no. samples per batch (def:20)")
-    parser.add_argument("-j", "--workers", default=1, type=int, metavar="N", help="no. data loading workers (def:1)")
+    train_h5.close()
+    val_h5.close()
+    test_h5.close()
 
-    # Learning parameters
-    parser.add_argument("-lr", "--learning_rate", default=0.0004, type=float, metavar="R", help="Nadam learning rate")
-    parser.add_argument("-dr", "--dropout_rate", default=0.1, type=float, metavar="R", help="dropout rate" )
-    return parser.parse_args()
-
-def convert_to_float(dictionary):
-	""" For saving model output to json"""
-	jsoned_dict = {}
-	for key in dictionary.keys():
-		if type(dictionary[key]) == list:
-			jsoned_dict[key] = [float(i) for i in dictionary[key]]
-		else:
-			jsoned_dict[key] = float(dictionary[key])
-	return jsoned_dict
 
 if __name__ == "__main__":
-    args = parse()
-    main(args)
+    layer     = 1
+    xray      = False
+    data_path = "./models/neutron/data/{}".format(LAYERS_STR[layer])
+    save_path = "./models/neutron"
+    load_path = "./models/neutron/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer])
+
+    #regress(data_path, layer, save_path, train=True, epochs=10, xray=xray) #Train new
+    #regress(data_path, layer, save_path, load_path=load_path, train=True, epochs=10, xray=xray) #Train existing
+    regress(data_path, layer, load_path=load_path, train=False, xray=xray) #Load but do not train existing
