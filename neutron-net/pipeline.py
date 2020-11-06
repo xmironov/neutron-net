@@ -296,7 +296,7 @@ class Model():
 
         si_substrate.rough.setp(bounds=Model.rough_bounds, vary=True)
         self.structure = self.structure | si_substrate
-        
+
         data = self.__load_data(file_path) #Pre-process and load given dataset.
         self.model = ReflectModel(self.structure, scale=Model.scale, dq=Model.dq, bkg=Model.bkg)
         self.objective = Objective(self.model, data)
@@ -311,13 +311,13 @@ class Model():
         data = ReflectDataset(file_path) #Load the data for which the model is designed for.
         self.filename = os.path.basename(data.filename)
         data.scale(np.max(data.data[1])) #Normalise Y and Error by dividing by max R point.
-        
+
         x, y, y_err = data.x.tolist(), data.y.tolist(), data.y_err.tolist()
         removed = [] #Remove any points containing 0 values as these cause NaNs when fitting.
         for i in range(len(x)):
             if x[i] == 0 or y[i] == 0 or y_err[i] == 0:
                 removed.append(i)
-        
+
         #Remove the identified points and return the processed dataset.
         x     = np.delete(np.array(x),     removed)
         y     = np.delete(np.array(y),     removed)
@@ -329,9 +329,6 @@ class Model():
         """Fits the model to the data using differential evolution."""
         fitter = CurveFitter(self.objective)
         fitter.fit('differential_evolution', verbose=False)
-        #fitter.sample(400)
-        #fitter.reset()
-        #fitter.sample(15, nthin=100)
 
     def plot_objective(self, prediction=True):
         """Plots the current objective for the model against given dataset.
@@ -495,8 +492,8 @@ class Pipeline:
             model.plot_objective(prediction=False)
 
             for i, component in enumerate(model.structure.components[1:-1]): #Iterate over each layer
-                print(">>> Fitted layer {0} - SLD:   {1:9.3f} | Error: {2:7.5f}".format(i+1, component.sld.real.value, component.sld.real.stderr))
-                print(">>> Fitted layer {0} - Depth: {1:9.3f} | Error: {2:7.5f}".format(i+1, component.thick.value,    component.thick.stderr))
+                print(">>> Fitted layer {0} - SLD:   {1:10.7f} | Error: {2:10.8f}".format(i+1, component.sld.real.value, component.sld.real.stderr))
+                print(">>> Fitted layer {0} - Depth: {1:10.7f} | Error: {2:10.8f}".format(i+1, component.thick.value,    component.thick.stderr))
             print()
 
     @staticmethod
@@ -518,7 +515,7 @@ class Pipeline:
         for dat_file in dat_files:
             data = pd.read_csv(dat_file, header='infer', sep='\s+', names=['X', 'Y', 'Error'])
             data = data[(data != 0).all(1)] #Remove any 0 values.
-            
+
             if not os.path.exists(temp_path):
                 os.makedirs(temp_path)
             head, tail = os.path.split(dat_file)
@@ -526,7 +523,7 @@ class Pipeline:
             image_files.append(name)
             sample_momentum = data["X"]
             sample_reflect  = data["Y"]
-    
+
             sample_reflect_norm = sample_reflect / np.max(sample_reflect) #Normalise data so that max reflectivity is 1
 
             sample = np.vstack((sample_momentum, sample_reflect_norm)).T
@@ -595,7 +592,7 @@ class Pipeline:
                 load_path_layer = save_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[layer]) #Load an existing regressor.
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots, xray=xray)
             print()
-            
+
 def plot_objective_dual(objective1, objective2):
     """Creates a plot of two predictions on the same axis (for the paper).
 
@@ -610,13 +607,13 @@ def plot_objective_dual(objective1, objective2):
     #Get the data, errors and predictions for each objective.
     y1, y_err1, model1 = objective1._data_transform(model=objective1.generative())
     y2, y_err2, model2 = objective2._data_transform(model=objective2.generative())
-    
+
     # Add the data in a transformed fashion.
     ax.errorbar(objective1.data.x, y1, y_err1, label="Dataset1",
                 color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
-    ax.errorbar(objective2.data.x, y2/100, y_err2/100, label="$\mathregular{Dataset2\ (x10^{-2})}$", 
+    ax.errorbar(objective2.data.x, y2/100, y_err2/100, label="$\mathregular{Dataset2\ (x10^{-2})}$",
                 color="green", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
-    
+
     #Add the predictions
     ax.plot(objective1.data.x, model1, color="red", label="Prediction1", zorder=20)
     ax.plot(objective2.data.x, model2/100, color="black", label="$\mathregular{Prediction2\ (x10^{-2})}$", zorder=20)
@@ -647,6 +644,6 @@ if __name__ == "__main__":
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
     models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
-    
+
     #Make sure to set fit to false otherwise fits are plotted.
     plot_objective_dual(models['test_sample_1.dat'].objective, models['test_sample_2.dat'].objective)
