@@ -46,8 +46,8 @@ Contributions are gladly accepted and would be very much appreciated.
 Distributed under the GNU AGPLv3 license. See [license](/LICENSE) for more information.
 
 ## Contact
-James Durant   - james.durant@stfc.ac.uk\
 Jos Cooper     - jos.cooper@stfc.ac.uk\
+James Durant   - james.durant@stfc.ac.uk\
 Daniil Mironov - daniil.mironov@stfc.ac.uk
 
 ## Acknowledgements
