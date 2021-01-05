@@ -11,7 +11,7 @@ from pipeline       import Pipeline, DataLoaderRegression, KerasDropoutPredicter
 
 class TimeVarying:
     """The TimeVarying class contains all the code for generating and predicting on
-       a dataset whose layer-one depth changes over time"""
+       a dataset whose topmost layer's depth changes over time"""
     
     def __init__(self, path):
         """Initialises a TimeVarying object with given file path to save to or load from.
@@ -116,21 +116,18 @@ class TimeVarying:
             sld_errors (ndarray): KDP errors for layer one and two SLD predictions.
         
         """
-        steps = len(self.thick_range)
-        time_steps = np.arange(1, steps+1, 1) #The time steps of arbitrary units.
-        
+        steps = len(self.thick_range) #Number of "time" steps.
         #Plot the ground truth and predictions for both of the layers' SLDs and depths.
         depth_true = (self.thick_range,        [self.layer2_thick]*steps)
         sld_true   = ([self.layer1_sld]*steps, [self.layer2_sld]*steps)
         
-        self.__plot_data(time_steps, depth_true, depth_predictions, depth_errors, "Depth", True)   
-        self.__plot_data(time_steps, sld_true,   sld_predictions,   sld_errors,   "SLD", False) 
+        self.__plot_data(depth_true, depth_predictions, depth_errors, "Depth", True)   
+        self.__plot_data(sld_true,   sld_predictions,   sld_errors,   "SLD",   False) 
             
-    def __plot_data(self, time_steps, ground_truths, predictions, errors, parameter, legend):
+    def __plot_data(self, ground_truths, predictions, errors, parameter, legend):
         """Creates an individual of plot of predictions against ground-truth.
         
         Args:
-            time_steps (ndarray): the x-axis for the plot (how many datasets are the in the experiment).
             ground_truth (ndarray): the ground truth labels associated with given predictions
             predictions (ndarray): predictions for either depth or SLD made by the KDP.
             errors (ndarray): errors in the given predictions.
@@ -144,11 +141,11 @@ class TimeVarying:
         
         fig = plt.figure(figsize=(8,5), dpi=600)
         ax = fig.add_subplot(111)
-        ax.plot(time_steps, true_layer1, mew=0.5, alpha=0.6, c='b', label='Layer 1 Ground Truth')
-        ax.plot(time_steps, true_layer2, mew=0.5, alpha=0.6, c='g', label='Layer 2 Ground Truth')
-        ax.errorbar(time_steps, pred_layer1, error_layer1, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="b", zorder=-130, markersize=4, label='Layer 1 Prediction')
-        ax.errorbar(time_steps, pred_layer2, error_layer2, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="g", zorder=-130, markersize=4, label='Layer 2 Prediction')
-        ax.set_xlabel("Time Step", fontsize=10, weight="bold")
+        ax.plot(self.thick_range, true_layer1, mew=0.5, alpha=0.6, c='b', label='Layer 1 Ground Truth')
+        ax.plot(self.thick_range, true_layer2, mew=0.5, alpha=0.6, c='g', label='Layer 2 Ground Truth')
+        ax.errorbar(self.thick_range, pred_layer1, error_layer1, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="b", zorder=-130, markersize=4, label='Layer 1 Prediction')
+        ax.errorbar(self.thick_range, pred_layer2, error_layer2, fmt="o", mec="k", mew=0.5, alpha=0.6, capsize=3, color="g", zorder=-130, markersize=4, label='Layer 2 Prediction')
+        ax.set_xlabel("$\mathregular{Layer\ 1\ Depth\ (Å)}$", fontsize=10, weight="bold")
         
         if parameter == "SLD":
             #ax.set_ylim(*NeutronGenerator.sld_bounds)

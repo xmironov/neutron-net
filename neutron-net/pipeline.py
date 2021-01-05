@@ -593,40 +593,62 @@ class Pipeline:
                 regress(data_path_layer, layer, load_path=load_path_layer, train=False, show_plots=show_plots, xray=xray)
             print()
 
-def plot_objective_dual(objective1, objective2):
-    """Creates a plot of two predictions on the same axis (for the paper).
+def make_paper_plots(model1, model2):
+    """Creates a plot of two predictions on the same axis and the plots of 
+       predicted against fitted SLD profiles for each.
 
     Args:
-        objective1 (Objective): the first refnx objective object to plot.
-        objective2 (Objective): the second refnx objective object to plot.
+        model1 (Model): the predicted Model for test_sample_1.dat
+        model2 (Model): the predicted Model for test_sample_2.dat
 
     """
-    fig = plt.figure(figsize=[9,7], dpi=600)
-    ax = fig.add_subplot(111)
+    objective1, objective2 = model1.objective, model2.objective
+    fig1 = plt.figure(figsize=[9,7], dpi=600, num=1)
+    ax1 = fig1.add_subplot(111)
 
     #Get the data, errors and predictions for each objective.
-    y1, y_err1, model1 = objective1._data_transform(model=objective1.generative())
-    y2, y_err2, model2 = objective2._data_transform(model=objective2.generative())
+    y1, y_err1, y_model1 = objective1._data_transform(model=objective1.generative())
+    y2, y_err2, y_model2 = objective2._data_transform(model=objective2.generative())
 
     # Add the data in a transformed fashion.
-    ax.errorbar(objective1.data.x, y1, y_err1, label="Dataset1",
+    ax1.errorbar(objective1.data.x, y1, y_err1, label="Dataset1",
                 color="blue", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
-    ax.errorbar(objective2.data.x, y2/100, y_err2/100, label="$\mathregular{Dataset2\ (x10^{-2})}$",
+    ax1.errorbar(objective2.data.x, y2/100, y_err2/100, label="$\mathregular{Dataset2\ (x10^{-2})}$",
                 color="green", marker="o", ms=3, lw=0, elinewidth=1, capsize=1.5)
 
     #Add the predictions
-    ax.plot(objective1.data.x, model1, color="red", label="Prediction1", zorder=20)
-    ax.plot(objective2.data.x, model2/100, color="black", label="$\mathregular{Prediction2\ (x10^{-2})}$", zorder=20)
-    ax.set_xlim((0, 0.35))
-    ax.set_ylim((5e-10, 1.2))
-
-    plt.xlabel("$\mathregular{Q\ (Å^{-1})}$", fontsize=11, weight='bold')
-    plt.ylabel('Reflectivity (arb.)',         fontsize=11, weight='bold')
-    plt.yscale('log')
-    plt.legend()
+    ax1.plot(objective1.data.x, y_model1, color="red", label="Prediction1", zorder=20)
+    ax1.plot(objective2.data.x, y_model2/100, color="black", label="$\mathregular{Prediction2\ (x10^{-2})}$", zorder=20)
+    ax1.set_xlim((0, 0.35))
+    ax1.set_ylim((5e-10, 1.2))
+    ax1.set_xlabel("$\mathregular{Q\ (Å^{-1})}$", fontsize=11, weight='bold')
+    ax1.set_ylabel('Reflectivity (arb.)',         fontsize=11, weight='bold')
+    ax1.set_yscale('log')
+    ax1.legend(loc='lower left')
+    
+    #Create the plot of predicted against fitted SLD profile for the first model.
+    structure1 = model1.structure
+    fig2 = plt.figure(figsize=[9,7], dpi=600, num=2)
+    ax2  = fig2.add_subplot(111)
+    ax2.set_xlabel("$\mathregular{Distance\ (\AA)}$", fontsize=11, weight='bold')
+    ax2.set_ylabel("$\mathregular{SLD\ (x10^{-6} \AA^{-2})}$", fontsize=11, weight='bold')
+    ax2.plot(*structure1.sld_profile(), color="red") #Plot SLD profile.
+    model1.fit()
+    ax2.plot(*structure1.sld_profile(), color="blue") #Plot SLD profile.
+    
+    #Create the plot of predicted against fitted SLD profile for the second model.
+    structure2 = model2.structure
+    fig3 = plt.figure(figsize=[9,7], dpi=600, num=3)
+    ax3  = fig3.add_subplot(111)
+    ax3.set_xlabel("$\mathregular{Distance\ (\AA)}$", fontsize=11, weight='bold')
+    ax3.set_ylabel("$\mathregular{SLD\ (x10^{-6} \AA^{-2})}$", fontsize=11, weight='bold')
+    ax3.plot(*structure2.sld_profile(), color="black") #Plot SLD profile.
+    model2.fit()
+    ax3.plot(*structure2.sld_profile(), color="green") #Plot SLD profile.
+    plt.show()
 
 if __name__ == "__main__":
-    save_path = './models/neutron'
+    save_path  = './models/neutron'
     layers     = [1, 2, 3]
     curve_num  = 50000
     chunk_size = 100
@@ -643,7 +665,9 @@ if __name__ == "__main__":
     data_path = "./data/real"
     classifier_path = load_path + "/classifier/full_model.h5"
     regressor_paths = {i: load_path + "/{}-layer-regressor/full_model.h5".format(LAYERS_STR[i]) for i in range(1, 4)}
-    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=True, n_iter=100, xray=xray)
+    models = Pipeline.run(data_path, data_path, classifier_path, regressor_paths, fit=False, n_iter=100, xray=xray)
+    plt.show()
 
-    #Make sure to set fit to false otherwise fits are plotted.
-    plot_objective_dual(models['test_sample_1.dat'].objective, models['test_sample_2.dat'].objective)
+    #Make sure to set fit to false otherwise fits are plotted against themselves.
+    make_paper_plots(models['test_sample_1.dat'], models['test_sample_2.dat'])
+    
