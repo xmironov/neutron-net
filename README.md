@@ -17,13 +17,13 @@ Training losses for the neutron and xray models are available [here](/resources/
 
 ## Getting Started
 ### Installation
-1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: \ ```conda create --name neutron-net```
+1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br /> ```conda create --name neutron-net```
 
 2. To activate the environment, run: ```conda activate neutron-net```
 
 3. Install pip by running: ```conda install pip```
 
-4. Navigate to the main neutron-net directory. Run the following to install the required packages from the [requirements.txt](/requirements.txt) file: \ ```pip install -r requirements.txt```
+4. Navigate to the main neutron-net directory. Run the following to install the required packages from the [requirements.txt](/requirements.txt) file: <br /> ```pip install -r requirements.txt```
 
 5. You should be able to run the code. Try: ```python pipeline.py```
 
