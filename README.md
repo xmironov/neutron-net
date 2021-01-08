@@ -7,7 +7,8 @@ A neural network-based tool for automatic estimation of thin film thicknesses an
 
 The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>.
 
-Additional figures to those seen in the paper are available [here](/resources/figures).
+Additional figures to those seen in the paper are available [here](/resources/figures). \
+Training losses for the neutron and xray models are available [here](/resources/training).
 
 ### Built With
 * TensorFlow Keras
@@ -31,7 +32,7 @@ Additional figures to those seen in the paper are available [here](/resources/fi
 Please read [usage](/usage.md) for instructions on how to use the system.
 
 ### Data
-The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing). Training losses for the neutron and xray models are available [here](/resources/training).
+The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
 
 ## Contributing
 Contributions are gladly accepted and would be very much appreciated.
