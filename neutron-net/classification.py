@@ -267,7 +267,7 @@ def classify(data_path, save_path=None, load_path=None, train=True, summary=Fals
 
     if train:
         model.train(train_loader, validate_loader)
-    
+
     if save_path is not None:
         model.save(save_path)
 

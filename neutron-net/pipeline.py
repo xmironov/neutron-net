@@ -594,7 +594,7 @@ class Pipeline:
             print()
 
 def make_paper_plots(model1, model2):
-    """Creates a plot of two predictions on the same axis and the plots of 
+    """Creates a plot of two predictions on the same axis and the plots of
        predicted against fitted SLD profiles for each.
 
     Args:
@@ -625,7 +625,7 @@ def make_paper_plots(model1, model2):
     ax1.set_ylabel('Reflectivity (arb.)',         fontsize=11, weight='bold')
     ax1.set_yscale('log')
     ax1.legend(loc='lower left')
-    
+
     #Create the plot of predicted against fitted SLD profile for the first model.
     structure1 = model1.structure
     fig2 = plt.figure(figsize=[9,7], dpi=600, num=2)
@@ -635,7 +635,7 @@ def make_paper_plots(model1, model2):
     ax2.plot(*structure1.sld_profile(), color="red") #Plot SLD profile.
     model1.fit()
     ax2.plot(*structure1.sld_profile(), color="blue") #Plot SLD profile.
-    
+
     #Create the plot of predicted against fitted SLD profile for the second model.
     structure2 = model2.structure
     fig3 = plt.figure(figsize=[9,7], dpi=600, num=3)
@@ -670,4 +670,3 @@ if __name__ == "__main__":
 
     #Make sure to set fit to false otherwise fits are plotted against themselves.
     make_paper_plots(models['test_sample_1.dat'], models['test_sample_2.dat'])
-    

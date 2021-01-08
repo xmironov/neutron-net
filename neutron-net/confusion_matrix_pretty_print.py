@@ -61,7 +61,7 @@ class ConfusionMatrixPrinter:
                 elif (column == ccl - 1):
                     tot_rig = array_df[row][row]
                     per_ok  = (float(tot_rig) / cell_val) * 100
-                    
+
                 elif (row == ccl - 1):
                     tot_rig = array_df[column][column]
                     per_ok  = (float(tot_rig) / cell_val) * 100
