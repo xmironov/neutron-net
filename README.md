@@ -31,7 +31,7 @@ Additional figures to those seen in the paper are available [here](/resources/fi
 Please read [usage](/usage.md) for instructions on how to use the system.
 
 ### Data
-The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
+The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing). Training losses for the neutron and xray models are available [here](/resources/training).
 
 ## Contributing
 Contributions are gladly accepted and would be very much appreciated.
