@@ -7,8 +7,8 @@ A neural network-based tool for automatic estimation of thin film thicknesses an
 
 The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>. 
 
-Please cite the following paper if you intend on including elements of this work in your own publications:
-> "Mironov, D., Durant, J. H., Mackenzie, R., and Cooper, J. F. K. (2021). Towards automated analysis for neutron reflectivity. *Machine Learning: Science and Technology*. https://doi.org/10.1088/2632-2153/abe7b5"
+Please cite the following article if you intend on including elements of this work in your own publications:
+> Mironov, D., Durant, J. H., Mackenzie, R., and Cooper, J. F. K. (2021). Towards automated analysis for neutron reflectivity. *Machine Learning: Science and Technology*, 2(3). https://doi.org/10.1088/2632-2153/abe7b5
 
 Additional figures to those seen in the paper are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training).
 
