@@ -7,11 +7,6 @@ This repository describes a neural network-based pipeline for the automatic esti
 
 The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>. 
 
-### Built With
-* [`Python3`](https://www.python.org/)
-* [`TensorFlow Keras`](https://www.tensorflow.org/api_docs/python/tf/keras)
-* [`refnx`](https://refnx.readthedocs.io/en/latest/)
-
 ### Citation
 Please cite the following article if you intend on including elements of this work in your own publications:
 > Mironov, D., Durant, J. H., Mackenzie, R., and Cooper, J. F. K. (2021). Towards automated analysis for neutron reflectivity. *Machine Learning: Science and Technology*, 2(3):035006.
@@ -34,27 +29,27 @@ Or with BibTeX as:
 ```
 
 ## Installation
-1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br /> ```conda create --name neutron-net```
+1. To replicate the development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: `conda create --name neutron-net`
 
-2. To activate the environment, run: ```conda activate neutron-net```
+2. To activate the environment, run: `conda activate neutron-net`
 
-3. Install pip by running: ```conda install pip```
+3. Install pip by running: `conda install pip`
 
-4. Navigate to the main neutron-net directory. Run the following to install the required packages from the [requirements.txt](/requirements.txt) file: <br /> ```pip install -r requirements.txt```
+4. Navigate to the main neutron-net directory. Run the following to install the required packages from the [requirements.txt](/requirements.txt) file: `pip install -r requirements.txt`
 
-5. You should be able to run the code. Try: ```python pipeline.py```
+5. You should be able to run the code. Try: `python pipeline.py`
 
 ## Usage
 Please read [usage](/usage.md) for detailed instructions on how to use the system.
 
-## Data
+## Figures and Data
 Additional figures to those seen in the article are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training). 
 
 The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
 
 ## Contact
-Jos Cooper     - jos.cooper@stfc.ac.uk \
-James Durant   - james.durant@warwick.ac.uk \
+Jos Cooper - jos.cooper@stfc.ac.uk \
+James Durant - james.durant@warwick.ac.uk \
 Daniil Mironov - daniil.mironov@stfc.ac.uk
 
 ## Acknowledgements
