@@ -13,8 +13,8 @@ Please cite the following article if you intend on including elements of this wo
 Additional figures to those seen in the paper are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training).
 
 ### Built With
-* [`TensorFlow Keras`](https://www.tensorflow.org/api_docs/python/tf/keras)
 * [`Python3`](https://www.python.org/)
+* [`TensorFlow Keras`](https://www.tensorflow.org/api_docs/python/tf/keras)
 * [`refnx`](https://refnx.readthedocs.io/en/latest/)
 
 ## Getting Started
