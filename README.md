@@ -3,11 +3,9 @@
 A lightweight tool to analyse neutron reflectivity curves and generate initial refnx fits.
 
 ## About the Project
-A neural network-based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to three layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC Neutron Reflectometer) is processed and passed through the neural networks to produce layer parameter predictions. These predictions are then fed into refnx, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is running the [pipeline.py](/neutron-net/pipeline.py) file with their reflectivity data.
+This repository contains the code for a neural network-based tool for automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to three layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC neutron reflectometer) is processed and passed through the neural networks to produce layer parameter predictions. These predictions are then fed into refnx, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is running the [pipeline.py](/neutron-net/pipeline.py) file with their reflectivity data. The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>. 
 
-The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>. 
-
-Additional figures to those seen in the paper are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training).
+Additional figures to those seen in the paper are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training). Please read [usage](/usage.md) for instructions on how to use the system. The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
 
 ### Built With
 * [`Python3`](https://www.python.org/)
@@ -35,8 +33,7 @@ Or with BibTeX as:
 }
 ```
 
-## Getting Started
-### Installation
+## Installation
 1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br /> ```conda create --name neutron-net```
 
 2. To activate the environment, run: ```conda activate neutron-net```
@@ -47,11 +44,15 @@ Or with BibTeX as:
 
 5. You should be able to run the code. Try: ```python pipeline.py```
 
-### Usage
-Please read [usage](/usage.md) for instructions on how to use the system.
+## Contact
+Jos Cooper     - jos.cooper@stfc.ac.uk \
+James Durant   - james.durant@warwick.ac.uk \
+Daniil Mironov - daniil.mironov@stfc.ac.uk
 
-### Data
-The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
+## Acknowledgements
+Many thanks for the collaboration of the Scientific Machine Learning group at the Rutherford Appleton Laboratory, their expertise and assistance with this project - in particular, we'd like to thank Rebecca Mackenzie for being so key in laying the groundwork, and giving the project a strong foundation. The authors would like to thank Johnathan Xue, whose initial work and results allowed the project to go ahead. We thank the Ada Lovelace Centre for funding.
+
+This work was partially supported by Wave 1 of The UKRI Strategic Priorities Fund under the EPSRC Grant EP/T001569/1, particularly the “AI for Science” theme within that grant & The Alan Turing Institute.
 
 ## Contributing
 Contributions are gladly accepted and would be very much appreciated.
@@ -64,13 +65,3 @@ Contributions are gladly accepted and would be very much appreciated.
 
 ## License
 Distributed under the GNU AGPLv3 license. See [license](/LICENSE) for more information.
-
-## Contact
-Jos Cooper     - jos.cooper@stfc.ac.uk \
-James Durant   - james.durant@warwick.ac.uk \
-Daniil Mironov - daniil.mironov@stfc.ac.uk
-
-## Acknowledgements
-Many thanks for the collaboration of the Scientific Machine Learning group at the Rutherford Appleton Laboratory, their expertise and assistance with this project - in particular, we'd like to thank Rebecca Mackenzie for being so key in laying the groundwork, and giving the project a strong foundation. The authors would like to thank Johnathan Xue, whose initial work and results allowed the project to go ahead. We thank the Ada Lovelace Centre for funding.
-
-This work was partially supported by Wave 1 of The UKRI Strategic Priorities Fund under the EPSRC Grant EP/T001569/1, particularly the “AI for Science” theme within that grant & The Alan Turing Institute.
