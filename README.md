@@ -3,7 +3,9 @@
 A lightweight tool to analyse neutron reflectivity curves and generate initial refnx fits.
 
 ## About the Project
-This repository describes a neural network-based pipeline for the automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to three layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC neutron reflectometer) is processed and passed through the pipeline to produce layer parameter predictions. These predictions are then fed into refnx, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is running the [pipeline.py](/neutron-net/pipeline.py) file with their reflectivity data. The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>. 
+This repository describes a neural network-based pipeline for the automatic estimation of thin film thicknesses and scattering length densities from neutron reflectivity curves of systems containing up to three layers on top of a substrate. Raw instrument data (in our case from the OFFSPEC neutron reflectometer) is processed and passed through the pipeline to produce layer parameter predictions. These predictions are then fed into refnx, and serve as initial "guesses" for further optimisation to yield a model that likely describes a given sample. All that is required from the end user is running the [pipeline.py](/neutron-net/pipeline.py) file with their reflectivity data.
+
+The project was motivated by the desire to enable on-experiment analysis of reflectivity data, informing choices about changing experiment conditions or samples <em>in operando</em>. 
 
 ### Built With
 * [`Python3`](https://www.python.org/)
@@ -12,7 +14,7 @@ This repository describes a neural network-based pipeline for the automatic esti
 
 ### Citation
 Please cite the following article if you intend on including elements of this work in your own publications:
-> Mironov, D., Durant, J. H., Mackenzie, R., and Cooper, J. F. K. (2021). Towards automated analysis for neutron reflectivity. *Machine Learning: Science and Technology*, 2(3):035006. https://doi.org/10.1088/2632-2153/abe7b5
+> Mironov, D., Durant, J. H., Mackenzie, R., and Cooper, J. F. K. (2021). Towards automated analysis for neutron reflectivity. *Machine Learning: Science and Technology*, 2(3):035006.
 
 Or with BibTeX as:
 ```
@@ -31,14 +33,6 @@ Or with BibTeX as:
 }
 ```
 
-## Usage
-Please read [usage](/usage.md) for instructions on how to use the system.
-
-# Data
-Additional figures to those seen in the article are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training). 
-
-The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
-
 ## Installation
 1. To replicate development environment with the [`Anaconda`](https://www.anaconda.com/products/individual) distribution, first create an empty conda environment by running: <br /> ```conda create --name neutron-net```
 
@@ -49,6 +43,14 @@ The synthetic data used for training the [neutron](/neutron-net/models/neutron) 
 4. Navigate to the main neutron-net directory. Run the following to install the required packages from the [requirements.txt](/requirements.txt) file: <br /> ```pip install -r requirements.txt```
 
 5. You should be able to run the code. Try: ```python pipeline.py```
+
+## Usage
+Please read [usage](/usage.md) for detailed instructions on how to use the system.
+
+## Data
+Additional figures to those seen in the article are available [here](/resources/figures) and training losses for the neutron and x-ray models are available [here](/resources/training). 
+
+The synthetic data used for training the [neutron](/neutron-net/models/neutron) and [x-ray](/neutron-net/models/xray) models is available for download [`here`](https://drive.google.com/drive/folders/1meHjrb2812QSvZPaBXc7i02fbsu4AH6Y?usp=sharing).
 
 ## Contact
 Jos Cooper     - jos.cooper@stfc.ac.uk \
