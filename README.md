@@ -9,7 +9,7 @@ The project was motivated by the desire to enable on-experiment analysis of refl
 
 ### Citation
 Please cite the following article if you intend on including elements of this work in your own publications:
-> Mironov, D., Durant, J. H., Mackenzie, R., and Cooper, J. F. K. (2021). Towards automated analysis for neutron reflectivity. *Machine Learning: Science and Technology*, 2(3):035006.
+> D. Mironov, J. H. Durant, R. Mackenzie and J. F. K. Cooper. Towards automated analysis for neutron reflectivity. _Mach. Learn.: Sci. Technol._ **2**, 035006 (2021).
 
 Or with BibTeX as:
 ```
